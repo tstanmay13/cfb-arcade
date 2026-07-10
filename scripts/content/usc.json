@@ -1,0 +1,150 @@
+{
+  "school_id": "usc",
+  "cfbd_name": "USC",
+  "name": "USC",
+  "mascot": "Trojans",
+  "powerhouse_eras": ["2000s"],
+  "conferences": { "1980s": "Pac-10", "1990s": "Pac-10", "2000s": "Pac-10", "2010s": "Pac-12" },
+  "coaches": [
+    {
+      "name": "Pete Carroll",
+      "decade": "2000s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 97, "stat_2": 2, "stat_3": 7, "stat_4": 77.8, "stat_5": 97 }
+    },
+    {
+      "name": "Lincoln Riley",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 26, "stat_2": 0, "stat_3": 0, "stat_4": 33.3, "stat_5": 81 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Matt Leinart",
+      "jersey_number": "11",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 3322, "stat_2": 33, "stat_3": 6, "stat_4": 108, "stat_5": 65.7 }
+    },
+    {
+      "name": "Carson Palmer",
+      "jersey_number": "3",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 3942, "stat_2": 33, "stat_3": 10, "stat_4": 152, "stat_5": 63.2 }
+    },
+    {
+      "name": "Reggie Bush",
+      "jersey_number": "5",
+      "primary_position": "RB",
+      "secondary_position": "WR",
+      "decade": "2000s",
+      "hidden_ovr": 98,
+      "stats": { "stat_1": 1740, "stat_2": 16, "stat_3": 8.7, "stat_4": 478, "stat_5": 2 }
+    },
+    {
+      "name": "LenDale White",
+      "jersey_number": "21",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 1302, "stat_2": 24, "stat_3": 5.9, "stat_4": 173, "stat_5": 1 }
+    },
+    {
+      "name": "Mike Williams",
+      "jersey_number": "1",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 95, "stat_2": 1314, "stat_3": 16, "stat_4": 13.8, "stat_5": 69 }
+    },
+    {
+      "name": "Dwayne Jarrett",
+      "jersey_number": "8",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 91, "stat_2": 1274, "stat_3": 13, "stat_4": 14.0, "stat_5": 62 }
+    },
+    {
+      "name": "Steve Smith",
+      "jersey_number": "2",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 86,
+      "stats": { "stat_1": 71, "stat_2": 1083, "stat_3": 9, "stat_4": 15.3, "stat_5": 54 }
+    },
+    {
+      "name": "Sedrick Ellis",
+      "jersey_number": "49",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 58, "stat_2": 11, "stat_3": 8.5, "stat_4": 2, "stat_5": 4 }
+    },
+    {
+      "name": "Mike Patterson",
+      "jersey_number": "96",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 60, "stat_2": 12, "stat_3": 6, "stat_4": 2, "stat_5": 3 }
+    },
+    {
+      "name": "Rey Maualuga",
+      "jersey_number": "58",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 79, "stat_2": 9.5, "stat_3": 5, "stat_4": 2, "stat_5": 3 }
+    },
+    {
+      "name": "Brian Cushing",
+      "jersey_number": "10",
+      "primary_position": "LB",
+      "secondary_position": "DL",
+      "decade": "2000s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 73, "stat_2": 10.5, "stat_3": 4.5, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Terrell Thomas",
+      "jersey_number": "26",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 84,
+      "stats": { "stat_1": 63, "stat_2": 4, "stat_3": 11, "stat_4": 0, "stat_5": 3 }
+    },
+    {
+      "name": "Troy Polamalu",
+      "jersey_number": "43",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 118, "stat_2": 3, "stat_3": 10, "stat_4": 4, "stat_5": 13 }
+    },
+    {
+      "name": "Taylor Mays",
+      "jersey_number": "2",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 96, "stat_2": 5, "stat_3": 9, "stat_4": 1, "stat_5": 3 }
+    }
+  ]
+}

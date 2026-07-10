@@ -1,0 +1,96 @@
+{
+  "school_id": "michigan",
+  "cfbd_name": "Michigan",
+  "name": "Michigan",
+  "mascot": "Wolverines",
+  "powerhouse_eras": ["1980s", "1990s", "2020s"],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Jim Harbaugh",
+      "decade": "2020s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 34, "stat_2": 1, "stat_3": 3, "stat_4": 66.7, "stat_5": 89 }
+    },
+    {
+      "name": "Lloyd Carr",
+      "decade": "1990s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 48, "stat_2": 1, "stat_3": 2, "stat_4": 60.0, "stat_5": 122 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Charles Woodson",
+      "jersey_number": "2",
+      "primary_position": "CB",
+      "secondary_position": "WR",
+      "decade": "1990s",
+      "hidden_ovr": 98,
+      "stats": { "stat_1": 44, "stat_2": 8, "stat_3": 15, "stat_4": 2, "stat_5": 2 }
+    },
+    {
+      "name": "Desmond Howard",
+      "jersey_number": "21",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 62, "stat_2": 985, "stat_3": 19, "stat_4": 15.9, "stat_5": 93 }
+    },
+    {
+      "name": "Brian Griese",
+      "jersey_number": "14",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 2293, "stat_2": 17, "stat_3": 6, "stat_4": 28, "stat_5": 62.7 }
+    },
+    {
+      "name": "Tyrone Wheatley",
+      "jersey_number": "6",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 1357, "stat_2": 13, "stat_3": 7.3, "stat_4": 158, "stat_5": 1 }
+    },
+    {
+      "name": "Anthony Carter",
+      "jersey_number": "1",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 51, "stat_2": 952, "stat_3": 14, "stat_4": 18.7, "stat_5": 71 }
+    },
+    {
+      "name": "Jim Harbaugh",
+      "jersey_number": "4",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 2729, "stat_2": 18, "stat_3": 8, "stat_4": 152, "stat_5": 65.5 }
+    },
+    {
+      "name": "Mark Messner",
+      "jersey_number": "60",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 74, "stat_2": 20, "stat_3": 11, "stat_4": 2, "stat_5": 1 }
+    },
+    {
+      "name": "Tripp Welborne",
+      "jersey_number": "3",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 79, "stat_2": 5, "stat_3": 8, "stat_4": 1, "stat_5": 4 }
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+{
+  "school_id": "alabama",
+  "cfbd_name": "Alabama",
+  "name": "Alabama",
+  "mascot": "Crimson Tide",
+  "powerhouse_eras": ["1990s", "2000s", "2010s", "2020s"],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Nick Saban",
+      "decade": "2010s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 124, "stat_2": 5, "stat_3": 6, "stat_4": 81.0, "stat_5": 292 }
+    },
+    {
+      "name": "Kalen DeBoer",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 20, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 124 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Tua Tagovailoa",
+      "jersey_number": "13",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 3966, "stat_2": 43, "stat_3": 6, "stat_4": 190, "stat_5": 69.0 }
+    },
+    {
+      "name": "AJ McCarron",
+      "jersey_number": "10",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 3063, "stat_2": 28, "stat_3": 7, "stat_4": 13, "stat_5": 67.2 }
+    },
+    {
+      "name": "Derrick Henry",
+      "jersey_number": "2",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 97,
+      "stats": { "stat_1": 2219, "stat_2": 28, "stat_3": 5.6, "stat_4": 91, "stat_5": 0 }
+    },
+    {
+      "name": "Trent Richardson",
+      "jersey_number": "3",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 1679, "stat_2": 21, "stat_3": 5.9, "stat_4": 338, "stat_5": 3 }
+    },
+    {
+      "name": "Amari Cooper",
+      "jersey_number": "9",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 124, "stat_2": 1727, "stat_3": 16, "stat_4": 13.9, "stat_5": 80 }
+    },
+    {
+      "name": "Julio Jones",
+      "jersey_number": "8",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 78, "stat_2": 1133, "stat_3": 7, "stat_4": 14.5, "stat_5": 68 }
+    },
+    {
+      "name": "Calvin Ridley",
+      "jersey_number": "3",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 89, "stat_2": 1045, "stat_3": 7, "stat_4": 11.7, "stat_5": 57 }
+    },
+    {
+      "name": "Jonathan Allen",
+      "jersey_number": "93",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 69, "stat_2": 16, "stat_3": 10.5, "stat_4": 3, "stat_5": 1 }
+    },
+    {
+      "name": "Quinnen Williams",
+      "jersey_number": "92",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 71, "stat_2": 19.5, "stat_3": 8, "stat_4": 1, "stat_5": 1 }
+    },
+    {
+      "name": "C.J. Mosley",
+      "jersey_number": "32",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 108, "stat_2": 9, "stat_3": 1, "stat_4": 2, "stat_5": 1 }
+    },
+    {
+      "name": "Reuben Foster",
+      "jersey_number": "10",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 115, "stat_2": 13, "stat_3": 5, "stat_4": 0, "stat_5": 2 }
+    },
+    {
+      "name": "Marlon Humphrey",
+      "jersey_number": "26",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 45, "stat_2": 2, "stat_3": 12, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "Minkah Fitzpatrick",
+      "jersey_number": "29",
+      "primary_position": "S",
+      "secondary_position": "CB",
+      "decade": "2010s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 60, "stat_2": 6, "stat_3": 8, "stat_4": 1, "stat_5": 5 }
+    },
+    {
+      "name": "Landon Collins",
+      "jersey_number": "26",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 103, "stat_2": 3, "stat_3": 7, "stat_4": 1, "stat_5": 4 }
+    }
+  ]
+}

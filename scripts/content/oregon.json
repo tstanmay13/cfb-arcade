@@ -1,0 +1,114 @@
+{
+  "school_id": "oregon",
+  "cfbd_name": "Oregon",
+  "name": "Oregon",
+  "mascot": "Ducks",
+  "powerhouse_eras": ["2010s", "2020s"],
+  "conferences": { "2000s": "Pac-10", "2010s": "Pac-12" },
+  "coaches": [
+    {
+      "name": "Chip Kelly",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 46, "stat_2": 0, "stat_3": 4, "stat_4": 50.0, "stat_5": 46 }
+    },
+    {
+      "name": "Dan Lanning",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 35, "stat_2": 0, "stat_3": 1, "stat_4": 66.7, "stat_5": 35 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Marcus Mariota",
+      "jersey_number": "8",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 4454, "stat_2": 42, "stat_3": 4, "stat_4": 770, "stat_5": 68.3 }
+    },
+    {
+      "name": "LaMichael James",
+      "jersey_number": "21",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 1731, "stat_2": 21, "stat_3": 5.9, "stat_4": 208, "stat_5": 3 }
+    },
+    {
+      "name": "Kenjon Barner",
+      "jersey_number": "24",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 1767, "stat_2": 21, "stat_3": 6.4, "stat_4": 256, "stat_5": 2 }
+    },
+    {
+      "name": "De'Anthony Thomas",
+      "jersey_number": "6",
+      "primary_position": "RB",
+      "secondary_position": "WR",
+      "decade": "2010s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 701, "stat_2": 11, "stat_3": 7.6, "stat_4": 445, "stat_5": 5 }
+    },
+    {
+      "name": "Josh Huff",
+      "jersey_number": "1",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 62, "stat_2": 1140, "stat_3": 12, "stat_4": 18.4, "stat_5": 69 }
+    },
+    {
+      "name": "DeForest Buckner",
+      "jersey_number": "44",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 83, "stat_2": 17, "stat_3": 10.5, "stat_4": 2, "stat_5": 2 }
+    },
+    {
+      "name": "Arik Armstead",
+      "jersey_number": "9",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 46, "stat_2": 6.5, "stat_3": 3, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Ifo Ekpre-Olomu",
+      "jersey_number": "14",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 84, "stat_2": 4, "stat_3": 12, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "John Boyett",
+      "jersey_number": "20",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 108, "stat_2": 3, "stat_3": 8, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Kiko Alonso",
+      "jersey_number": "47",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "2010s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 87, "stat_2": 12, "stat_3": 4, "stat_4": 4, "stat_5": 2 }
+    }
+  ]
+}

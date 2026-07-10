@@ -1,0 +1,45 @@
+{
+  "school_id": "georgia",
+  "cfbd_name": "Georgia",
+  "name": "Georgia",
+  "mascot": "Bulldogs",
+  "powerhouse_eras": ["1980s", "2010s", "2020s"],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Kirby Smart",
+      "decade": "2020s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 55, "stat_2": 2, "stat_3": 2, "stat_4": 75.0, "stat_5": 105 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Herschel Walker",
+      "jersey_number": "34",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 99,
+      "stats": { "stat_1": 1891, "stat_2": 18, "stat_3": 5.2, "stat_4": 84, "stat_5": 0 }
+    },
+    {
+      "name": "Terry Hoage",
+      "jersey_number": "14",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 73, "stat_2": 12, "stat_3": 9, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "Freddie Gilbert",
+      "jersey_number": "95",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 71, "stat_2": 15, "stat_3": 9.5, "stat_4": 2, "stat_5": 1 }
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "school_id": "miami",
+  "cfbd_name": "Miami",
+  "name": "Miami",
+  "mascot": "Hurricanes",
+  "powerhouse_eras": ["1980s", "1990s", "2000s"],
+  "conferences": { "1980s": "Independent", "1990s": "Big East", "2000s": "Big East", "2010s": "ACC" },
+  "coaches": [
+    {
+      "name": "Jimmy Johnson",
+      "decade": "1980s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 52, "stat_2": 1, "stat_3": 0, "stat_4": 60.0, "stat_5": 81 }
+    },
+    {
+      "name": "Mario Cristobal",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 30, "stat_2": 0, "stat_3": 0, "stat_4": 40.0, "stat_5": 77 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Vinny Testaverde",
+      "jersey_number": "14",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 2557, "stat_2": 26, "stat_3": 9, "stat_4": 25, "stat_5": 62.5 }
+    },
+    {
+      "name": "Bernie Kosar",
+      "jersey_number": "20",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 3642, "stat_2": 25, "stat_3": 16, "stat_4": 15, "stat_5": 62.3 }
+    },
+    {
+      "name": "Jim Kelly",
+      "jersey_number": "12",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 2403, "stat_2": 14, "stat_3": 11, "stat_4": 35, "stat_5": 60.2 }
+    },
+    {
+      "name": "Alonzo Highsmith",
+      "jersey_number": "28",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 960, "stat_2": 9, "stat_3": 5.1, "stat_4": 305, "stat_5": 2 }
+    },
+    {
+      "name": "Melvin Bratton",
+      "jersey_number": "31",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 85,
+      "stats": { "stat_1": 754, "stat_2": 11, "stat_3": 4.8, "stat_4": 286, "stat_5": 3 }
+    },
+    {
+      "name": "Michael Irvin",
+      "jersey_number": "47",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 53, "stat_2": 868, "stat_3": 11, "stat_4": 16.4, "stat_5": 73 }
+    },
+    {
+      "name": "Eddie Brown",
+      "jersey_number": "81",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 59, "stat_2": 1114, "stat_3": 8, "stat_4": 18.9, "stat_5": 68 }
+    },
+    {
+      "name": "Brian Blades",
+      "jersey_number": "89",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 61, "stat_2": 935, "stat_3": 10, "stat_4": 15.3, "stat_5": 59 }
+    },
+    {
+      "name": "Jerome Brown",
+      "jersey_number": "99",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 79, "stat_2": 21, "stat_3": 10.5, "stat_4": 3, "stat_5": 2 }
+    },
+    {
+      "name": "Daniel Stubbs",
+      "jersey_number": "96",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 66, "stat_2": 17, "stat_3": 12, "stat_4": 3, "stat_5": 1 }
+    },
+    {
+      "name": "Randy Shannon",
+      "jersey_number": "52",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 83,
+      "stats": { "stat_1": 84, "stat_2": 8, "stat_3": 3, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Tolbert Bain",
+      "jersey_number": "26",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 83,
+      "stats": { "stat_1": 55, "stat_2": 4, "stat_3": 9, "stat_4": 1, "stat_5": 1 }
+    },
+    {
+      "name": "Bennie Blades",
+      "jersey_number": "36",
+      "primary_position": "S",
+      "secondary_position": "CB",
+      "decade": "1980s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 88, "stat_2": 10, "stat_3": 8, "stat_4": 2, "stat_5": 4 }
+    }
+  ]
+}

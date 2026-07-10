@@ -1,0 +1,141 @@
+{
+  "school_id": "texas",
+  "cfbd_name": "Texas",
+  "name": "Texas",
+  "mascot": "Longhorns",
+  "powerhouse_eras": ["2000s", "2020s"],
+  "conferences": { "1980s": "SWC", "1990s": "SWC", "2000s": "Big 12", "2010s": "Big 12" },
+  "coaches": [
+    {
+      "name": "Mack Brown",
+      "decade": "2000s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 110, "stat_2": 1, "stat_3": 2, "stat_4": 70.0, "stat_5": 244 }
+    },
+    {
+      "name": "Steve Sarkisian",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 38, "stat_2": 0, "stat_3": 1, "stat_4": 50.0, "stat_5": 84 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Vince Young",
+      "jersey_number": "10",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 98,
+      "stats": { "stat_1": 3036, "stat_2": 26, "stat_3": 10, "stat_4": 1050, "stat_5": 65.2 }
+    },
+    {
+      "name": "Colt McCoy",
+      "jersey_number": "12",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 3859, "stat_2": 34, "stat_3": 8, "stat_4": 561, "stat_5": 76.7 }
+    },
+    {
+      "name": "Cedric Benson",
+      "jersey_number": "32",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 1834, "stat_2": 19, "stat_3": 5.6, "stat_4": 179, "stat_5": 1 }
+    },
+    {
+      "name": "Jamaal Charles",
+      "jersey_number": "25",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 1619, "stat_2": 18, "stat_3": 6.3, "stat_4": 275, "stat_5": 1 }
+    },
+    {
+      "name": "Roy Williams",
+      "jersey_number": "4",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 64, "stat_2": 1142, "stat_3": 12, "stat_4": 17.8, "stat_5": 75 }
+    },
+    {
+      "name": "Jordan Shipley",
+      "jersey_number": "8",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 116, "stat_2": 1485, "stat_3": 13, "stat_4": 12.8, "stat_5": 73 }
+    },
+    {
+      "name": "Limas Sweed",
+      "jersey_number": "18",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 85,
+      "stats": { "stat_1": 46, "stat_2": 801, "stat_3": 12, "stat_4": 17.4, "stat_5": 60 }
+    },
+    {
+      "name": "Brian Orakpo",
+      "jersey_number": "98",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 43, "stat_2": 17.5, "stat_3": 11.5, "stat_4": 3, "stat_5": 2 }
+    },
+    {
+      "name": "Casey Hampton",
+      "jersey_number": "95",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 78, "stat_2": 20, "stat_3": 5, "stat_4": 2, "stat_5": 3 }
+    },
+    {
+      "name": "Derrick Johnson",
+      "jersey_number": "11",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 130, "stat_2": 19, "stat_3": 3, "stat_4": 2, "stat_5": 5 }
+    },
+    {
+      "name": "Aaron Ross",
+      "jersey_number": "31",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 78, "stat_2": 6, "stat_3": 15, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Michael Huff",
+      "jersey_number": "7",
+      "primary_position": "S",
+      "secondary_position": "CB",
+      "decade": "2000s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 97, "stat_2": 2, "stat_3": 8, "stat_4": 2, "stat_5": 7 }
+    },
+    {
+      "name": "Michael Griffin",
+      "jersey_number": "27",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 82, "stat_2": 3, "stat_3": 7, "stat_4": 2, "stat_5": 4 }
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "school_id": "notre_dame",
+  "cfbd_name": "Notre Dame",
+  "name": "Notre Dame",
+  "mascot": "Fighting Irish",
+  "powerhouse_eras": ["1980s", "1990s"],
+  "conferences": { "1980s": "Independent", "1990s": "Independent", "2000s": "Independent", "2010s": "Independent" },
+  "coaches": [
+    {
+      "name": "Lou Holtz",
+      "decade": "1980s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 37, "stat_2": 1, "stat_3": 0, "stat_4": 66.7, "stat_5": 249 }
+    },
+    {
+      "name": "Marcus Freeman",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 60.0, "stat_5": 33 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Tim Brown",
+      "jersey_number": "81",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 39, "stat_2": 846, "stat_3": 3, "stat_4": 21.7, "stat_5": 57 }
+    },
+    {
+      "name": "Raghib Ismail",
+      "jersey_number": "25",
+      "primary_position": "WR",
+      "secondary_position": "RB",
+      "decade": "1990s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 32, "stat_2": 699, "stat_3": 2, "stat_4": 21.8, "stat_5": 68 }
+    },
+    {
+      "name": "Tony Rice",
+      "jersey_number": "9",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 1176, "stat_2": 8, "stat_3": 6, "stat_4": 884, "stat_5": 54.5 }
+    },
+    {
+      "name": "Jerome Bettis",
+      "jersey_number": "6",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 972, "stat_2": 16, "stat_3": 5.7, "stat_4": 239, "stat_5": 4 }
+    },
+    {
+      "name": "Michael Stonebreaker",
+      "jersey_number": "57",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 104, "stat_2": 9, "stat_3": 3, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Chris Zorich",
+      "jersey_number": "50",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 57, "stat_2": 13, "stat_3": 4, "stat_4": 2, "stat_5": 1 }
+    },
+    {
+      "name": "Todd Lyght",
+      "jersey_number": "1",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 49, "stat_2": 8, "stat_3": 12, "stat_4": 0, "stat_5": 1 }
+    },
+    {
+      "name": "Pat Terrell",
+      "jersey_number": "15",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 86,
+      "stats": { "stat_1": 64, "stat_2": 5, "stat_3": 7, "stat_4": 1, "stat_5": 2 }
+    }
+  ]
+}

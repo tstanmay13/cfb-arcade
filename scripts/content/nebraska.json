@@ -1,0 +1,168 @@
+{
+  "school_id": "nebraska",
+  "cfbd_name": "Nebraska",
+  "name": "Nebraska",
+  "mascot": "Cornhuskers",
+  "powerhouse_eras": ["1980s", "1990s"],
+  "conferences": { "1980s": "Big 8", "1990s": "Big 8", "2000s": "Big 12", "2010s": "Big Ten" },
+  "coaches": [
+    {
+      "name": "Tom Osborne",
+      "decade": "1990s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 83, "stat_2": 3, "stat_3": 7, "stat_4": 71.0, "stat_5": 255 }
+    },
+    {
+      "name": "Matt Rhule",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 19, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 66 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Tommie Frazier",
+      "jersey_number": "15",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 1362, "stat_2": 17, "stat_3": 4, "stat_4": 604, "stat_5": 56.0 }
+    },
+    {
+      "name": "Scott Frost",
+      "jersey_number": "7",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 1237, "stat_2": 5, "stat_3": 3, "stat_4": 1095, "stat_5": 55.2 }
+    },
+    {
+      "name": "Ahman Green",
+      "jersey_number": "30",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 1877, "stat_2": 22, "stat_3": 6.7, "stat_4": 105, "stat_5": 0 }
+    },
+    {
+      "name": "Lawrence Phillips",
+      "jersey_number": "1",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 1722, "stat_2": 16, "stat_3": 6.4, "stat_4": 172, "stat_5": 1 }
+    },
+    {
+      "name": "Calvin Jones",
+      "jersey_number": "44",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 1210, "stat_2": 14, "stat_3": 6.5, "stat_4": 87, "stat_5": 0 }
+    },
+    {
+      "name": "Irving Fryar",
+      "jersey_number": "27",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 40, "stat_2": 780, "stat_3": 8, "stat_4": 19.5, "stat_5": 66 }
+    },
+    {
+      "name": "Mike Rozier",
+      "jersey_number": "30",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 97,
+      "stats": { "stat_1": 2148, "stat_2": 29, "stat_3": 7.8, "stat_4": 106, "stat_5": 0 }
+    },
+    {
+      "name": "Turner Gill",
+      "jersey_number": "12",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 1516, "stat_2": 20, "stat_3": 4, "stat_4": 531, "stat_5": 58.0 }
+    },
+    {
+      "name": "Broderick Thomas",
+      "jersey_number": "89",
+      "primary_position": "LB",
+      "secondary_position": "DL",
+      "decade": "1980s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 98, "stat_2": 16, "stat_3": 10, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "Grant Wistrom",
+      "jersey_number": "98",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 47, "stat_2": 15.5, "stat_3": 8.5, "stat_4": 3, "stat_5": 2 }
+    },
+    {
+      "name": "Jason Peter",
+      "jersey_number": "55",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 58, "stat_2": 13, "stat_3": 5, "stat_4": 2, "stat_5": 2 }
+    },
+    {
+      "name": "Trev Alberts",
+      "jersey_number": "34",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 96, "stat_2": 21, "stat_3": 15, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "Ed Stewart",
+      "jersey_number": "32",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 96, "stat_2": 12, "stat_3": 4, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Barron Miles",
+      "jersey_number": "14",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 62, "stat_2": 5, "stat_3": 12, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Mike Brown",
+      "jersey_number": "29",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 83, "stat_2": 4, "stat_3": 6, "stat_4": 2, "stat_5": 5 }
+    },
+    {
+      "name": "Mike Minter",
+      "jersey_number": "10",
+      "primary_position": "S",
+      "secondary_position": "CB",
+      "decade": "1990s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 76, "stat_2": 3, "stat_3": 7, "stat_4": 1, "stat_5": 3 }
+    }
+  ]
+}

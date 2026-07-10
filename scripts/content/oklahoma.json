@@ -1,0 +1,78 @@
+{
+  "school_id": "oklahoma",
+  "cfbd_name": "Oklahoma",
+  "name": "Oklahoma",
+  "mascot": "Sooners",
+  "powerhouse_eras": ["1980s", "2000s", "2010s"],
+  "conferences": { "1980s": "Big 8", "1990s": "Big 8", "2000s": "Big 12", "2010s": "Big 12" },
+  "coaches": [
+    {
+      "name": "Barry Switzer",
+      "decade": "1980s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 83, "stat_2": 1, "stat_3": 6, "stat_4": 62.5, "stat_5": 157 }
+    },
+    {
+      "name": "Brent Venables",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 25 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Brian Bosworth",
+      "jersey_number": "44",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 96,
+      "stats": { "stat_1": 136, "stat_2": 19, "stat_3": 5, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "Buster Rhymes",
+      "jersey_number": "8",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 85,
+      "stats": { "stat_1": 24, "stat_2": 617, "stat_3": 4, "stat_4": 25.7, "stat_5": 73 }
+    },
+    {
+      "name": "Jamelle Holieway",
+      "jersey_number": "4",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 861, "stat_2": 9, "stat_3": 4, "stat_4": 862, "stat_5": 54.0 }
+    },
+    {
+      "name": "Spencer Tillman",
+      "jersey_number": "31",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 1047, "stat_2": 11, "stat_3": 6.0, "stat_4": 78, "stat_5": 1 }
+    },
+    {
+      "name": "Tony Casillas",
+      "jersey_number": "79",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 65, "stat_2": 14, "stat_3": 6, "stat_4": 2, "stat_5": 1 }
+    },
+    {
+      "name": "Rickey Dixon",
+      "jersey_number": "29",
+      "primary_position": "S",
+      "secondary_position": "CB",
+      "decade": "1980s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 71, "stat_2": 9, "stat_3": 11, "stat_4": 1, "stat_5": 2 }
+    }
+  ]
+}

@@ -1,7 +1,44 @@
-// TEAM_SELECT (§2): pick a favorite program (theme injection) + game mode.
+// TEAM_SELECT (§2): pick a favorite program (theme injection) + game mode,
+// with the §9 trophy room below the fold.
 import { useState } from "react";
 import type { Team } from "../data/types.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
+import { loadTrophyRoom } from "../state/storage.ts";
+
+function TrophyRoom() {
+  const [room] = useState(loadTrophyRoom);
+  if (room.recent_runs.length === 0) return null;
+  const best = room.top_builds[0];
+  return (
+    <section aria-label="Trophy room" className="w-full rounded-xl border border-paper-edge bg-white/50 p-4">
+      <h2 className="mb-2 font-display text-sm tracking-[0.25em] opacity-70">TROPHY ROOM</h2>
+      {best && (
+        <p className="mb-2 text-sm">
+          Best build: <strong>{best.record}</strong> · OVR {best.score} · {best.tier.replace("Tier", "Tier ")}
+          {best.dynasty && (
+            <span className="ml-1.5 rounded-full bg-amber-500 px-2 py-0.5 font-display text-[9px] tracking-wider text-white">
+              DYNASTY
+            </span>
+          )}
+          <span className="opacity-60"> · {best.mode}</span>
+        </p>
+      )}
+      <ol className="flex flex-wrap gap-1.5" aria-label="Recent runs">
+        {room.recent_runs.slice(0, 10).map((r) => (
+          <li
+            key={r.timestamp}
+            title={`${r.record} · ${r.tier} · ${r.mode}${r.dynasty ? " · DYNASTY" : ""}`}
+            className={`rounded px-2 py-1 font-display text-xs text-white ${
+              r.record.endsWith("-0") ? "bg-emerald-700" : r.dynasty ? "bg-amber-500" : "bg-ink/70"
+            }`}
+          >
+            {r.record}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
 
 export default function TeamSelect() {
   const { data } = useGame();
@@ -73,6 +110,8 @@ export default function TeamSelect() {
       >
         START THE DRAFT
       </button>
+
+      <TrophyRoom />
     </main>
   );
 }

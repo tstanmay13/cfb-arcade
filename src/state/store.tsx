@@ -14,6 +14,7 @@ import {
 import type { Coach, GameData, Player, SlotId, Team } from "../data/types.ts";
 import { mulberry32, newSeed, type Rng } from "../engine/rng.ts";
 import { resolveSeason, type Resolved } from "../engine/resolve.ts";
+import { recordRun } from "./storage.ts";
 import {
   allPlayerSlotsFilled,
   emptyPlayerSlots,
@@ -256,11 +257,9 @@ export function useGameActions() {
   };
 
   const placeCoach = (coach: Coach) => {
-    dispatch({
-      type: "PLACE_COACH",
-      coach,
-      resolved: resolveSeason(state.slots, coach, data, runRng),
-    });
+    const resolved = resolveSeason(state.slots, coach, data, runRng);
+    recordRun(resolved, state.favoriteTeam?.name ?? "—", state.mode); // §9
+    dispatch({ type: "PLACE_COACH", coach, resolved });
   };
 
   return {

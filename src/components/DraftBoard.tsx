@@ -144,6 +144,7 @@ export default function DraftBoard() {
     doTeamRespin,
     doEraRespin,
     doFallbackSpin,
+    placePlayer,
     poolIsDead,
   } = useGameActions();
   const revealing = useSpinReveal();
@@ -212,14 +213,34 @@ export default function DraftBoard() {
         )}
       </div>
 
-      {/* Pending-pick hint / dead-pool prompt */}
+      {/* Pending-pick hint (desktop: tap the field) / placement sheet (mobile, §8.4) */}
       {state.pendingPick && !revealing && (
-        <p className="border-t border-paper-edge px-4 py-2 text-center text-xs">
-          Place <strong>{state.pendingPick.display_short}</strong> — tap a glowing slot on the field, or{" "}
-          <button type="button" className="underline" onClick={() => dispatch({ type: "CANCEL_PICK" })}>
-            cancel
-          </button>
-        </p>
+        <div className="border-t border-paper-edge px-4 py-2 text-center text-xs">
+          <p className="hidden lg:block">
+            Place <strong>{state.pendingPick.display_short}</strong> — tap a glowing slot on the field, or{" "}
+            <button type="button" className="underline" onClick={() => dispatch({ type: "CANCEL_PICK" })}>
+              cancel
+            </button>
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2 lg:hidden">
+            <span>
+              Place <strong>{state.pendingPick.display_short}</strong> at
+            </span>
+            {eligibleOpenSlots(state.pendingPick, state.slots).map((slot) => (
+              <button
+                key={slot}
+                type="button"
+                onClick={() => placePlayer(state.pendingPick!, slot)}
+                className="rounded-md bg-team px-3 py-1.5 font-display text-xs tracking-wider text-team-accent"
+              >
+                {slot}
+              </button>
+            ))}
+            <button type="button" className="underline opacity-70" onClick={() => dispatch({ type: "CANCEL_PICK" })}>
+              cancel
+            </button>
+          </div>
+        </div>
       )}
       {!revealing && !needSpin && !coachPhase && poolIsDead && (
         <p className="border-t border-paper-edge px-4 py-2 text-center text-xs">
@@ -234,8 +255,8 @@ export default function DraftBoard() {
         </p>
       )}
 
-      {/* Actions */}
-      <footer className="flex items-center gap-2 rounded-b-xl border-t border-paper-edge bg-white/50 p-3">
+      {/* Actions — sticky thumb bar on mobile (§8.4) */}
+      <footer className="sticky bottom-0 flex items-center gap-2 rounded-b-xl border-t border-paper-edge bg-white/90 p-3 backdrop-blur lg:static lg:bg-white/50">
         <button
           type="button"
           disabled={!needSpin || revealing}

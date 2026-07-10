@@ -38,10 +38,10 @@ function SlotNode({
       disabled={!eligible}
       onClick={() => pending && placePlayer(pending, slot)}
       aria-label={player ? `${slot}: ${player.name}` : `${slot} open`}
-      className={`group relative flex w-20 flex-col items-center gap-1 ${eligible ? "cursor-pointer" : "cursor-default"}`}
+      className={`group relative flex w-14 flex-col items-center gap-1 sm:w-20 ${eligible ? "cursor-pointer" : "cursor-default"}`}
     >
       <span
-        className={`jersey-bubble relative flex h-16 w-16 items-center justify-center rounded-full border-2 font-display text-xl
+        className={`jersey-bubble relative flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-base sm:h-16 sm:w-16 sm:text-xl
           ${player ? "border-chalk/90 shadow-lg" : "border-dashed border-chalk/70 bg-transparent text-chalk/90"}
           ${eligible ? "slot-eligible border-chalk" : ""}`}
         style={
@@ -90,7 +90,7 @@ export default function FieldPane() {
   return (
     <section
       aria-label="Your team"
-      className="turf relative flex min-h-[420px] flex-col justify-between rounded-xl p-5 lg:min-h-0 lg:flex-1"
+      className="turf relative flex min-h-[300px] flex-col justify-between rounded-xl p-4 sm:min-h-[420px] sm:p-5 lg:min-h-0 lg:flex-1"
     >
       <div>
         <p className="text-center font-display text-xs tracking-[0.3em] text-chalk/80">OFFENSE</p>

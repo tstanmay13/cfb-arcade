@@ -1,23 +1,114 @@
 @import "tailwindcss";
 
-/* Team theme variables — injected at runtime by applyTeamTheme() (§8.2).
-   Defaults are a neutral collegiate green until a favorite team is chosen. */
+/* ------------------------------------------------------------------ */
+/* The 16-0 Draft — "bright collegiate scrapbook" (design doc §8.1)    */
+/* Varsity-navy ink on program paper; turf + chalk carry the field;   */
+/* the chosen team's color is injected at runtime (§8.2).             */
+/* ------------------------------------------------------------------ */
+
 :root {
-  --primary-color: #14532d;
+  /* Team theme — overwritten by applyTeamTheme() */
+  --primary-color: #1b2a41;
   --secondary-color: #ffffff;
-  --bg-stadium-glow: radial-gradient(circle, #14532d22 0%, #ffffff 100%);
+  --bg-stadium-glow: radial-gradient(circle at 50% 0%, #1b2a4118 0%, #faf6ec 65%);
+
+  /* Fixed system tokens */
+  --ink: #1b2a41;
+  --paper: #faf6ec;
+  --paper-edge: #e9e2d0;
+  --chalk: #fdfdf8;
+  --turf-a: #2e7d32;
+  --turf-b: #29702d;
+  --turf-line: rgba(253, 253, 248, 0.85);
 }
 
 @theme {
   --color-team: var(--primary-color);
   --color-team-accent: var(--secondary-color);
-  --font-display: "Arial Narrow", "Helvetica Neue Condensed", "Impact",
-    sans-serif;
-  --font-body: system-ui, "Helvetica Neue", sans-serif;
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-paper-edge: var(--paper-edge);
+  --color-chalk: var(--chalk);
+  --font-display: "Graduate", "Arial Narrow", serif;
+  --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
 }
 
 body {
   font-family: var(--font-body);
-  background: var(--bg-stadium-glow);
+  color: var(--ink);
+  background: var(--bg-stadium-glow), var(--paper);
+  background-blend-mode: multiply;
   min-height: 100vh;
+}
+
+/* Turf pane: mowing stripes + chalk sideline */
+.turf {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      var(--turf-a) 0px,
+      var(--turf-a) 56px,
+      var(--turf-b) 56px,
+      var(--turf-b) 112px
+    );
+  box-shadow: inset 0 0 0 3px var(--turf-line), inset 0 0 60px rgba(0, 0, 0, 0.25);
+}
+
+/* Chalk yard line */
+.yard-line {
+  height: 2px;
+  background: var(--turf-line);
+  opacity: 0.5;
+}
+
+/* Jersey bubble node */
+.jersey-bubble {
+  background: radial-gradient(circle at 35% 30%, var(--bubble-main, #fff), var(--bubble-main, #fff) 62%, color-mix(in srgb, var(--bubble-main, #fff) 78%, black) 100%);
+  color: var(--bubble-accent, var(--ink));
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
+}
+
+/* Chalk dashes around an eligible open slot */
+@keyframes chalk-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+.slot-eligible {
+  animation: chalk-pulse 1.1s ease-in-out infinite;
+}
+
+/* Chalk ring draw-on when a slot is filled */
+@keyframes chalk-ring {
+  from { stroke-dashoffset: 320; }
+  to { stroke-dashoffset: 0; }
+}
+.chalk-ring {
+  stroke-dasharray: 320;
+  animation: chalk-ring 0.55s ease-out forwards;
+}
+
+/* Slot-machine ticker while a spin resolves */
+@keyframes ticker-flip {
+  0% { transform: translateY(0.6em); opacity: 0; }
+  15%, 85% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-0.6em); opacity: 0; }
+}
+.ticker-item {
+  animation: ticker-flip 0.12s linear;
+}
+
+/* Win/loss chips flipping in during the season replay */
+@keyframes chip-in {
+  from { transform: rotateX(90deg); opacity: 0; }
+  to { transform: rotateX(0); opacity: 1; }
+}
+.chip-in {
+  animation: chip-in 0.28s ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slot-eligible, .ticker-item, .chip-in, .chalk-ring {
+    animation: none;
+  }
+  .chalk-ring { stroke-dashoffset: 0; }
 }

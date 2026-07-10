@@ -254,8 +254,6 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
   players: Player[];
   conferences: Map<string, string>;
   branding: Map<string, TeamBranding>;
-  /** "{school_id}|{decade}" cells that have real coverage. */
-  realCells: Set<string>;
 }> {
   const names = programs.map((p) => p.cfbd_name);
   const byName = new Map(programs.map((p) => [p.cfbd_name, p]));
@@ -405,12 +403,10 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
 
   // 5. Assemble Player objects (decade = decade of the athlete's best season).
   const players: Player[] = [];
-  const realCells = new Set<string>();
   for (const k of kept) {
     const program = byName.get(k.team)!;
     const decade = decadeOf(k.season);
     const pivot = pivots.get(`${k.athlete_id}|${k.season}`) ?? {};
-    realCells.add(`${program.school_id}|${decade}`);
     players.push({
       player_id: playerId(k.primary, k.player, program.school_id, decade),
       name: k.player,
@@ -428,31 +424,22 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
       stats: statBlockFor(k.primary, pivot),
     });
   }
-  return { players, conferences, branding, realCells };
+  // CFBD occasionally assigns one human two athlete_ids across seasons, which
+  // collides on our name-based player_id — keep the better-rated row.
+  const byId = new Map<string, Player>();
+  for (const p of players) {
+    const prev = byId.get(p.player_id);
+    if (!prev || p.hidden_ovr > prev.hidden_ovr) byId.set(p.player_id, p);
+  }
+  return { players: [...byId.values()], conferences, branding };
 }
 
 // ---------------------------------------------------------------------------
 // Assemble + validate + write
 // ---------------------------------------------------------------------------
-function contentPlayers(programs: ProgramContent[], realCells: Set<string>): Player[] {
+function contentPlayers(programs: ProgramContent[]): Player[] {
   return programs.flatMap((program) => {
-    // Real data supersedes authored rows for the same {program, decade}: once
-    // a decade cell is real, authored players there would duplicate the same
-    // humans under different ids (e.g. authored Derrick Henry vs real 2015
-    // Derrick Henry). Authored COACHES always stay — CFBD has no coach data.
-    const dropped = program.players.filter(
-      (p) =>
-        REAL_DECADES.includes(p.decade) &&
-        realCells.has(`${program.school_id}|${p.decade}`),
-    );
-    if (dropped.length > 0) {
-      console.warn(
-        `  superseded by real data: ${program.school_id} ${[...new Set(dropped.map((d) => d.decade))].join("+")} ` +
-          `(${dropped.length} authored player(s) dropped: ${dropped.map((d) => d.name).join(", ")})`,
-      );
-    }
-    const keptAuthored = program.players.filter((p) => !dropped.includes(p));
-    return keptAuthored.map((p) => ({
+    return program.players.map((p) => ({
       player_id: playerId(p.primary_position, p.name, program.school_id, p.decade),
       name: p.name,
       display_short: displayShort(p.name),
@@ -532,13 +519,35 @@ async function main(): Promise<void> {
   const programs = loadContent();
   console.log(`  programs: ${programs.length}`);
 
-  const { players: modern, conferences, branding, realCells } = await fetchModernPlayers(programs);
+  const { players: modern, conferences, branding } = await fetchModernPlayers(programs);
   console.log(`  modern (real) players: ${modern.length}`);
 
-  const historical = contentPlayers(programs, realCells);
-  console.log(`  authored historical players: ${historical.length}`);
+  const authored = contentPlayers(programs);
+  console.log(`  authored players: ${authored.length}`);
 
-  const players = [...modern, ...historical];
+  // Union, with authored curation winning same-human collisions: an authored
+  // icon keeps their calibrated OVR / dual-position / jersey; the real row for
+  // the same person is dropped (early seasons' ratings are degraded — see
+  // ADR-0014). Everyone else real fills out the cells.
+  const authoredKeys = new Set(
+    authored.map((p) => `${p.name.toLowerCase()}|${p.school_id}|${p.decade}`),
+  );
+  const collisions: string[] = [];
+  const real = modern.filter((p) => {
+    const key = `${p.name.toLowerCase()}|${p.school_id}|${p.decade}`;
+    if (authoredKeys.has(key)) {
+      collisions.push(p.name);
+      return false;
+    }
+    return true;
+  });
+  if (collisions.length > 0) {
+    console.log(
+      `  authored curation kept over real rows (${collisions.length}): ${collisions.join(", ")}`,
+    );
+  }
+
+  const players = [...real, ...authored];
   const coaches = contentCoaches(programs, conferences);
 
   const teams: Team[] = programs.map((program) => {

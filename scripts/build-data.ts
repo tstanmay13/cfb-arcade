@@ -112,20 +112,30 @@ async function rest(pathAndQuery: string): Promise<Record<string, unknown>[]> {
   const page = 1000;
   for (let offset = 0; ; offset += page) {
     const url = `${SUPABASE_URL}/rest/v1/${pathAndQuery}&limit=${page}&offset=${offset}`;
-    const resp = await fetch(url, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      },
-    });
-    if (!resp.ok) {
-      throw new Error(
-        `Supabase GET failed HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`,
-      );
+    let rows: Record<string, unknown>[] | null = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        const resp = await fetch(url, {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+          signal: AbortSignal.timeout(60_000),
+        });
+        if (!resp.ok) {
+          throw new Error(
+            `Supabase GET failed HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`,
+          );
+        }
+        rows = (await resp.json()) as Record<string, unknown>[];
+        break;
+      } catch (err) {
+        if (attempt === 3) throw err;
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+      }
     }
-    const rows = (await resp.json()) as Record<string, unknown>[];
-    out.push(...rows);
-    if (rows.length < page) return out;
+    out.push(...rows!);
+    if (rows!.length < page) return out;
   }
 }
 

@@ -40,7 +40,7 @@ function TrophyRoom() {
   );
 }
 
-export default function TeamSelect() {
+export default function TeamSelect({ onOpenArcade }: { onOpenArcade?: () => void }) {
   const { data } = useGame();
   const { startRun } = useGameActions();
   const [team, setTeam] = useState<Team | null>(null);
@@ -61,6 +61,15 @@ export default function TeamSelect() {
           star at every position, land a coach, and find out if your team runs the
           table.
         </p>
+        {onOpenArcade && (
+          <button
+            type="button"
+            onClick={onOpenArcade}
+            className="mx-auto mt-4 block rounded-full border-2 border-ink/30 bg-white/60 px-5 py-2 font-display text-xs tracking-[0.2em] shadow-sm transition hover:border-ink/60 hover:shadow"
+          >
+            🕹 ARCADE · GUESS THE SEASON →
+          </button>
+        )}
       </header>
 
       <section aria-label="Pick your program" className="w-full">

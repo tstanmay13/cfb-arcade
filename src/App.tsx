@@ -6,13 +6,17 @@ import TeamSelect from "./components/TeamSelect.tsx";
 import DraftScreen from "./components/DraftScreen.tsx";
 import SeasonScreen from "./components/SeasonScreen.tsx";
 import ResultsScreen from "./components/ResultsScreen.tsx";
+import GuessSeason from "./components/GuessSeason.tsx";
 
-function Screens() {
+/** Which arcade cabinet is on screen (ADR-0017). */
+type View = "draft" | "guess";
+
+function Screens({ onOpenArcade }: { onOpenArcade: () => void }) {
   const { state } = useGame();
   useTeamTheme(state.favoriteTeam);
   switch (state.phase) {
     case "TEAM_SELECT":
-      return <TeamSelect />;
+      return <TeamSelect onOpenArcade={onOpenArcade} />;
     case "DRAFT":
     case "COACH_SPIN":
       return <DraftScreen />;
@@ -28,6 +32,7 @@ function Screens() {
 export default function App() {
   const [data, setData] = useState<GameData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<View>("draft");
 
   useEffect(() => {
     loadData().then(setData, (e) => setError(String(e)));
@@ -54,9 +59,12 @@ export default function App() {
       </main>
     );
   }
+  if (view === "guess") {
+    return <GuessSeason teams={data.teams} onBack={() => setView("draft")} />;
+  }
   return (
     <GameProvider data={data}>
-      <Screens />
+      <Screens onOpenArcade={() => setView("guess")} />
     </GameProvider>
   );
 }

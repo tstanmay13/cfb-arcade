@@ -9,7 +9,9 @@ const outDir = process.argv[3] ?? "/tmp/16-0-shots";
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: base });
+const page = await context.newPage();
 const errors: string[] = [];
 page.on("console", (m) => {
   if (m.type() === "error") errors.push(m.text());
@@ -53,12 +55,11 @@ if (await verdict.isVisible().catch(() => false)) await verdict.click();
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${outDir}/06-results.png`, fullPage: true });
 
-// Export the share card (§10) and save the produced PNG.
-const downloadP = page.waitForEvent("download", { timeout: 30000 });
-await page.getByRole("button", { name: "SHARE THE CARD" }).click();
-const download = await downloadP;
-await download.saveAs(`${outDir}/07-share-card.png`);
-console.log(`share card saved (${await download.suggestedFilename()})`);
+// Copy the Wordle-style result (§10) and read it back from the clipboard.
+await page.getByRole("button", { name: "COPY RESULT" }).click();
+await page.waitForTimeout(200);
+const shareText = await page.evaluate(() => navigator.clipboard.readText());
+console.log(`copied result:\n${shareText}`);
 
 console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join("\n")}` : "no console errors");
 await browser.close();

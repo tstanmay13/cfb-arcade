@@ -34,6 +34,7 @@ import { DECADES } from "../src/data/types.ts";
 import {
   OVR_FLOOR,
   TOP_N,
+  calibrationMap,
   coachId,
   displayShort,
   mapDbPosition,
@@ -574,6 +575,23 @@ async function main(): Promise<void> {
   }
 
   const players = [...modern, ...authoredKept];
+
+  // Anti-inflation recalibration (ADR-0016): quantile-remap hidden_ovr per
+  // position so §4.5 scarcity holds within the DRAFT POOL (rank-preserving —
+  // §12 correlation invariant untouched). Tuned via scripts/balance.ts.
+  const byPos = new Map<string, number[]>();
+  for (const p of players) {
+    byPos.set(p.primary_position, [...(byPos.get(p.primary_position) ?? []), p.hidden_ovr]);
+  }
+  const remap = calibrationMap(byPos);
+  for (const p of players) {
+    p.hidden_ovr = remap.get(p.primary_position)!.get(p.hidden_ovr)!;
+  }
+  const post = players.map((p) => p.hidden_ovr);
+  console.log(
+    `  recalibrated OVRs: >=96 ${post.filter((o) => o >= 96).length} · ` +
+      `>=90 ${post.filter((o) => o >= 90).length} · median ${[...post].sort((a, b) => a - b)[Math.floor(post.length / 2)]}`,
+  );
   const coaches = contentCoaches(programs, conferences);
 
   const teams: Team[] = programs.map((program) => {

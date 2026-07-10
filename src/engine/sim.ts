@@ -54,10 +54,12 @@ interface TierRow {
 /** §6.2 values verbatim; `min` thresholds define the ranges (floats between
     integer boundaries fall to the lower tier, e.g. 95.4 → Tier1). */
 export const SIM_MATRIX: Record<TierKey, TierRow> = {
-  Tier0: { min: 96, natty: 1.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
-  Tier1: { min: 91, natty: 0.4, semis: 0.4, major: 0.2, minor: 0.0, loss: 0.0, dynastyChance: 0.0 },
-  Tier2: { min: 85, natty: 0.15, semis: 0.5, major: 0.25, minor: 0.1, loss: 0.0, dynastyChance: 0.0 },
-  Tier3: { min: 78, natty: 0.1, semis: 0.25, major: 0.45, minor: 0.2, loss: 0.0, dynastyChance: 0.0 },
+  // §12 balance pass (ADR-0016): Tier0 min 96→97; natty odds trimmed in
+  // Tiers 1-3 so 16-0 stays rare (~5% random, ~18% oracle-optimal play).
+  Tier0: { min: 97, natty: 1.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
+  Tier1: { min: 91, natty: 0.2, semis: 0.5, major: 0.3, minor: 0.0, loss: 0.0, dynastyChance: 0.0 },
+  Tier2: { min: 85, natty: 0.08, semis: 0.42, major: 0.35, minor: 0.15, loss: 0.0, dynastyChance: 0.0 },
+  Tier3: { min: 78, natty: 0.05, semis: 0.25, major: 0.45, minor: 0.25, loss: 0.0, dynastyChance: 0.0 },
   Tier4: { min: 70, natty: 0.05, semis: 0.1, major: 0.45, minor: 0.35, loss: 0.05, dynastyChance: 0.0 },
   Tier5: { min: 60, natty: 0.0, semis: 0.05, major: 0.15, minor: 0.6, loss: 0.2, dynastyChance: 0.0 },
   Tier6: { min: 45, natty: 0.0, semis: 0.0, major: 0.0, minor: 0.3, loss: 0.7, dynastyChance: 0.0 },

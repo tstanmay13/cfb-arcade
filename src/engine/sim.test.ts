@@ -42,8 +42,8 @@ describe("powerScore (§6.1)", () => {
 describe("tierFor (§6.2)", () => {
   it("maps boundaries and floats between integer bounds", () => {
     expect(tierFor(100)).toBe("Tier0");
-    expect(tierFor(96)).toBe("Tier0");
-    expect(tierFor(95.9)).toBe("Tier1"); // between Tier1.max=95 and Tier0.min=96
+    expect(tierFor(97)).toBe("Tier0"); // §12 pass raised the bar from 96
+    expect(tierFor(96.9)).toBe("Tier1");
     expect(tierFor(91)).toBe("Tier1");
     expect(tierFor(90.5)).toBe("Tier2");
     expect(tierFor(78)).toBe("Tier3");
@@ -60,7 +60,7 @@ describe("resolveOutcome (§6.2)", () => {
     const rng = mulberry32(123);
     let dynasties = 0;
     for (let i = 0; i < 4000; i++) {
-      const r = resolveOutcome(97, rng);
+      const r = resolveOutcome(98, rng);
       expect(r.tier).toBe("Tier0");
       expect(r.outcome).toBe("natty");
       if (r.isDynasty) dynasties++;
@@ -78,16 +78,16 @@ describe("resolveOutcome (§6.2)", () => {
     }
   });
 
-  it("Tier 1 outcome frequencies track the matrix (40/40/20)", () => {
+  it("Tier 1 outcome frequencies track the matrix (20/50/30)", () => {
     const rng = mulberry32(77);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 6000; i++) {
       const r = resolveOutcome(93, rng);
       counts[r.outcome] = (counts[r.outcome] ?? 0) + 1;
     }
-    expect(counts.natty / 6000).toBeCloseTo(0.4, 1);
-    expect(counts.semis / 6000).toBeCloseTo(0.4, 1);
-    expect(counts.major / 6000).toBeCloseTo(0.2, 1);
+    expect(counts.natty / 6000).toBeCloseTo(0.2, 1);
+    expect(counts.semis / 6000).toBeCloseTo(0.5, 1);
+    expect(counts.major / 6000).toBeCloseTo(0.3, 1);
     expect(counts.minor ?? 0).toBe(0);
   });
 });

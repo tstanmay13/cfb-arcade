@@ -169,6 +169,71 @@ export const TOP_N: Record<GamePosition, number> = {
 /** Notability floor for the modern slice (overall >= FLOOR). */
 export const OVR_FLOOR = 75;
 
+// ---------------------------------------------------------------------------
+// Rating recalibration (anti-inflation, ADR-0016)
+//
+// The warehouse rating is a within-season cohort percentile; the game pool
+// then keeps only top-N of powerhouse programs at their best season — triple
+// selection bias that leaves the pool's median at ~87 and made 16-0 common.
+// Quantile-remap the POOL's ratings (per position, rank-preserving) onto the
+// §4.5 rubric's intended scarcity. Same input value → same output value, so
+// ordering and the §12 stat↔OVR correlation are preserved exactly.
+// ---------------------------------------------------------------------------
+
+/** Bottom-up cumulative bands: share of the pool mapped into [min, max]. */
+export interface CalibrationBand {
+  share: number;
+  min: number;
+  max: number;
+}
+
+export const CALIBRATION_BANDS: CalibrationBand[] = [
+  { share: 0.15, min: 62, max: 69 }, // depth pieces
+  { share: 0.36, min: 70, max: 76 }, // solid contributors
+  { share: 0.36, min: 77, max: 83 }, // multi-year quality starters
+  { share: 0.1, min: 84, max: 89 }, // all-conference
+  { share: 0.025, min: 90, max: 95 }, // clear All-American
+  { share: 0.004, min: 96, max: 98 }, // generational
+  { share: 0.001, min: 99, max: 99 }, // the mythical 99 club
+];
+
+/**
+ * Map ratings onto CALIBRATION_BANDS by mid-rank quantile, per group.
+ * Returns old-value → new-value per group key.
+ */
+export function calibrationMap(
+  byGroup: Map<string, number[]>,
+  bands: CalibrationBand[] = CALIBRATION_BANDS,
+): Map<string, Map<number, number>> {
+  const out = new Map<string, Map<number, number>>();
+  for (const [group, values] of byGroup) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const n = sorted.length;
+    const remap = new Map<number, number>();
+    for (const v of new Set(sorted)) {
+      const lo = sorted.findIndex((x) => x === v);
+      const hi = n - 1 - [...sorted].reverse().findIndex((x) => x === v);
+      const q = (lo + hi) / 2 / Math.max(1, n - 1); // mid-rank quantile in [0,1]
+      remap.set(v, bandValue(q, bands));
+    }
+    out.set(group, remap);
+  }
+  return out;
+}
+
+function bandValue(q: number, bands: CalibrationBand[]): number {
+  let acc = 0;
+  for (const band of bands) {
+    const next = acc + band.share;
+    if (q <= next || band === bands[bands.length - 1]) {
+      const within = band.share === 0 ? 0 : (q - acc) / band.share;
+      return Math.round(band.min + Math.min(1, Math.max(0, within)) * (band.max - band.min));
+    }
+    acc = next;
+  }
+  return bands[bands.length - 1].max;
+}
+
 /** Pearson correlation — used for the §12 correlation-invariant warning. */
 export function pearson(xs: number[], ys: number[]): number {
   const n = xs.length;

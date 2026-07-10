@@ -53,5 +53,12 @@ if (await verdict.isVisible().catch(() => false)) await verdict.click();
 await page.waitForTimeout(400);
 await page.screenshot({ path: `${outDir}/06-results.png`, fullPage: true });
 
+// Export the share card (§10) and save the produced PNG.
+const downloadP = page.waitForEvent("download", { timeout: 30000 });
+await page.getByRole("button", { name: "SHARE THE CARD" }).click();
+const download = await downloadP;
+await download.saveAs(`${outDir}/07-share-card.png`);
+console.log(`share card saved (${await download.suggestedFilename()})`);
+
 console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join("\n")}` : "no console errors");
 await browser.close();

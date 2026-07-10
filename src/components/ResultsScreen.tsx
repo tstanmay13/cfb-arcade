@@ -1,8 +1,10 @@
 // RESULTS (§8 / feeds §10's share card): the bragging artifact — banner,
 // record, compact game strip, roster with fluffed stats, awards.
+import { useRef, useState } from "react";
 import type { Player, SlotId } from "../data/types.ts";
 import { PLAYER_SLOTS } from "../data/types.ts";
 import { useGame } from "../state/store.tsx";
+import ShareCard from "./ShareCard.tsx";
 
 const OUTCOME_BANNER: Record<string, { title: string; sub: string }> = {
   natty: { title: "NATIONAL CHAMPIONS", sub: "Ran the table." },
@@ -37,6 +39,29 @@ export default function ResultsScreen() {
   const r = state.resolved!;
   const banner = OUTCOME_BANNER[r.outcome];
   const champs = r.outcome === "natty";
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
+
+  // §10: rasterize the hidden fixed-size node → PNG download.
+  const shareCard = async () => {
+    if (!cardRef.current || exporting) return;
+    setExporting(true);
+    try {
+      const { default: html2canvas } = await import("html2canvas");
+      const canvas = await html2canvas(cardRef.current, {
+        width: 1080,
+        height: 1350,
+        scale: 1,
+        backgroundColor: null,
+      });
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = `the-16-0-draft-${r.record}${r.isDynasty ? "-dynasty" : ""}.png`;
+      a.click();
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-6 p-6 py-10">
@@ -122,12 +147,29 @@ export default function ResultsScreen() {
       <div className="flex gap-3">
         <button
           type="button"
+          onClick={shareCard}
+          disabled={exporting}
+          className="rounded-lg bg-team px-8 py-3 font-display tracking-widest text-team-accent shadow transition enabled:hover:brightness-110 disabled:opacity-50"
+        >
+          {exporting ? "RENDERING…" : "SHARE THE CARD"}
+        </button>
+        <button
+          type="button"
           onClick={() => dispatch({ type: "REPLAY" })}
           className="rounded-lg border-2 border-ink px-8 py-3 font-display tracking-widest transition hover:bg-ink/5"
         >
           RUN IT BACK
         </button>
       </div>
+
+      <ShareCard
+        ref={cardRef}
+        slots={state.slots}
+        hc={state.hc}
+        resolved={r}
+        mode={state.mode}
+        teamHex={state.favoriteTeam?.mainHex ?? "#1b2a41"}
+      />
     </main>
   );
 }

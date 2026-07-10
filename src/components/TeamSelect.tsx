@@ -57,8 +57,9 @@ export default function TeamSelect() {
         <p className="font-display text-sm tracking-[0.35em] text-team">SPIN · DRAFT · RUN THE TABLE</p>
         <h1 className="mt-2 font-display text-5xl leading-tight sm:text-6xl">THE 16-0 DRAFT</h1>
         <p className="mx-auto mt-3 max-w-md text-sm opacity-75">
-          Nine spins across five decades of college football. Draft a legend at every
-          position, land a coach, and find out if your team runs the table.
+          Nine spins across fifteen seasons of real college football data. Draft a
+          star at every position, land a coach, and find out if your team runs the
+          table.
         </p>
       </header>
 

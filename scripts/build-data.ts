@@ -62,9 +62,10 @@ const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s"
 const REAL_DECADES: Decade[] = ["2010s", "2020s"];
 
 // Eras removed from the shipped game (authored-only, no real data behind
-// them). Content files keep their rows as dormant source — deleting a decade
-// from this set brings it back at the next bake.
-const EXCLUDED_DECADES = new Set<Decade>(["1980s"]);
+// them — user decision: real data only). Content files keep their rows as
+// dormant source — deleting a decade from this set brings it back at the
+// next bake.
+const EXCLUDED_DECADES = new Set<Decade>(["1980s", "1990s", "2000s"]);
 
 // Anon (publishable) key — safe to embed by design; RLS allows read-only.
 const SUPABASE_URL =
@@ -544,29 +545,35 @@ async function main(): Promise<void> {
   const authored = contentPlayers(programs);
   console.log(`  authored players: ${authored.length}`);
 
-  // Union, with authored curation winning same-human collisions: an authored
-  // icon keeps their calibrated OVR / dual-position / jersey; the real row for
-  // the same person is dropped (early seasons' ratings are degraded — see
-  // ADR-0014). Everyone else real fills out the cells.
-  const authoredKeys = new Set(
-    authored.map((p) => `${p.name.toLowerCase()}|${p.school_id}|${p.decade}`),
+  // Union, with REAL rows winning same-human collisions (user decision: real
+  // data only). An authored row survives only when no real row qualifies —
+  // e.g. Cam Newton, whose 2010 CFBD rows carry no position and can't be
+  // rated (ADR-0014's data cliff inside the decade).
+  const realKeys = new Set(
+    modern.map((p) => `${p.name.toLowerCase()}|${p.school_id}|${p.decade}`),
   );
-  const collisions: string[] = [];
-  const real = modern.filter((p) => {
+  const superseded: string[] = [];
+  const authoredKept = authored.filter((p) => {
     const key = `${p.name.toLowerCase()}|${p.school_id}|${p.decade}`;
-    if (authoredKeys.has(key)) {
-      collisions.push(p.name);
+    if (realKeys.has(key)) {
+      superseded.push(p.name);
       return false;
     }
     return true;
   });
-  if (collisions.length > 0) {
+  if (superseded.length > 0) {
     console.log(
-      `  authored curation kept over real rows (${collisions.length}): ${collisions.join(", ")}`,
+      `  real rows supersede authored (${superseded.length}): ${superseded.join(", ")}`,
+    );
+  }
+  if (authoredKept.length > 0) {
+    console.log(
+      `  authored rows without a real counterpart kept (${authoredKept.length}): ` +
+        authoredKept.map((p) => p.name).join(", "),
     );
   }
 
-  const players = [...real, ...authored];
+  const players = [...modern, ...authoredKept];
   const coaches = contentCoaches(programs, conferences);
 
   const teams: Team[] = programs.map((program) => {

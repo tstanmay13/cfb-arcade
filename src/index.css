@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/* Team theme variables — injected at runtime by applyTeamTheme() (§8.2).
+   Defaults are a neutral collegiate green until a favorite team is chosen. */
+:root {
+  --primary-color: #14532d;
+  --secondary-color: #ffffff;
+  --bg-stadium-glow: radial-gradient(circle, #14532d22 0%, #ffffff 100%);
+}
+
+@theme {
+  --color-team: var(--primary-color);
+  --color-team-accent: var(--secondary-color);
+  --font-display: "Arial Narrow", "Helvetica Neue Condensed", "Impact",
+    sans-serif;
+  --font-body: system-ui, "Helvetica Neue", sans-serif;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-stadium-glow);
+  min-height: 100vh;
+}

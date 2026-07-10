@@ -61,6 +61,11 @@ const MODERN_SEASONS = Array.from(
 const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s");
 const REAL_DECADES: Decade[] = ["2010s", "2020s"];
 
+// Eras removed from the shipped game (authored-only, no real data behind
+// them). Content files keep their rows as dormant source — deleting a decade
+// from this set brings it back at the next bake.
+const EXCLUDED_DECADES = new Set<Decade>(["1980s"]);
+
 // Anon (publishable) key — safe to embed by design; RLS allows read-only.
 const SUPABASE_URL =
   process.env.CFB_SUPABASE_URL ?? "https://owwjabhinvwoaarjbmgm.supabase.co";
@@ -449,7 +454,9 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
 // ---------------------------------------------------------------------------
 function contentPlayers(programs: ProgramContent[]): Player[] {
   return programs.flatMap((program) => {
-    return program.players.map((p) => ({
+    return program.players
+      .filter((p) => !EXCLUDED_DECADES.has(p.decade))
+      .map((p) => ({
       player_id: playerId(p.primary_position, p.name, program.school_id, p.decade),
       name: p.name,
       display_short: displayShort(p.name),
@@ -472,7 +479,9 @@ function contentCoaches(
   modernConfs: Map<string, string>,
 ): Coach[] {
   return programs.flatMap((program) =>
-    program.coaches.map((c) => ({
+    program.coaches
+      .filter((c) => !EXCLUDED_DECADES.has(c.decade))
+      .map((c) => ({
       coach_id: coachId(c.name, program.school_id, c.decade),
       name: c.name,
       display_short: displayShort(c.name),
@@ -572,8 +581,9 @@ async function main(): Promise<void> {
       mainHex: b?.color ?? "#333333",
       accentHex: b?.alternate_color ?? "#ffffff",
       eras_present: eras,
-      is_historic_powerhouse: program.powerhouse_eras.length > 0,
-      powerhouse_eras: program.powerhouse_eras,
+      is_historic_powerhouse:
+        program.powerhouse_eras.filter((d) => !EXCLUDED_DECADES.has(d)).length > 0,
+      powerhouse_eras: program.powerhouse_eras.filter((d) => !EXCLUDED_DECADES.has(d)),
     };
   });
 

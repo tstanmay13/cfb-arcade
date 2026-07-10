@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:data": "node --no-warnings scripts/build-data.ts"
+    "build:data": "node --no-warnings scripts/build-data.ts",
+    "build:seasons": "node --no-warnings scripts/build-seasons.ts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.2.8",

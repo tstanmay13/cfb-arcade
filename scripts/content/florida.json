@@ -1,0 +1,147 @@
+{
+  "school_id": "florida",
+  "cfbd_name": "Florida",
+  "name": "Florida",
+  "mascot": "Gators",
+  "powerhouse_eras": ["1990s", "2000s"],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Steve Spurrier",
+      "decade": "1990s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 102, "stat_2": 1, "stat_3": 5, "stat_4": 60.0, "stat_5": 228 }
+    },
+    {
+      "name": "Urban Meyer",
+      "decade": "2000s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 57, "stat_2": 2, "stat_3": 2, "stat_4": 80.0, "stat_5": 187 }
+    },
+    {
+      "name": "Billy Napier",
+      "decade": "2020s",
+      "coach_tier": "Sub-Par",
+      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 62 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Danny Wuerffel",
+      "jersey_number": "7",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 3625, "stat_2": 39, "stat_3": 13, "stat_4": -60, "stat_5": 64.7 }
+    },
+    {
+      "name": "Tim Tebow",
+      "jersey_number": "15",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 98,
+      "stats": { "stat_1": 3286, "stat_2": 32, "stat_3": 6, "stat_4": 895, "stat_5": 66.9 }
+    },
+    {
+      "name": "Rex Grossman",
+      "jersey_number": "8",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 3896, "stat_2": 34, "stat_3": 12, "stat_4": -37, "stat_5": 65.6 }
+    },
+    {
+      "name": "Fred Taylor",
+      "jersey_number": "21",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 1292, "stat_2": 13, "stat_3": 5.9, "stat_4": 175, "stat_5": 1 }
+    },
+    {
+      "name": "Percy Harvin",
+      "jersey_number": "1",
+      "primary_position": "WR",
+      "secondary_position": "RB",
+      "decade": "2000s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 40, "stat_2": 644, "stat_3": 7, "stat_4": 16.1, "stat_5": 80 }
+    },
+    {
+      "name": "Ike Hilliard",
+      "jersey_number": "5",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 57, "stat_2": 900, "stat_3": 10, "stat_4": 15.8, "stat_5": 65 }
+    },
+    {
+      "name": "Reidel Anthony",
+      "jersey_number": "84",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 72, "stat_2": 1293, "stat_3": 18, "stat_4": 18.0, "stat_5": 68 }
+    },
+    {
+      "name": "Jevon Kearse",
+      "jersey_number": "94",
+      "primary_position": "DL",
+      "secondary_position": "LB",
+      "decade": "1990s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 60, "stat_2": 15, "stat_3": 7.5, "stat_4": 3, "stat_5": 2 }
+    },
+    {
+      "name": "Alex Brown",
+      "jersey_number": "96",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 51, "stat_2": 16, "stat_3": 13, "stat_4": 2, "stat_5": 1 }
+    },
+    {
+      "name": "Brandon Spikes",
+      "jersey_number": "51",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 93, "stat_2": 9, "stat_3": 3, "stat_4": 4, "stat_5": 2 }
+    },
+    {
+      "name": "Joe Haden",
+      "jersey_number": "5",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 57, "stat_2": 4, "stat_3": 11, "stat_4": 0, "stat_5": 2 }
+    },
+    {
+      "name": "Reggie Nelson",
+      "jersey_number": "1",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "2000s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 51, "stat_2": 6, "stat_3": 9, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Lawrence Wright",
+      "jersey_number": "4",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 66, "stat_2": 3, "stat_3": 6, "stat_4": 1, "stat_5": 3 }
+    }
+  ]
+}

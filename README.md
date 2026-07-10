@@ -38,7 +38,12 @@ npm run build:data   # reads ../cfb.db, writes public/data.json
   `player_season_stats` + real team colors from `teams`.
 - **Historical eras (1980s–2010s)** — LLM-authored rosters (design doc §4.5),
   OVR-calibrated against the real modern scale, kept as human-readable source
-  files under `scripts/historical/` and compiled into `data.json`.
+  files under `scripts/content/` (one JSON per program) and compiled into
+  `data.json`.
+
+Current coverage: **18 programs, ~44 team/era cells, ~540 players** (design
+doc target: 68 programs — expand by adding `scripts/content/*.json` files and
+re-baking; the modern era comes along automatically).
 
 The running game never touches a database or API — design pillar #4.
 

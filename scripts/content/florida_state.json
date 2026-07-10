@@ -1,0 +1,114 @@
+{
+  "school_id": "florida_state",
+  "cfbd_name": "Florida State",
+  "name": "Florida State",
+  "mascot": "Seminoles",
+  "powerhouse_eras": ["1980s", "1990s", "2010s"],
+  "conferences": { "1980s": "Independent", "1990s": "ACC", "2000s": "ACC", "2010s": "ACC" },
+  "coaches": [
+    {
+      "name": "Bobby Bowden",
+      "decade": "1990s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 109, "stat_2": 2, "stat_3": 8, "stat_4": 80.0, "stat_5": 377 }
+    },
+    {
+      "name": "Mike Norvell",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 71 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Deion Sanders",
+      "jersey_number": "2",
+      "primary_position": "CB",
+      "secondary_position": "WR",
+      "decade": "1980s",
+      "hidden_ovr": 97,
+      "stats": { "stat_1": 45, "stat_2": 5, "stat_3": 12, "stat_4": 1, "stat_5": 1 }
+    },
+    {
+      "name": "Charlie Ward",
+      "jersey_number": "17",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 3032, "stat_2": 27, "stat_3": 4, "stat_4": 339, "stat_5": 69.5 }
+    },
+    {
+      "name": "Chris Weinke",
+      "jersey_number": "16",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 3103, "stat_2": 25, "stat_3": 14, "stat_4": -12, "stat_5": 60.2 }
+    },
+    {
+      "name": "Warrick Dunn",
+      "jersey_number": "28",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 1180, "stat_2": 13, "stat_3": 6.9, "stat_4": 313, "stat_5": 2 }
+    },
+    {
+      "name": "Peter Warrick",
+      "jersey_number": "9",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 61, "stat_2": 934, "stat_3": 12, "stat_4": 15.3, "stat_5": 59 }
+    },
+    {
+      "name": "Tamarick Vanover",
+      "jersey_number": "88",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 85,
+      "stats": { "stat_1": 43, "stat_2": 730, "stat_3": 5, "stat_4": 17.0, "stat_5": 62 }
+    },
+    {
+      "name": "Derrick Brooks",
+      "jersey_number": "10",
+      "primary_position": "LB",
+      "secondary_position": "S",
+      "decade": "1990s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 93, "stat_2": 13, "stat_3": 4, "stat_4": 2, "stat_5": 3 }
+    },
+    {
+      "name": "Corey Simon",
+      "jersey_number": "53",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 59, "stat_2": 14, "stat_3": 5, "stat_4": 2, "stat_5": 2 }
+    },
+    {
+      "name": "Terrell Buckley",
+      "jersey_number": "27",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 48, "stat_2": 12, "stat_3": 14, "stat_4": 2, "stat_5": 1 }
+    },
+    {
+      "name": "LeRoy Butler",
+      "jersey_number": "8",
+      "primary_position": "S",
+      "secondary_position": "CB",
+      "decade": "1980s",
+      "hidden_ovr": 90,
+      "stats": { "stat_1": 62, "stat_2": 7, "stat_3": 9, "stat_4": 1, "stat_5": 2 }
+    }
+  ]
+}

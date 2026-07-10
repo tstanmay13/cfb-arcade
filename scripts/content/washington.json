@@ -1,0 +1,87 @@
+{
+  "school_id": "washington",
+  "cfbd_name": "Washington",
+  "name": "Washington",
+  "mascot": "Huskies",
+  "powerhouse_eras": ["1990s"],
+  "conferences": { "1980s": "Pac-10", "1990s": "Pac-10", "2000s": "Pac-10", "2010s": "Pac-12" },
+  "coaches": [
+    {
+      "name": "Don James",
+      "decade": "1990s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 22, "stat_2": 1, "stat_3": 2, "stat_4": 66.7, "stat_5": 153 }
+    },
+    {
+      "name": "Jedd Fisch",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 14, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 30 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Mark Brunell",
+      "jersey_number": "11",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 2242, "stat_2": 16, "stat_3": 7, "stat_4": 444, "stat_5": 59.8 }
+    },
+    {
+      "name": "Napoleon Kaufman",
+      "jersey_number": "8",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 1390, "stat_2": 9, "stat_3": 5.1, "stat_4": 168, "stat_5": 1 }
+    },
+    {
+      "name": "Mario Bailey",
+      "jersey_number": "5",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 62, "stat_2": 1037, "stat_3": 17, "stat_4": 16.7, "stat_5": 65 }
+    },
+    {
+      "name": "Steve Emtman",
+      "jersey_number": "90",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 95,
+      "stats": { "stat_1": 55, "stat_2": 19.5, "stat_3": 6.5, "stat_4": 2, "stat_5": 2 }
+    },
+    {
+      "name": "Dave Hoffmann",
+      "jersey_number": "54",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 96, "stat_2": 10, "stat_3": 4, "stat_4": 1, "stat_5": 3 }
+    },
+    {
+      "name": "Lawyer Milloy",
+      "jersey_number": "6",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 106, "stat_2": 4, "stat_3": 8, "stat_4": 1, "stat_5": 4 }
+    },
+    {
+      "name": "Walter Bailey",
+      "jersey_number": "21",
+      "primary_position": "CB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 86,
+      "stats": { "stat_1": 45, "stat_2": 6, "stat_3": 9, "stat_4": 1, "stat_5": 1 }
+    }
+  ]
+}

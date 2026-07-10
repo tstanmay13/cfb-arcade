@@ -1,0 +1,114 @@
+{
+  "school_id": "penn_state",
+  "cfbd_name": "Penn State",
+  "name": "Penn State",
+  "mascot": "Nittany Lions",
+  "powerhouse_eras": ["1980s", "1990s"],
+  "conferences": { "1980s": "Independent", "1990s": "Big Ten", "2000s": "Big Ten", "2010s": "Big Ten" },
+  "coaches": [
+    {
+      "name": "Joe Paterno",
+      "decade": "1980s",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 89, "stat_2": 2, "stat_3": 0, "stat_4": 66.7, "stat_5": 409 }
+    },
+    {
+      "name": "James Franklin",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 45, "stat_2": 0, "stat_3": 0, "stat_4": 55.0, "stat_5": 128 }
+    }
+  ],
+  "players": [
+    {
+      "name": "Kerry Collins",
+      "jersey_number": "12",
+      "primary_position": "QB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 91,
+      "stats": { "stat_1": 2679, "stat_2": 21, "stat_3": 7, "stat_4": -47, "stat_5": 66.7 }
+    },
+    {
+      "name": "Ki-Jana Carter",
+      "jersey_number": "32",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 93,
+      "stats": { "stat_1": 1539, "stat_2": 23, "stat_3": 7.8, "stat_4": 122, "stat_5": 1 }
+    },
+    {
+      "name": "Curtis Enis",
+      "jersey_number": "39",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 1363, "stat_2": 19, "stat_3": 6.0, "stat_4": 212, "stat_5": 1 }
+    },
+    {
+      "name": "Bobby Engram",
+      "jersey_number": "10",
+      "primary_position": "WR",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 89,
+      "stats": { "stat_1": 63, "stat_2": 1084, "stat_3": 13, "stat_4": 17.2, "stat_5": 51 }
+    },
+    {
+      "name": "D.J. Dozier",
+      "jersey_number": "42",
+      "primary_position": "RB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 88,
+      "stats": { "stat_1": 1002, "stat_2": 10, "stat_3": 4.9, "stat_4": 165, "stat_5": 1 }
+    },
+    {
+      "name": "Shane Conlan",
+      "jersey_number": "31",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 79, "stat_2": 8, "stat_3": 2, "stat_4": 2, "stat_5": 2 }
+    },
+    {
+      "name": "LaVar Arrington",
+      "jersey_number": "11",
+      "primary_position": "LB",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 94,
+      "stats": { "stat_1": 72, "stat_2": 20, "stat_3": 9, "stat_4": 1, "stat_5": 2 }
+    },
+    {
+      "name": "Courtney Brown",
+      "jersey_number": "88",
+      "primary_position": "DL",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 92,
+      "stats": { "stat_1": 70, "stat_2": 29, "stat_3": 13, "stat_4": 3, "stat_5": 1 }
+    },
+    {
+      "name": "Kim Herring",
+      "jersey_number": "24",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1990s",
+      "hidden_ovr": 87,
+      "stats": { "stat_1": 55, "stat_2": 5, "stat_3": 7, "stat_4": 1, "stat_5": 1 }
+    },
+    {
+      "name": "Mark Robinson",
+      "jersey_number": "41",
+      "primary_position": "S",
+      "secondary_position": null,
+      "decade": "1980s",
+      "hidden_ovr": 85,
+      "stats": { "stat_1": 61, "stat_2": 4, "stat_3": 5, "stat_4": 1, "stat_5": 2 }
+    }
+  ]
+}

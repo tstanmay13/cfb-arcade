@@ -153,15 +153,17 @@ export function statBlockFor(pos: GamePosition, p: StatPivot): StatBlock {
   }
 }
 
-/** How many modern players to keep per game position per team cell. */
+/** How many real players to keep per game position per {team, decade} cell.
+    A cell now spans a whole decade of seasons, so N is sized for "all notable
+    players" (§4.5) rather than a single recruiting class. */
 export const TOP_N: Record<GamePosition, number> = {
-  QB: 2,
-  RB: 3,
-  WR: 4,
-  DL: 4,
-  LB: 3,
-  CB: 3,
-  S: 3,
+  QB: 3,
+  RB: 4,
+  WR: 5,
+  DL: 5,
+  LB: 4,
+  CB: 4,
+  S: 4,
 };
 
 /** Notability floor for the modern slice (overall >= FLOOR). */

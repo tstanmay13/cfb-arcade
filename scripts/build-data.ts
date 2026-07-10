@@ -47,8 +47,19 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const CONTENT_DIR = join(HERE, "content");
 const OUT_PATH = join(HERE, "..", "public", "data.json");
 const LOCAL_DB = join(HERE, "..", "..", "cfb.db");
-const MODERN_DECADE: Decade = "2020s";
-const MODERN_SEASONS = [2024, 2025];
+
+// Seasons with clean real player data (stats + positions + rosters). CFBD has
+// a hard cliff below 2010: 2006-09 stats are thin and rosters carry no
+// positions; 2005 and earlier is scores-only. So 2010s + 2020s are REAL eras
+// and everything older stays authored (§4.5 / ADR-0014).
+const FIRST_REAL_SEASON = 2010;
+const LAST_REAL_SEASON = 2025;
+const MODERN_SEASONS = Array.from(
+  { length: LAST_REAL_SEASON - FIRST_REAL_SEASON + 1 },
+  (_, i) => FIRST_REAL_SEASON + i,
+);
+const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s");
+const REAL_DECADES: Decade[] = ["2010s", "2020s"];
 
 // Anon (publishable) key — safe to embed by design; RLS allows read-only.
 const SUPABASE_URL =
@@ -189,10 +200,62 @@ interface RatingRow {
   season: number;
 }
 
+interface StatRow {
+  athlete_id: string;
+  season: number;
+  category: string;
+  stat_type: string;
+  stat: string;
+}
+
+/** Warehouse fallback: ratings for seasons not yet pushed to Supabase. */
+function localRatingRows(cfbdNames: string[], seasons: number[]): RatingRow[] {
+  if (!existsSync(LOCAL_DB) || seasons.length === 0) return [];
+  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
+  const db = new DatabaseSync(LOCAL_DB, { readOnly: true });
+  const rows = db
+    .prepare(
+      `SELECT athlete_id, player, team, position, pos_group, overall, season
+       FROM player_ratings
+       WHERE season IN (${seasons.map(() => "?").join(",")})
+         AND team IN (${cfbdNames.map(() => "?").join(",")})
+         AND is_current=1 AND projected=0 AND overall >= ${OVR_FLOOR}
+         AND pos_group IN ('QB','RB','WR','DL','LB','DB')`,
+    )
+    .all(...seasons, ...cfbdNames) as unknown as RatingRow[];
+  db.close();
+  return rows;
+}
+
+/** Warehouse fallback: stat lines for (athlete, season) pairs not yet pushed. */
+function localStatRows(athleteIds: string[], seasons: number[]): StatRow[] {
+  if (!existsSync(LOCAL_DB) || athleteIds.length === 0 || seasons.length === 0) return [];
+  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
+  const db = new DatabaseSync(LOCAL_DB, { readOnly: true });
+  const out: StatRow[] = [];
+  for (const ids of chunk(athleteIds, 400)) {
+    const rows = db
+      .prepare(
+        `SELECT athlete_id, season, category, stat_type, stat
+         FROM player_season_stats
+         WHERE season IN (${seasons.map(() => "?").join(",")})
+           AND athlete_id IN (${ids.map(() => "?").join(",")})
+           AND category IN ('passing','rushing','receiving','defensive','interceptions')
+           AND COALESCE(is_current,1)=1`,
+      )
+      .all(...seasons, ...ids) as unknown as StatRow[];
+    out.push(...rows);
+  }
+  db.close();
+  return out;
+}
+
 async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
   players: Player[];
   conferences: Map<string, string>;
   branding: Map<string, TeamBranding>;
+  /** "{school_id}|{decade}" cells that have real coverage. */
+  realCells: Set<string>;
 }> {
   const names = programs.map((p) => p.cfbd_name);
   const byName = new Map(programs.map((p) => [p.cfbd_name, p]));
@@ -227,15 +290,35 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
     if (b.conference) conferences.set(school, b.conference);
   }
 
-  // 2. Ratings (real seasons only), floor applied server-side.
+  // 2. Ratings for every real season, floor applied server-side. Seasons the
+  //    serving layer doesn't have yet fall back to the local warehouse.
   const ratingRows = (await rest(
     `cfb_player_ratings?select=athlete_id,player,team,position,pos_group,overall,season` +
       `&team=in.${quoteList(names)}&season=in.(${MODERN_SEASONS.join(",")})` +
       `&projected=is.false&is_current=is.true&overall=gte.${OVR_FLOOR}` +
       `&pos_group=in.(QB,RB,WR,DL,LB,DB)&order=nkey.asc`,
   )) as unknown as RatingRow[];
+  const supaSeasons = new Set(ratingRows.map((r) => r.season));
+  const missingSeasons = MODERN_SEASONS.filter((s) => !supaSeasons.has(s));
+  if (missingSeasons.length > 0) {
+    const local = localRatingRows(names, missingSeasons);
+    if (local.length > 0) {
+      console.warn(
+        `  note: ratings for seasons ${missingSeasons.join(",")} came from the local ` +
+          `warehouse — push player_ratings,player_season_stats,rosters to serve them.`,
+      );
+      ratingRows.push(...local);
+    } else {
+      console.warn(
+        `  note: no data anywhere for seasons ${missingSeasons.join(",")} — ` +
+          `run the 2010-2023 backfill (ingest + ratings) to make the 2010s era real.`,
+      );
+    }
+  }
 
-  // Best season per athlete (overall desc, then later season).
+  // Best season per athlete across ALL real seasons (overall desc, then later
+  // season) — the athlete lands in the decade of that best season, so a human
+  // never appears in two decade cells.
   const best = new Map<string, RatingRow>();
   for (const r of ratingRows) {
     if (!r.athlete_id || !r.player) continue;
@@ -245,39 +328,54 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
     }
   }
 
-  // Top-N per {team, game position}.
+  // Top-N per {team, decade, game position}.
   type Mapped = RatingRow & { primary: GamePosition; secondary: GamePosition | null };
-  const byTeamPos = new Map<string, Mapped[]>();
+  const byCellPos = new Map<string, Mapped[]>();
   for (const r of best.values()) {
     const mapped = mapDbPosition(r.pos_group, r.position);
     if (!mapped) continue;
-    const key = `${r.team}|${mapped.primary}`;
-    const list = byTeamPos.get(key) ?? [];
+    const key = `${r.team}|${decadeOf(r.season)}|${mapped.primary}`;
+    const list = byCellPos.get(key) ?? [];
     list.push({ ...r, ...mapped });
-    byTeamPos.set(key, list);
+    byCellPos.set(key, list);
   }
   const kept: Mapped[] = [];
-  for (const [key, list] of byTeamPos) {
-    const pos = key.split("|")[1] as GamePosition;
+  for (const [key, list] of byCellPos) {
+    const pos = key.split("|")[2] as GamePosition;
     list.sort((a, b) => b.overall - a.overall || a.athlete_id.localeCompare(b.athlete_id));
     kept.push(...list.slice(0, TOP_N[pos]));
   }
 
-  // 3. Stat lines for kept athletes (both seasons; chosen season picked here).
+  // 3. Stat lines for each kept athlete's chosen season (Supabase first,
+  //    warehouse for seasons not served yet).
   const ids = kept.map((k) => k.athlete_id);
   const pivots = new Map<string, StatPivot>(); // athlete|season -> pivot
-  for (const idChunk of chunk(ids, 120)) {
-    const statRows = (await rest(
-      `cfb_player_season_stats?select=athlete_id,season,category,stat_type,stat` +
-        `&athlete_id=in.${quoteList(idChunk)}&season=in.(${MODERN_SEASONS.join(",")})` +
-        `&category=in.(passing,rushing,receiving,defensive,interceptions)&is_current=is.true&order=nkey.asc`,
-    )) as unknown as { athlete_id: string; season: number; category: string; stat_type: string; stat: string }[];
-    for (const s of statRows) {
+  const addStatRows = (rows: StatRow[]) => {
+    for (const s of rows) {
       const key = `${s.athlete_id}|${s.season}`;
       const pivot = pivots.get(key) ?? {};
       (pivot[s.category] ??= {})[s.stat_type] = Number(s.stat) || 0;
       pivots.set(key, pivot);
     }
+  };
+  const supaIds = kept.filter((k) => supaSeasons.has(k.season)).map((k) => k.athlete_id);
+  for (const idChunk of chunk(supaIds, 120)) {
+    addStatRows(
+      (await rest(
+        `cfb_player_season_stats?select=athlete_id,season,category,stat_type,stat` +
+          `&athlete_id=in.${quoteList(idChunk)}&season=in.(${MODERN_SEASONS.join(",")})` +
+          `&category=in.(passing,rushing,receiving,defensive,interceptions)&is_current=is.true&order=nkey.asc`,
+      )) as unknown as StatRow[],
+    );
+  }
+  const localKept = kept.filter((k) => !pivots.has(`${k.athlete_id}|${k.season}`));
+  if (localKept.length > 0) {
+    addStatRows(
+      localStatRows(
+        localKept.map((k) => k.athlete_id),
+        [...new Set(localKept.map((k) => k.season))],
+      ),
+    );
   }
 
   // 4. Jerseys (serving layer; warehouse fallback if the column isn't live yet).
@@ -305,13 +403,16 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
     }
   }
 
-  // 5. Assemble Player objects.
+  // 5. Assemble Player objects (decade = decade of the athlete's best season).
   const players: Player[] = [];
+  const realCells = new Set<string>();
   for (const k of kept) {
     const program = byName.get(k.team)!;
+    const decade = decadeOf(k.season);
     const pivot = pivots.get(`${k.athlete_id}|${k.season}`) ?? {};
+    realCells.add(`${program.school_id}|${decade}`);
     players.push({
-      player_id: playerId(k.primary, k.player, program.school_id, MODERN_DECADE),
+      player_id: playerId(k.primary, k.player, program.school_id, decade),
       name: k.player,
       display_short: displayShort(k.player),
       jersey_number: jerseys.get(k.athlete_id) ?? "",
@@ -319,23 +420,39 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
       secondary_position: k.secondary,
       school: program.name,
       school_id: program.school_id,
-      decade: MODERN_DECADE,
+      decade,
       historical_conference:
-        program.conferences[MODERN_DECADE] ?? conferences.get(k.team) ?? "FBS",
-      is_historic_powerhouse: program.powerhouse_eras.includes(MODERN_DECADE),
+        program.conferences[decade] ?? conferences.get(k.team) ?? "FBS",
+      is_historic_powerhouse: program.powerhouse_eras.includes(decade),
       hidden_ovr: k.overall,
       stats: statBlockFor(k.primary, pivot),
     });
   }
-  return { players, conferences, branding };
+  return { players, conferences, branding, realCells };
 }
 
 // ---------------------------------------------------------------------------
 // Assemble + validate + write
 // ---------------------------------------------------------------------------
-function contentPlayers(programs: ProgramContent[]): Player[] {
-  return programs.flatMap((program) =>
-    program.players.map((p) => ({
+function contentPlayers(programs: ProgramContent[], realCells: Set<string>): Player[] {
+  return programs.flatMap((program) => {
+    // Real data supersedes authored rows for the same {program, decade}: once
+    // a decade cell is real, authored players there would duplicate the same
+    // humans under different ids (e.g. authored Derrick Henry vs real 2015
+    // Derrick Henry). Authored COACHES always stay — CFBD has no coach data.
+    const dropped = program.players.filter(
+      (p) =>
+        REAL_DECADES.includes(p.decade) &&
+        realCells.has(`${program.school_id}|${p.decade}`),
+    );
+    if (dropped.length > 0) {
+      console.warn(
+        `  superseded by real data: ${program.school_id} ${[...new Set(dropped.map((d) => d.decade))].join("+")} ` +
+          `(${dropped.length} authored player(s) dropped: ${dropped.map((d) => d.name).join(", ")})`,
+      );
+    }
+    const keptAuthored = program.players.filter((p) => !dropped.includes(p));
+    return keptAuthored.map((p) => ({
       player_id: playerId(p.primary_position, p.name, program.school_id, p.decade),
       name: p.name,
       display_short: displayShort(p.name),
@@ -349,8 +466,8 @@ function contentPlayers(programs: ProgramContent[]): Player[] {
       is_historic_powerhouse: program.powerhouse_eras.includes(p.decade),
       hidden_ovr: p.hidden_ovr,
       stats: p.stats,
-    })),
-  );
+    }));
+  });
 }
 
 function contentCoaches(
@@ -367,7 +484,7 @@ function contentCoaches(
       decade: c.decade,
       historical_conference:
         program.conferences[c.decade] ??
-        (c.decade === MODERN_DECADE ? modernConfs.get(program.cfbd_name) ?? "FBS" : "FBS"),
+        (c.decade === "2020s" ? modernConfs.get(program.cfbd_name) ?? "FBS" : "FBS"),
       coach_tier: c.coach_tier,
       stats: c.stats,
     })),
@@ -415,10 +532,10 @@ async function main(): Promise<void> {
   const programs = loadContent();
   console.log(`  programs: ${programs.length}`);
 
-  const { players: modern, conferences, branding } = await fetchModernPlayers(programs);
+  const { players: modern, conferences, branding, realCells } = await fetchModernPlayers(programs);
   console.log(`  modern (real) players: ${modern.length}`);
 
-  const historical = contentPlayers(programs);
+  const historical = contentPlayers(programs, realCells);
   console.log(`  authored historical players: ${historical.length}`);
 
   const players = [...modern, ...historical];

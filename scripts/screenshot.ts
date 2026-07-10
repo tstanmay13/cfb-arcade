@@ -42,11 +42,16 @@ for (let i = 0; i < 8; i++) {
 await page.waitForTimeout(1100);
 await page.screenshot({ path: `${outDir}/04-coach-spin.png` });
 
-// Pick a coach → results.
+// Pick a coach → season animation → results.
 const coachRow = page.locator("section[aria-label='Draft board'] li button:enabled").first();
 await coachRow.click();
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${outDir}/05-season.png` });
+await page.getByRole("button", { name: /skip to the end|SEE THE FINAL VERDICT/ }).click();
+const verdict = page.getByRole("button", { name: "SEE THE FINAL VERDICT" });
+if (await verdict.isVisible().catch(() => false)) await verdict.click();
 await page.waitForTimeout(400);
-await page.screenshot({ path: `${outDir}/05-results.png` });
+await page.screenshot({ path: `${outDir}/06-results.png`, fullPage: true });
 
 console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join("\n")}` : "no console errors");
 await browser.close();

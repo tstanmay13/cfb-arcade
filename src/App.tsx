@@ -4,6 +4,7 @@ import { loadData } from "./data/loadData.ts";
 import { GameProvider, useGame, useTeamTheme } from "./state/store.tsx";
 import TeamSelect from "./components/TeamSelect.tsx";
 import DraftScreen from "./components/DraftScreen.tsx";
+import SeasonScreen from "./components/SeasonScreen.tsx";
 import ResultsScreen from "./components/ResultsScreen.tsx";
 
 function Screens() {
@@ -15,6 +16,8 @@ function Screens() {
     case "DRAFT":
     case "COACH_SPIN":
       return <DraftScreen />;
+    case "SEASON":
+      return <SeasonScreen />;
     case "RESULTS":
       return <ResultsScreen />;
     default:

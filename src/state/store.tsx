@@ -13,6 +13,7 @@ import {
 } from "react";
 import type { Coach, GameData, Player, SlotId, Team } from "../data/types.ts";
 import { mulberry32, newSeed, type Rng } from "../engine/rng.ts";
+import { resolveSeason, type Resolved } from "../engine/resolve.ts";
 import {
   allPlayerSlotsFilled,
   emptyPlayerSlots,
@@ -32,6 +33,7 @@ export type Phase =
   | "TEAM_SELECT"
   | "DRAFT"
   | "COACH_SPIN"
+  | "SEASON"
   | "RESULTS";
 
 export type Mode = "Classic" | "Scout";
@@ -50,6 +52,8 @@ export interface RunState {
   seed: number;
   /** Bumps every spin so the ticker animation can re-key. */
   spinCounter: number;
+  /** Filled at SIM_RESOLVE (§6); SEASON/RESULTS only ever read this. */
+  resolved: Resolved | null;
 }
 
 export const initialRunState: RunState = {
@@ -64,6 +68,7 @@ export const initialRunState: RunState = {
   pendingPick: null,
   seed: 0,
   spinCounter: 0,
+  resolved: null,
 };
 
 export type Action =
@@ -73,7 +78,8 @@ export type Action =
   | { type: "CANCEL_PICK" }
   | { type: "PLACE"; player: Player; slot: Exclude<SlotId, "HC"> }
   | { type: "COACH_SPIN_RESULT"; spin: CoachSpinResult; cost?: "team" | "era" | null }
-  | { type: "PLACE_COACH"; coach: Coach }
+  | { type: "PLACE_COACH"; coach: Coach; resolved: Resolved }
+  | { type: "SEASON_DONE" }
   | { type: "REPLAY" };
 
 export function reducer(state: RunState, action: Action): RunState {
@@ -124,7 +130,10 @@ export function reducer(state: RunState, action: Action): RunState {
       };
     }
     case "PLACE_COACH":
-      return { ...state, hc: action.coach, phase: "RESULTS" };
+      // SIM_RESOLVE happened in the handler; the animation only plays it back.
+      return { ...state, hc: action.coach, resolved: action.resolved, phase: "SEASON" };
+    case "SEASON_DONE":
+      return { ...state, phase: "RESULTS" };
     case "REPLAY":
       return { ...initialRunState, favoriteTeam: state.favoriteTeam };
     default:
@@ -247,7 +256,11 @@ export function useGameActions() {
   };
 
   const placeCoach = (coach: Coach) => {
-    dispatch({ type: "PLACE_COACH", coach });
+    dispatch({
+      type: "PLACE_COACH",
+      coach,
+      resolved: resolveSeason(state.slots, coach, data, runRng),
+    });
   };
 
   return {

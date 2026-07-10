@@ -4,6 +4,13 @@ Conventions + gotchas for AI agents working on The 16-0 Draft. Read the design
 doc (`16-0-Draft_Design_Doc_v2.md`) before changing game rules — §0's resolved
 decisions and §1's five pillars are non-negotiable.
 
+This is an **arcade** of independent game "cabinets" in one static SPA
+(ADR-0017): The 16-0 Draft (cabinet #1) and Guess the Season (cabinet #2). They
+share the design system, `rng.ts`, and `scripts/lib.ts` — nothing else. `App`
+switches between them with a `view` union. **Do not entangle a new cabinet with
+the draft's `runState`/reducer** (`src/state/store.tsx`) — that's the shipped
+game.
+
 ## Ground rules
 
 - **100% client-side.** No backend, no runtime DB/API calls, no secrets in the
@@ -26,6 +33,12 @@ decisions and §1's five pillars are non-negotiable.
 - `scripts/build-data.ts` — bakes `public/data.json` (see ADR-0010/0011).
   `scripts/content/*.json` — authored historical rosters/coaches, one file per
   program; the human-readable source of truth (§4.5).
+- **Guess the Season** (cabinet #2): `src/engine/guessSeason.ts` (pure logic +
+  `.test.ts`), `src/components/GuessSeason.tsx` (screen, rendered *outside*
+  `GameProvider`; takes `teams` as a prop, lazy-fetches its own JSON via
+  `src/data/loadSeasons.ts`), `src/state/guessStorage.ts` (daily streak),
+  `scripts/build-seasons.ts` → `public/seasons.json`. Each cabinet bakes its own
+  JSON — never add to `data.json` for a different game.
 
 ## Commands
 
@@ -35,6 +48,8 @@ decisions and §1's five pillars are non-negotiable.
 - `npm run build:data` — re-bake `public/data.json` (needs network for
   Supabase; falls back to `../cfb.db` for branding/jerseys until the
   teams/rosters push lands).
+- `npm run build:seasons` — re-bake `public/seasons.json` for Guess the Season
+  (Supabase-only; ADR-0017).
 - `npm run build` — tsc + vite production build (static `dist/`).
 
 ## Gotchas

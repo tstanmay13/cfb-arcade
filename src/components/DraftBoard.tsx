@@ -10,6 +10,22 @@ import { useGame, useGameActions } from "../state/store.tsx";
 
 const POS_ORDER: GamePosition[] = ["QB", "RB", "WR", "DL", "LB", "CB", "S"];
 
+// Pool ordering the user controls (§8.5). We only ever sort on things the game
+// is willing to show — position and name — never `hidden_ovr`, which stays
+// hidden by design. Unplaceable rows always sink below the placeable ones
+// regardless of key (see DraftBoard partition), so "can't pick a QB anymore"
+// drops those QBs to the bottom instead of stranding them up top.
+type SortKey = "position" | "name";
+const SORT_LABELS: Record<SortKey, string> = { position: "Position", name: "A–Z" };
+
+const compareName = (a: Player, b: Player): number => a.name.localeCompare(b.name);
+const POOL_COMPARATORS: Record<SortKey, (a: Player, b: Player) => number> = {
+  position: (a, b) =>
+    POS_ORDER.indexOf(a.primary_position) - POS_ORDER.indexOf(b.primary_position) ||
+    compareName(a, b),
+  name: compareName,
+};
+
 function useSpinReveal(): boolean {
   // True while the ticker plays after a new spin lands.
   const { state } = useGame();
@@ -91,7 +107,7 @@ function PlayerRow({ player }: { player: Player }) {
           </span>
         </div>
         {state.mode === "Classic" && <StatLine pos={player.primary_position} stats={player.stats} />}
-        {dead && !state.pendingPick && (
+        {dead && (
           <p className="mt-1 text-[10px] uppercase tracking-wide opacity-60">
             {Object.values(state.slots).some((s) => s?.name === player.name && s.school_id === player.school_id)
               ? "Already on your roster"
@@ -148,6 +164,7 @@ export default function DraftBoard() {
     poolIsDead,
   } = useGameActions();
   const revealing = useSpinReveal();
+  const [sortBy, setSortBy] = useState<SortKey>("position");
 
   const coachPhase = state.phase === "COACH_SPIN";
   const cell = coachPhase ? state.currentCoachSpin : state.currentSpin;
@@ -156,14 +173,19 @@ export default function DraftBoard() {
   const needSpin = !coachPhase && state.currentSpin === null;
   const outOfRespins = state.respins.team <= 0 && state.respins.era <= 0;
 
-  const sortedPool =
-    !coachPhase && state.currentSpin
-      ? [...state.currentSpin.pool].sort(
-          (a, b) =>
-            POS_ORDER.indexOf(a.primary_position) - POS_ORDER.indexOf(b.primary_position) ||
-            a.name.localeCompare(b.name),
-        )
-      : [];
+  // Split the spin's roster into who you can still draft vs. who's blocked
+  // (position already filled, or a duplicate of someone rostered), then sort
+  // each group by the chosen key. Rendering the two groups separately keeps
+  // unplaceable rows pinned to the bottom under a divider no matter the sort.
+  const pool = !coachPhase && state.currentSpin ? state.currentSpin.pool : [];
+  const available: Player[] = [];
+  const unavailable: Player[] = [];
+  for (const p of pool) {
+    (eligibleOpenSlots(p, state.slots).length > 0 ? available : unavailable).push(p);
+  }
+  const cmp = POOL_COMPARATORS[sortBy];
+  available.sort(cmp);
+  unavailable.sort(cmp);
 
   return (
     <section aria-label="Draft board" className="flex min-h-[420px] flex-col rounded-xl border border-paper-edge bg-paper/70 shadow-sm lg:h-full">
@@ -189,27 +211,81 @@ export default function DraftBoard() {
       </header>
 
       {/* Pool */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {revealing ? (
-          <Ticker />
+          <div className="p-3">
+            <Ticker />
+          </div>
         ) : needSpin ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 text-center">
+          <div className="flex h-40 flex-col items-center justify-center gap-2 p-3 text-center">
             <p className="font-display tracking-widest opacity-70">
               {filled === 0 ? "SPIN TO OPEN THE DRAFT" : "PICK LOCKED IN — SPIN AGAIN"}
             </p>
           </div>
         ) : coachPhase && state.currentCoachSpin ? (
-          <ul className="space-y-2">
+          <ul className="space-y-2 p-3">
             {state.currentCoachSpin.pool.map((c) => (
               <CoachRow key={c.coach_id} coach={c} />
             ))}
           </ul>
         ) : (
-          <ul className="space-y-2">
-            {sortedPool.map((p) => (
-              <PlayerRow key={p.player_id} player={p} />
-            ))}
-          </ul>
+          <div>
+            {/* Sort + count bar — sticks to the top of the scrolling pool */}
+            <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-paper-edge bg-paper/95 px-3 py-2 backdrop-blur">
+              <p className="text-[11px] uppercase tracking-[0.15em] opacity-60">
+                {available.length} available
+                {unavailable.length > 0 && (
+                  <span className="opacity-70"> · {unavailable.length} out</span>
+                )}
+              </p>
+              <div role="group" aria-label="Sort players" className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">Sort</span>
+                <div className="flex overflow-hidden rounded-md border border-paper-edge font-display text-[10px] tracking-wider">
+                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSortBy(key)}
+                      aria-pressed={sortBy === key}
+                      className={`px-2.5 py-1 transition ${
+                        sortBy === key ? "bg-ink text-paper" : "bg-white/60 hover:bg-ink/5"
+                      }`}
+                    >
+                      {SORT_LABELS[key]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3">
+              {available.length > 0 && (
+                <ul className="space-y-2">
+                  {available.map((p) => (
+                    <PlayerRow key={p.player_id} player={p} />
+                  ))}
+                </ul>
+              )}
+              {unavailable.length > 0 && (
+                <>
+                  {available.length > 0 && (
+                    <div className="my-3 flex items-center gap-2" aria-hidden>
+                      <span className="h-px flex-1 bg-paper-edge" />
+                      <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">
+                        Can't place
+                      </span>
+                      <span className="h-px flex-1 bg-paper-edge" />
+                    </div>
+                  )}
+                  <ul className="space-y-2">
+                    {unavailable.map((p) => (
+                      <PlayerRow key={p.player_id} player={p} />
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
         )}
       </div>
 

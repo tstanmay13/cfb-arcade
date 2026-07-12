@@ -1,8 +1,9 @@
-# CLAUDE.md — game/
+# CLAUDE.md — CFB Arcade
 
-Conventions + gotchas for AI agents working on The 16-0 Draft. Read the design
-doc (`16-0-Draft_Design_Doc_v2.md`) before changing game rules — §0's resolved
-decisions and §1's five pillars are non-negotiable.
+Conventions + gotchas for AI agents working on the CFB Arcade (The 16-0 Draft
++ Guess the Season). Game rules follow the owner-side v2 design doc — its
+resolved decisions and five pillars are non-negotiable; the §N references in
+code comments point at it.
 
 This is an **arcade** of independent game "cabinets" in one static SPA
 (ADR-0017): The 16-0 Draft (cabinet #1) and Guess the Season (cabinet #2). They
@@ -10,6 +11,10 @@ share the design system, `rng.ts`, and `scripts/lib.ts` — nothing else. `App`
 switches between them with a `view` union. **Do not entangle a new cabinet with
 the draft's `runState`/reducer** (`src/state/store.tsx`) — that's the shipped
 game.
+
+The data pipeline lives in a separate, private platform repo; the ONLY seam
+between the two is Supabase (see README "The Supabase seam"). Never add a
+credential beyond the public anon key to this repo.
 
 ## Ground rules
 
@@ -70,4 +75,6 @@ game.
   decade, not the 2010s) and never author a kicker/TE/OL into a board position.
 - Decade powerhouse flags live per-program in `scripts/content/*.json`
   (`powerhouse_eras`), not in code.
-- ADRs for the game continue in the repo-root `docs/adr/` log (0009+).
+- The ADR log (0009+) stays in the private platform repo; ADR numbers in
+  comments refer to it. Record new load-bearing decisions in `README.md` here
+  until this repo needs its own `docs/`.

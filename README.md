@@ -1,23 +1,24 @@
-# The 16-0 Draft (`game/`)
+# CFB Arcade
 
-A 100% client-side, serverless single-page web game: a college-football
-"all-era team-building" slot machine (a CFB take on 82-0.com). Spin → land a
-random team+era → draft one legend from that roster → fill 8 positions + a head
-coach → a hidden-OVR power score maps to a tier → the tier rolls a
-probabilistic national-title season → copy a Wordle-style result to share.
+A 100% client-side, serverless single-page web arcade of college-football
+games. Cabinet #1, **The 16-0 Draft**: an "all-era team-building" slot machine
+(a CFB take on 82-0.com) — spin → land a random team+era → draft one legend
+from that roster → fill 8 positions + a head coach → a hidden-OVR power score
+maps to a tier → the tier rolls a probabilistic national-title season → copy a
+Wordle-style result to share. Cabinet #2 is **Guess the Season** (below).
 
-Spec: `16-0-Draft_Design_Doc_v2.md` (design doc v2). Decision log: repo
-[`docs/adr/`](../docs/adr/) from ADR-0009 onward.
+One static SPA hosts these independent game "cabinets"; they share the design
+system but nothing else. The title screen links between them; each cabinet
+bakes its own JSON and lazy-loads it.
 
-This directory is a small **arcade**: one static SPA hosting independent game
-"cabinets" that share the design system but nothing else (ADR-0017). The 16-0
-Draft is cabinet #1; **Guess the Season** is cabinet #2 (see below). The title
-screen links between them; each cabinet bakes its own JSON and lazy-loads it.
+This repo is deliberately self-sufficient: clone, install, run — **no secrets,
+no database, no data pipeline**. The v2 design doc and the ADR decision log
+(0009+) live with the private `cfb` data-platform repo, owner-side; the §N
+references in code comments point at that design doc.
 
 ## Run it
 
 ```bash
-cd game
 npm install
 npm run dev        # → http://localhost:5173
 ```
@@ -58,6 +59,24 @@ finishing a round the game fire-and-forgets an anonymous result row to
 Supabase (`arcade_results`, anon key, append-only under RLS) and the stats
 sheet reads aggregate numbers back via an RPC. Offline it degrades silently —
 the games themselves never depend on it.
+
+## The Supabase seam (the only tie to the data platform)
+
+Everything this repo touches in Supabase, all through the **public anon key**
+embedded in the scripts (safe to embed by design — RLS-bounded, read-only on
+the `cfb_*` tables, append-only on `arcade_results`):
+
+| access            | tables / RPC                                                          | when                          |
+| ----------------- | --------------------------------------------------------------------- | ----------------------------- |
+| read              | `cfb_teams`, `cfb_rosters`, `cfb_player_ratings`, `cfb_player_season_stats` | `npm run build:data` (bake)   |
+| read              | `cfb_games`, `cfb_teams`, `cfb_player_ratings`                        | `npm run build:seasons` (bake) |
+| append            | `arcade_results` (INSERT only; raw reads are RLS/privilege-denied)    | runtime, finishing a round    |
+| read (aggregates) | `arcade_daily_stats(game, puzzle)` RPC                                | runtime, stats sheet          |
+
+The pipeline that fills the `cfb_*` tables, the schema migrations, and the
+service-role key all live in the private platform repo. If a bake warns that
+something isn't served yet, that's a platform-side push to run — nothing in
+this repo can (or should) fix it.
 
 ## Guess the Season (arcade cabinet #2)
 

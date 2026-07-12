@@ -3,9 +3,11 @@
 // logic lives in engine/guessSeason.ts; this is the screen around it. Rendered
 // OUTSIDE GameProvider (App view state) — it takes `teams` as a prop and lazily
 // fetches its own seasons.json on first open.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Team } from "../data/types.ts";
 import { loadSeasons } from "../data/loadSeasons.ts";
+import { recordResult } from "../data/stats.ts";
+import GuessStatsModal from "./GuessStatsModal.tsx";
 import {
   buildGuessShareText,
   CLOSE_YEARS,
@@ -27,7 +29,7 @@ interface GuessRow {
   fb: GuessFeedback;
 }
 
-type Round = { mode: "daily" | "free"; idx: number; puzzle: number | null };
+type Round = { mode: "daily" | "free"; idx: number; puzzle: number | null; startedAt: number };
 
 export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: () => void }) {
   const [catalog, setCatalog] = useState<SeasonsCatalog | null>(null);
@@ -38,6 +40,8 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
   const [selYear, setSelYear] = useState<number | null>(null);
   const [stats, setStats] = useState<GuessStats | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const statsTimer = useRef<number | null>(null);
 
   const resetBoard = () => {
     setGuesses([]);
@@ -45,18 +49,31 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
     setSelYear(null);
     setStats(null);
     setCopied(false);
+    setShowStats(false);
   };
   const startDaily = (cat: SeasonsCatalog) => {
     const now = new Date();
-    setRound({ mode: "daily", idx: dailyIndex(cat.entries.length, now), puzzle: puzzleNumber(now) });
+    setRound({
+      mode: "daily",
+      idx: dailyIndex(cat.entries.length, now),
+      puzzle: puzzleNumber(now),
+      startedAt: Date.now(),
+    });
     resetBoard();
   };
   const startFree = (cat: SeasonsCatalog) => {
     // UI-only randomness (not engine code) — a fresh puzzle each tap.
     const idx = Math.floor(Math.random() * cat.entries.length);
-    setRound({ mode: "free", idx, puzzle: null });
+    setRound({ mode: "free", idx, puzzle: null, startedAt: Date.now() });
     resetBoard();
   };
+
+  // Auto-open of the stats sheet is delayed past the reveal; clear on unmount.
+  useEffect(() => {
+    return () => {
+      if (statsTimer.current !== null) window.clearTimeout(statsTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     loadSeasons().then(
@@ -123,11 +140,26 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
     if (nowWon || nowLost) {
       // Side effect in the handler (runs once), not an effect — same discipline
       // as store.tsx. recordDailyResult is idempotent per puzzle regardless.
+      const isDaily = round.mode === "daily" && round.puzzle !== null;
+      // Same guard as the local streak: a replayed daily reports globally once.
+      const alreadyCounted = isDaily && loadGuessStats().lastPuzzle >= (round.puzzle as number);
       setStats(
-        round.mode === "daily" && round.puzzle !== null
-          ? recordDailyResult(round.puzzle, nowWon, next.length)
-          : loadGuessStats(),
+        isDaily ? recordDailyResult(round.puzzle as number, nowWon, next.length) : loadGuessStats(),
       );
+      if (!alreadyCounted) {
+        // Fire-and-forget global report (ADR-0019) — never blocks the reveal.
+        recordResult({
+          game: "guess_season",
+          puzzleNumber: isDaily ? round.puzzle : null,
+          won: nowWon,
+          guessCount: next.length,
+          guesses: next.map((g) => `${g.school_id} ${g.season}`),
+          hintsUsed: Math.min(next.length - (nowWon ? 1 : 0), 4),
+          timeToCompleteSeconds: Math.round((Date.now() - round.startedAt) / 1000),
+        });
+      }
+      if (statsTimer.current !== null) window.clearTimeout(statsTimer.current);
+      statsTimer.current = window.setTimeout(() => setShowStats(true), 1300);
     }
   };
 
@@ -160,7 +192,13 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
   };
 
   return (
-    <Shell onBack={onBack}>
+    <Shell onBack={onBack} onStats={() => setShowStats(true)}>
+      <GuessStatsModal
+        open={showStats}
+        onClose={() => setShowStats(false)}
+        todayPuzzle={puzzleNumber(new Date())}
+        justFinished={over ? { won, guessCount: guesses.length, daily: round.mode === "daily" } : null}
+      />
       <div className="mt-1 flex items-center justify-center gap-3">
         <span className="rounded-full border border-ink/20 bg-white/60 px-3 py-1 font-display text-xs tracking-widest">
           {round.mode === "daily" ? `DAILY #${round.puzzle}` : "FREE PLAY"}
@@ -370,7 +408,15 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
   );
 }
 
-function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => void }) {
+function Shell({
+  children,
+  onBack,
+  onStats,
+}: {
+  children: React.ReactNode;
+  onBack: () => void;
+  onStats?: () => void;
+}) {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-6">
       <div className="flex items-center justify-between">
@@ -381,7 +427,18 @@ function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => 
         >
           ← ARCADE
         </button>
-        <span className="font-display text-xs tracking-[0.3em] opacity-40">CFB ARCADE</span>
+        <div className="flex items-center gap-3">
+          <span className="font-display text-xs tracking-[0.3em] opacity-40">CFB ARCADE</span>
+          {onStats && (
+            <button
+              type="button"
+              onClick={onStats}
+              className="rounded-md border border-paper-edge bg-white/60 px-2 py-1 font-display text-xs tracking-widest opacity-80 transition hover:opacity-100"
+            >
+              📊 STATS
+            </button>
+          )}
+        </div>
       </div>
       <h1 className="mt-3 text-center font-display text-4xl leading-tight sm:text-5xl">GUESS THE SEASON</h1>
       {children}

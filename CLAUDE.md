@@ -13,9 +13,12 @@ game.
 
 ## Ground rules
 
-- **100% client-side.** No backend, no runtime DB/API calls, no secrets in the
-  app. All data comes from the static `public/data.json`. If a change would
-  break "deploy = upload static files," don't make it.
+- **100% client-side.** No backend, no secrets in the app, game data only from
+  static baked JSON. If a change would break "deploy = upload static files,"
+  don't make it. The single sanctioned runtime network touch is the anonymous
+  global-stats flow (`src/data/stats.ts`, ADR-0019): fire-and-forget writes +
+  aggregate reads with the public anon key, and it must FAIL SILENT — a game
+  can never block on it.
 - **`hidden_ovr` is the only simulation input.** Visible stats are cosmetic but
   must correlate with OVR (§12 invariant) — never author stats that lie.
 - **The sim is pre-computed at SIM_RESOLVE**; animations are pure playback.
@@ -39,15 +42,20 @@ game.
   `src/data/loadSeasons.ts`), `src/state/guessStorage.ts` (daily streak),
   `scripts/build-seasons.ts` → `public/seasons.json`. Each cabinet bakes its own
   JSON — never add to `data.json` for a different game.
+- **Global stats** (ADR-0019): `src/data/stats.ts` (anon-key recordResult /
+  fetchGlobalStats, fail-silent) + `src/components/GuessStatsModal.tsx`
+  (personal + you-vs-everyone sheet). Server side is owner-only
+  (`supabase/migrations/0006_arcade_results.sql`): anon can only INSERT rows
+  and call the aggregate RPC. The Playwright harness intercepts + blocks the
+  POSTs so verification runs never pollute real stats.
 
 ## Commands
 
 - `npm run dev` — localhost dev server.
 - `npm test` — vitest unit tests (engines + bake helpers). Run after touching
   `src/engine/` or `scripts/`.
-- `npm run build:data` — re-bake `public/data.json` (needs network for
-  Supabase; falls back to `../cfb.db` for branding/jerseys until the
-  teams/rosters push lands).
+- `npm run build:data` — re-bake `public/data.json` (Supabase-only via the
+  public anon key; no warehouse dependency, works from a clean clone).
 - `npm run build:seasons` — re-bake `public/seasons.json` for Guess the Season
   (Supabase-only; ADR-0017).
 - `npm run build` — tsc + vite production build (static `dist/`).

@@ -30,6 +30,18 @@ console.log(`Daily #${puzzle}: answer = ${answer.team} ${answer.season} (${answe
 const browser = await chromium.launch();
 const allErrors: string[] = [];
 
+// Global-stats traffic (ADR-0019) is intercepted: result POSTs are captured and
+// BLOCKED so harness runs never pollute the real arcade_results table, and the
+// aggregate RPC is stubbed so the stats modal renders deterministic numbers.
+const reported: { tag: string; body: Record<string, unknown> }[] = [];
+const STUB_GLOBAL = {
+  plays: 128,
+  wins: 96,
+  win_pct: 75.0,
+  guess_distribution: { "1": 4, "2": 18, "3": 30, "4": 24, "5": 14, "6": 6 },
+  avg_guesses: 3.4,
+};
+
 function wire(page: Page, tag: string): void {
   page.on("console", (m) => {
     if (m.type() === "error") allErrors.push(`[${tag}] ${m.text()}`);
@@ -40,6 +52,13 @@ function wire(page: Page, tag: string): void {
 /** From the title screen into the (freshly loaded) Guess the Season board. */
 async function openArcade(context: BrowserContext, tag: string): Promise<Page> {
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: base });
+  await context.route("**/rest/v1/arcade_results", async (route) => {
+    reported.push({ tag, body: route.request().postDataJSON() as Record<string, unknown> });
+    await route.fulfill({ status: 201, body: "" });
+  });
+  await context.route("**/rest/v1/rpc/arcade_daily_stats", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(STUB_GLOBAL) }),
+  );
   const page = await context.newPage();
   wire(page, tag);
   await page.goto(base);
@@ -47,6 +66,22 @@ async function openArcade(context: BrowserContext, tag: string): Promise<Page> {
   await page.getByText(new RegExp(`DAILY #${puzzle}\\b`)).waitFor();
   await page.locator("section[aria-label='The mystery season']").waitFor();
   return page;
+}
+
+/** The stats sheet auto-opens after a finish; verify it, snapshot it, close it. */
+async function checkStatsModal(page: Page, tag: string, shot: string | null): Promise<void> {
+  const dialog = page.locator("[role='dialog'][aria-label='Guess the Season stats']");
+  await dialog.waitFor({ timeout: 6000 });
+  const text = (await dialog.textContent()) ?? "";
+  assert(text.includes(`DAILY #${puzzle}`), `[${tag}] stats sheet shows today's puzzle number`);
+  assert(/75%/.test(text) && /128/.test(text), `[${tag}] stats sheet shows the (stubbed) global solve rate`);
+  assert(text.includes("GUESS DISTRIBUTION"), `[${tag}] stats sheet has the you-vs-everyone distribution`);
+  if (shot) {
+    await page.waitForTimeout(250);
+    await page.screenshot({ path: `${outDir}/${shot}`, fullPage: true });
+  }
+  await dialog.getByRole("button", { name: "Close stats" }).click();
+  await dialog.waitFor({ state: "detached" });
 }
 
 async function guess(page: Page, teamName: string, year: number): Promise<void> {
@@ -81,6 +116,18 @@ function assert(cond: boolean, msg: string): void {
     (await result.textContent())?.includes(`${answer.team}`) ?? false,
     "win reveal names the program",
   );
+
+  // Global report fired (and was intercepted), then the stats sheet auto-opens.
+  await checkStatsModal(page, "win", "05-stats.png");
+  const winReport = reported.find((r) => r.tag === "win")?.body;
+  assert(winReport !== undefined, "win result was reported to arcade_results");
+  assert(winReport!.game === "guess_season" && winReport!.won === true, "win report has game + won");
+  assert(winReport!.guess_count === 1 && winReport!.puzzle_number === puzzle, "win report has count + puzzle");
+  assert(String(winReport!.player_hash ?? "").length >= 8, "win report carries an anonymous player_hash");
+
+  // Header button re-opens the sheet on demand.
+  await page.getByRole("button", { name: "📊 STATS" }).click();
+  await checkStatsModal(page, "win-reopen", null);
 
   await page.getByRole("button", { name: "COPY RESULT" }).click();
   await page.getByRole("button", { name: "COPIED ✓" }).waitFor();
@@ -120,6 +167,11 @@ function assert(cond: boolean, msg: string): void {
   const heading = (await result.locator("h2").textContent()) ?? "";
   assert(/OUT OF GUESSES/.test(heading), `loss reveal shows "OUT OF GUESSES" (got: ${heading.trim()})`);
   assert((await result.textContent())?.includes(`${answer.season}`) ?? false, "loss reveal shows the answer year");
+
+  await checkStatsModal(page, "loss", null);
+  const lossReport = reported.find((r) => r.tag === "loss")?.body;
+  assert(lossReport !== undefined, "loss result was reported to arcade_results");
+  assert(lossReport!.won === false && lossReport!.guess_count === 6, "loss report has won=false + 6 guesses");
 
   await page.getByRole("button", { name: "COPY RESULT" }).click();
   await page.getByRole("button", { name: "COPIED ✓" }).waitFor();

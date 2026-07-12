@@ -30,11 +30,11 @@ static SPA; all data ships as one static `public/data.json`.
 
 ## Data
 
-`data.json` is baked at build time from this repo's local warehouse
-(`../cfb.db`):
+`data.json` is baked at build time from the Supabase serving layer, read with
+the public anon key — no warehouse, no secrets; a clean clone can re-bake:
 
 ```bash
-npm run build:data   # reads ../cfb.db, writes public/data.json
+npm run build:data   # reads Supabase (anon key), writes public/data.json
 ```
 
 - **2010s + 2020s eras — real data** from the Supabase serving layer:
@@ -52,7 +52,12 @@ Current coverage: **18 programs, 36 team/era cells, ~1,000 players** — expand
 by adding `scripts/content/*.json` program files and re-baking; both real
 eras come along automatically.
 
-The running game never touches a database or API — design pillar #4.
+The running game never touches a database or API for game data — design
+pillar #4. The one deliberate exception is **global stats** (ADR-0019): on
+finishing a round the game fire-and-forgets an anonymous result row to
+Supabase (`arcade_results`, anon key, append-only under RLS) and the stats
+sheet reads aggregate numbers back via an RPC. Offline it degrades silently —
+the games themselves never depend on it.
 
 ## Guess the Season (arcade cabinet #2)
 

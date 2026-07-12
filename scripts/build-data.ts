@@ -6,20 +6,19 @@
 //      the anon key (RLS-protected, safe to embed).
 //   2. scripts/content/*.json — hand/LLM-authored historical eras + coaches,
 //      OVR-calibrated against the real modern scale (§4.5 rubric).
-//   3. ../cfb.db (local warehouse) — bake-time fallback for team colors /
-//      jerseys until the serving layer carries them (push --full --tables
-//      teams,rosters after supabase/migrations/0004).
+//
+// Supabase-only by design: the bake has NO warehouse dependency, so it runs
+// from a clean clone of the arcade with zero secrets (the anon key is public).
+// Anything missing from the serving layer is a push problem, warned loudly —
+// never silently backfilled from a local file.
 //
 // Output: game/public/data.json — the static file the game loads on boot.
-// The running game NEVER touches Supabase (design pillar #4).
+// The running game NEVER touches Supabase for game data (design pillar #4).
 //
 // Run: npm run build:data   (Node >= 24, zero deps)
-import { readFileSync, readdirSync, writeFileSync, existsSync } from "node:fs";
-import { createRequire } from "node:module";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-
-const require = createRequire(import.meta.url);
 import type {
   Coach,
   CoachTier,
@@ -47,7 +46,6 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CONTENT_DIR = join(HERE, "content");
 const OUT_PATH = join(HERE, "..", "public", "data.json");
-const LOCAL_DB = join(HERE, "..", "..", "cfb.db");
 
 // Seasons with clean real player data (stats + positions + rosters). CFBD has
 // a hard cliff below 2010: 2006-09 stats are thin and rosters carry no
@@ -155,7 +153,7 @@ function chunk<T>(arr: T[], n: number): T[][] {
 }
 
 // ---------------------------------------------------------------------------
-// Local-warehouse fallback (colors/jerseys until the push lands)
+// Modern slice from Supabase
 // ---------------------------------------------------------------------------
 interface TeamBranding {
   conference: string | null;
@@ -164,48 +162,6 @@ interface TeamBranding {
   alternate_color: string | null;
 }
 
-function localBranding(cfbdNames: string[]): Map<string, TeamBranding> {
-  const map = new Map<string, TeamBranding>();
-  if (!existsSync(LOCAL_DB)) return map;
-  // Lazy import so the script still runs on a machine without the warehouse.
-  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-  const db = new DatabaseSync(LOCAL_DB, { readOnly: true });
-  const rows = db
-    .prepare(
-      `SELECT school, conference, json_extract(data,'$.mascot') AS mascot,
-              json_extract(data,'$.color') AS color,
-              json_extract(data,'$.alternateColor') AS alternate_color
-       FROM teams WHERE season=2025 AND school IN (${cfbdNames.map(() => "?").join(",")})`,
-    )
-    .all(...cfbdNames) as unknown as ({ school: string } & TeamBranding)[];
-  db.close();
-  for (const r of rows) map.set(r.school, r);
-  return map;
-}
-
-function localJerseys(athleteIds: string[]): Map<string, string> {
-  const map = new Map<string, string>();
-  if (!existsSync(LOCAL_DB) || athleteIds.length === 0) return map;
-  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-  const db = new DatabaseSync(LOCAL_DB, { readOnly: true });
-  for (const ids of chunk(athleteIds, 500)) {
-    const rows = db
-      .prepare(
-        `SELECT athlete_id, CAST(json_extract(data,'$.jersey') AS TEXT) AS jersey, season
-         FROM rosters WHERE athlete_id IN (${ids.map(() => "?").join(",")})
-           AND json_extract(data,'$.jersey') IS NOT NULL
-         ORDER BY season ASC`,
-      )
-      .all(...ids) as unknown as { athlete_id: string; jersey: string }[];
-    for (const r of rows) map.set(r.athlete_id, r.jersey); // later seasons win
-  }
-  db.close();
-  return map;
-}
-
-// ---------------------------------------------------------------------------
-// Modern slice from Supabase
-// ---------------------------------------------------------------------------
 interface RatingRow {
   athlete_id: string;
   player: string;
@@ -224,48 +180,6 @@ interface StatRow {
   stat: string;
 }
 
-/** Warehouse fallback: ratings for seasons not yet pushed to Supabase. */
-function localRatingRows(cfbdNames: string[], seasons: number[]): RatingRow[] {
-  if (!existsSync(LOCAL_DB) || seasons.length === 0) return [];
-  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-  const db = new DatabaseSync(LOCAL_DB, { readOnly: true });
-  const rows = db
-    .prepare(
-      `SELECT athlete_id, player, team, position, pos_group, overall, season
-       FROM player_ratings
-       WHERE season IN (${seasons.map(() => "?").join(",")})
-         AND team IN (${cfbdNames.map(() => "?").join(",")})
-         AND is_current=1 AND projected=0 AND overall >= ${OVR_FLOOR}
-         AND pos_group IN ('QB','RB','WR','DL','LB','DB')`,
-    )
-    .all(...seasons, ...cfbdNames) as unknown as RatingRow[];
-  db.close();
-  return rows;
-}
-
-/** Warehouse fallback: stat lines for (athlete, season) pairs not yet pushed. */
-function localStatRows(athleteIds: string[], seasons: number[]): StatRow[] {
-  if (!existsSync(LOCAL_DB) || athleteIds.length === 0 || seasons.length === 0) return [];
-  const { DatabaseSync } = require("node:sqlite") as typeof import("node:sqlite");
-  const db = new DatabaseSync(LOCAL_DB, { readOnly: true });
-  const out: StatRow[] = [];
-  for (const ids of chunk(athleteIds, 400)) {
-    const rows = db
-      .prepare(
-        `SELECT athlete_id, season, category, stat_type, stat
-         FROM player_season_stats
-         WHERE season IN (${seasons.map(() => "?").join(",")})
-           AND athlete_id IN (${ids.map(() => "?").join(",")})
-           AND category IN ('passing','rushing','receiving','defensive','interceptions')
-           AND COALESCE(is_current,1)=1`,
-      )
-      .all(...seasons, ...ids) as unknown as StatRow[];
-    out.push(...rows);
-  }
-  db.close();
-  return out;
-}
-
 async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
   players: Player[];
   conferences: Map<string, string>;
@@ -274,60 +188,38 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
   const names = programs.map((p) => p.cfbd_name);
   const byName = new Map(programs.map((p) => [p.cfbd_name, p]));
 
-  // 1. Team branding / conference (serving layer first, warehouse fallback).
+  // 1. Team branding / conference from the serving layer.
   const teamRows = (await rest(
     `cfb_teams?select=school,conference,mascot,color,alternate_color&season=eq.2025&school=in.${quoteList(names)}`,
   )) as unknown as ({ school: string } & TeamBranding)[];
   const branding = new Map(teamRows.map((r) => [r.school, r]));
   const missingBranding = names.filter((n) => !branding.get(n)?.color);
   if (missingBranding.length > 0) {
-    const local = localBranding(missingBranding);
-    if (local.size > 0) {
-      console.warn(
-        `  note: colors for ${local.size} team(s) came from the local warehouse — ` +
-          `run \`node --no-warnings src/cli.ts push --full --tables teams,rosters\` ` +
-          `to serve them from Supabase.`,
-      );
-      for (const [school, b] of local) {
-        const existing = branding.get(school);
-        branding.set(school, {
-          conference: existing?.conference ?? b.conference,
-          mascot: existing?.mascot ?? b.mascot,
-          color: existing?.color ?? b.color,
-          alternate_color: existing?.alternate_color ?? b.alternate_color,
-        });
-      }
-    }
+    console.warn(
+      `  WARN: no served colors for ${missingBranding.join(", ")} — falling back to ` +
+        `defaults. Fix from the platform side: \`cfb push --full --tables teams\`.`,
+    );
   }
   const conferences = new Map<string, string>();
   for (const [school, b] of branding) {
     if (b.conference) conferences.set(school, b.conference);
   }
 
-  // 2. Ratings for every real season, floor applied server-side. Seasons the
-  //    serving layer doesn't have yet fall back to the local warehouse.
+  // 2. Ratings for every real season, floor applied server-side.
   const ratingRows = (await rest(
     `cfb_player_ratings?select=athlete_id,player,team,position,pos_group,overall,season` +
       `&team=in.${quoteList(names)}&season=in.(${MODERN_SEASONS.join(",")})` +
       `&projected=is.false&is_current=is.true&overall=gte.${OVR_FLOOR}` +
       `&pos_group=in.(QB,RB,WR,DL,LB,DB)&order=nkey.asc`,
   )) as unknown as RatingRow[];
-  const supaSeasons = new Set(ratingRows.map((r) => r.season));
-  const missingSeasons = MODERN_SEASONS.filter((s) => !supaSeasons.has(s));
+  const missingSeasons = MODERN_SEASONS.filter(
+    (s) => !ratingRows.some((r) => r.season === s),
+  );
   if (missingSeasons.length > 0) {
-    const local = localRatingRows(names, missingSeasons);
-    if (local.length > 0) {
-      console.warn(
-        `  note: ratings for seasons ${missingSeasons.join(",")} came from the local ` +
-          `warehouse — push player_ratings,player_season_stats,rosters to serve them.`,
-      );
-      ratingRows.push(...local);
-    } else {
-      console.warn(
-        `  note: no data anywhere for seasons ${missingSeasons.join(",")} — ` +
-          `run the 2010-2023 backfill (ingest + ratings) to make the 2010s era real.`,
-      );
-    }
+    console.warn(
+      `  note: no served ratings for seasons ${missingSeasons.join(",")} — those years ` +
+        `stay out of the pool until the platform ingests + pushes them.`,
+    );
   }
 
   // Best season per athlete across ALL real seasons (overall desc, then later
@@ -360,8 +252,7 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
     kept.push(...list.slice(0, TOP_N[pos]));
   }
 
-  // 3. Stat lines for each kept athlete's chosen season (Supabase first,
-  //    warehouse for seasons not served yet).
+  // 3. Stat lines for each kept athlete's chosen season.
   const ids = kept.map((k) => k.athlete_id);
   const pivots = new Map<string, StatPivot>(); // athlete|season -> pivot
   const addStatRows = (rows: StatRow[]) => {
@@ -372,8 +263,7 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
       pivots.set(key, pivot);
     }
   };
-  const supaIds = kept.filter((k) => supaSeasons.has(k.season)).map((k) => k.athlete_id);
-  for (const idChunk of chunk(supaIds, 120)) {
+  for (const idChunk of chunk(ids, 120)) {
     addStatRows(
       (await rest(
         `cfb_player_season_stats?select=athlete_id,season,category,stat_type,stat` +
@@ -382,39 +272,17 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
       )) as unknown as StatRow[],
     );
   }
-  const localKept = kept.filter((k) => !pivots.has(`${k.athlete_id}|${k.season}`));
-  if (localKept.length > 0) {
-    addStatRows(
-      localStatRows(
-        localKept.map((k) => k.athlete_id),
-        [...new Set(localKept.map((k) => k.season))],
-      ),
-    );
-  }
 
-  // 4. Jerseys (serving layer; warehouse fallback if the column isn't live yet).
+  // 4. Jerseys from served rosters (cosmetic — empty string when not served).
   const jerseys = new Map<string, string>();
-  let jerseyColumnLive = true;
   for (const idChunk of chunk(ids, 200)) {
-    let rows: { athlete_id: string; season: number; jersey: string | null }[];
-    try {
-      rows = (await rest(
-        `cfb_rosters?select=athlete_id,season,jersey&athlete_id=in.${quoteList(idChunk)}&jersey=not.is.null&order=season.asc`,
-      )) as unknown as typeof rows;
-    } catch {
-      jerseyColumnLive = false;
-      break;
-    }
+    const rows = (await rest(
+      `cfb_rosters?select=athlete_id,season,jersey&athlete_id=in.${quoteList(idChunk)}&jersey=not.is.null&order=season.asc`,
+    )) as unknown as { athlete_id: string; season: number; jersey: string | null }[];
     for (const r of rows) if (r.jersey != null) jerseys.set(r.athlete_id, String(r.jersey));
   }
-  if (!jerseyColumnLive || jerseys.size === 0) {
-    const local = localJerseys(ids);
-    for (const [id, j] of local) if (!jerseys.has(id)) jerseys.set(id, j);
-    if (local.size > 0) {
-      console.warn(
-        "  note: jerseys came from the local warehouse — push teams,rosters to serve them.",
-      );
-    }
+  if (jerseys.size === 0) {
+    console.warn("  WARN: no served jerseys — run `cfb push --full --tables rosters` from the platform.");
   }
 
   // 5. Assemble Player objects (decade = decade of the athlete's best season).

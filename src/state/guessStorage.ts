@@ -17,7 +17,7 @@ export interface GuessStats {
 
 const KEY = "the-16-0-draft:guess_season";
 
-export function emptyGuessStats(): GuessStats {
+function emptyGuessStats(): GuessStats {
   return { lastPuzzle: 0, streak: 0, maxStreak: 0, played: 0, wins: 0, dist: Array(MAX_GUESSES).fill(0) };
 }
 

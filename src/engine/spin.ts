@@ -4,7 +4,6 @@
 import type {
   Decade,
   GameData,
-  GamePosition,
   Player,
   Coach,
   SlotId,
@@ -257,9 +256,4 @@ export function allPlayerSlotsFilled(slots: PlayerSlots): boolean {
 
 export function emptyPlayerSlots(): PlayerSlots {
   return { QB: null, RB: null, WR1: null, WR2: null, DL: null, LB: null, CB: null, S: null };
-}
-
-/** Which game position does a slot display/require (WR1/WR2 → WR)? */
-export function slotPosition(slot: Exclude<SlotId, "HC">): GamePosition {
-  return slot === "WR1" || slot === "WR2" ? "WR" : slot;
 }

@@ -60,7 +60,6 @@ const MODERN_SEASONS = Array.from(
   (_, i) => FIRST_REAL_SEASON + i,
 );
 const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s");
-const REAL_DECADES: Decade[] = ["2010s", "2020s"];
 
 // Eras removed from the shipped game (authored-only, no real data behind
 // them — user decision: real data only). Content files keep their rows as

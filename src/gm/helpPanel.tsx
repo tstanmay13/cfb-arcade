@@ -5,9 +5,26 @@ import { RAP_ACTIONS } from "./engine/recruiting.ts";
 const card = "rounded-md border-2 border-paper-edge bg-white/60 p-4";
 const h = "font-display text-xs tracking-[0.25em] opacity-60";
 
-export default function HelpPanel() {
+export default function HelpPanel({ onStartTour }: { onStartTour?: () => void }) {
   return (
     <div className="grid gap-3 md:grid-cols-2">
+      {onStartTour && (
+        <div className={`${card} flex items-center justify-between md:col-span-2`}>
+          <div>
+            <h3 className={h}>NEW HERE?</h3>
+            <p className="mt-1 text-sm">
+              Take the guided tour — it walks every tab and points at the actual buttons.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onStartTour}
+            className="rounded-full border-2 border-ink bg-ink px-5 py-2 font-display text-xs tracking-widest text-paper transition hover:opacity-85"
+          >
+            ▶ START THE TOUR
+          </button>
+        </div>
+      )}
       <div className={`${card} md:col-span-2`}>
         <h3 className={h}>THE LOOP</h3>
         <p className="mt-2 text-sm">

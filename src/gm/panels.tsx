@@ -94,7 +94,7 @@ export function Dashboard({ state }: { state: DynastyState }) {
         </ol>
       </div>
 
-      <div className={card}>
+      <div className={card} data-tour="mandates">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
           BOOSTER MANDATES · {BOOSTER_LABELS[state.teams[state.userTid].boosterType]}
         </h3>
@@ -111,7 +111,7 @@ export function Dashboard({ state }: { state: DynastyState }) {
         </p>
       </div>
 
-      <div className={card}>
+      <div className={card} data-tour="staff">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">YOUR STAFF</h3>
         <ul className="mt-2 space-y-1 text-sm">
           {(["HC", "OC", "DC"] as const).map((role) => {
@@ -138,7 +138,7 @@ export function Dashboard({ state }: { state: DynastyState }) {
         </p>
       </div>
 
-      <div className={`${card} md:col-span-2`}>
+      <div className={`${card} md:col-span-2`} data-tour="news">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">#CFB_PULSE</h3>
         <ul className="mt-2 space-y-1 text-sm">
           {state.news.slice(0, 12).map((n, i) => (
@@ -208,7 +208,7 @@ export function RosterPanel({
   );
 
   return (
-    <div className={card}>
+    <div className={card} data-tour="roster-table">
       <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
         ROSTER · {roster.length} PLAYERS
       </h3>
@@ -393,7 +393,7 @@ export function SchedulePanel({ state }: { state: DynastyState }) {
   const [boxFor, setBoxFor] = useState<GameResult | null>(null);
   const games = userGames(state);
   return (
-    <div className={card}>
+    <div className={card} data-tour="schedule-table">
       <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
         {state.season} SCHEDULE · {school(state, state.userTid)}
       </h3>
@@ -513,7 +513,7 @@ function BoxModal({ state, result, onClose }: { state: DynastyState; result: Gam
 
 export function StandingsPanel({ state }: { state: DynastyState }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2" data-tour="standings-grid">
       {REAL_CONFS.map((conf) => (
         <div key={conf} className={card}>
           <h3 className="font-display text-xs tracking-[0.25em] opacity-60">{conf.toUpperCase()}</h3>
@@ -545,7 +545,7 @@ export function StandingsPanel({ state }: { state: DynastyState }) {
 
 export function RankingsPanel({ state }: { state: DynastyState }) {
   return (
-    <div className={card}>
+    <div className={card} data-tour="poll">
       <h3 className="font-display text-xs tracking-[0.25em] opacity-60">AP TOP 25</h3>
       <ol className="mt-2 columns-1 gap-8 text-sm sm:columns-2">
         {state.poll.map((e, i) => {
@@ -572,7 +572,7 @@ export function PlayoffsPanel({ state }: { state: DynastyState }) {
   if (!state.cfp) {
     const proj = committeeOrder(state.teams).slice(0, 12);
     return (
-      <div className={card}>
+      <div className={card} data-tour="cfp">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">CFP PROJECTION</h3>
         <p className="mt-1 text-xs opacity-60">
           Committee's current 12 (4 champs auto-bid at season's end):
@@ -598,7 +598,7 @@ export function PlayoffsPanel({ state }: { state: DynastyState }) {
   const bowls = state.results.filter((r) => r.kind === "bowl");
 
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid gap-3 md:grid-cols-2" data-tour="cfp">
       <div className={card}>
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">CFP BRACKET</h3>
         {state.cfp.champion !== null && (
@@ -678,7 +678,7 @@ export function HistoryPanel({ state, slotId }: { state: DynastyState; slotId: n
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      <div className={card}>
+      <div className={card} data-tour="history-ledger">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">SEASON LEDGER</h3>
         <table className="mt-2 w-full text-sm">
           <thead>

@@ -17,6 +17,9 @@ import {
 } from "./panels.tsx";
 import RecruitingPanel from "./recruitingPanel.tsx";
 import HelpPanel from "./helpPanel.tsx";
+import TourOverlay, { TOUR_STEPS } from "./tour.tsx";
+
+const TOUR_DONE_KEY = "cfbgm:tour-done";
 
 type Tab =
   | "dashboard" | "roster" | "recruiting" | "schedule" | "standings"
@@ -39,10 +42,44 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   const [tab, setTab] = useState<Tab>("dashboard");
   const [busy, setBusy] = useState(false);
   const [watching, setWatching] = useState(false);
+  const [tourStep, setTourStep] = useState<number | null>(null);
 
   useEffect(() => {
-    loadDynasty(slotId).then((s) => setState(s));
+    loadDynasty(slotId).then((s) => {
+      setState(s);
+      // First-ever dynasty week: walk the new coach through the building.
+      let seen = "1";
+      try {
+        seen = localStorage.getItem(TOUR_DONE_KEY) ?? "";
+      } catch {
+        /* private mode — skip the auto-tour */
+      }
+      if (s && s.year === 1 && s.week === 1 && s.results.length === 0 && !seen) {
+        setTourStep(0);
+      }
+    });
   }, [slotId]);
+
+  const startTour = () => {
+    setTab(TOUR_STEPS[0].tab as Tab);
+    setTourStep(0);
+  };
+  const endTour = () => {
+    try {
+      localStorage.setItem(TOUR_DONE_KEY, "1");
+    } catch {
+      /* fine */
+    }
+    setTourStep(null);
+  };
+  const gotoTourStep = (i: number) => {
+    if (i < 0 || i >= TOUR_STEPS.length) {
+      endTour();
+      return;
+    }
+    setTab(TOUR_STEPS[i].tab as Tab);
+    setTourStep(i);
+  };
 
   if (!state) {
     return (
@@ -116,7 +153,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
           >
             ← SAVES
           </button>
-          <div>
+          <div data-tour="header-team">
             <h1 className="font-display text-xl leading-none" style={{ color: team.color ?? undefined }}>
               {team.school}
             </h1>
@@ -133,6 +170,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
               {userGame && (
                 <button
                   type="button"
+                  data-tour="play-game"
                   disabled={busy}
                   onClick={() => setWatching(true)}
                   className="rounded-full border-2 border-ink px-5 py-2 font-display text-xs tracking-widest transition hover:bg-ink hover:text-paper disabled:opacity-40"
@@ -142,6 +180,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
               )}
               <button
                 type="button"
+                data-tour="advance"
                 disabled={busy}
                 onClick={() => runAction(advance)}
                 className="rounded-full border-2 border-ink bg-ink px-5 py-2 font-display text-xs tracking-widest text-paper transition hover:opacity-85 disabled:opacity-40"
@@ -207,7 +246,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         {tab === "top25" && <RankingsPanel state={state} />}
         {tab === "playoffs" && <PlayoffsPanel state={state} />}
         {tab === "history" && <HistoryPanel state={state} slotId={slotId} />}
-        {tab === "help" && <HelpPanel />}
+        {tab === "help" && <HelpPanel onStartTour={startTour} />}
         {tab === "offseason" && state.offseason && (
           <OffseasonPanel
             state={state}
@@ -217,6 +256,15 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
           />
         )}
       </section>
+
+      {tourStep !== null && (
+        <TourOverlay
+          step={tourStep}
+          onNext={() => gotoTourStep(tourStep + 1)}
+          onBack={() => gotoTourStep(tourStep - 1)}
+          onSkip={endTour}
+        />
+      )}
 
       {watching && userGame && (
         <WatchGame

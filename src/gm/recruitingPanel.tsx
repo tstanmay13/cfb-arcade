@@ -62,7 +62,7 @@ export default function RecruitingPanel({
           RECRUITING BOARD{closed ? " · CLOSED (SIGNING DAY PASSED)" : ""}
         </h3>
         <div className="flex items-center gap-3 text-sm">
-          <span>
+          <span data-tour="rap">
             RAP: <span className="font-display">{state.rapLeft}</span>/600
           </span>
           <span>
@@ -119,7 +119,7 @@ export default function RecruitingPanel({
               <th className={th}>DEV</th>
               <th className={th}>STATUS</th>
               <th className={th}>MY PTS</th>
-              <th className={th}>ACTIONS</th>
+              <th className={th} data-tour="recruit-actions">ACTIONS</th>
             </tr>
           </thead>
           <tbody>

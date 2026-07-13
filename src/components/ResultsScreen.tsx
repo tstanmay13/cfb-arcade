@@ -1,10 +1,11 @@
 // RESULTS (§8 / feeds §10's share): the bragging artifact — banner, record,
 // compact game strip, roster with fluffed stats, awards.
 import { useState } from "react";
-import type { Player, SlotId } from "../data/types.ts";
-import { PLAYER_SLOTS } from "../data/types.ts";
+import type { PerformanceCategory } from "../data/types.ts";
+import { PLAYER_SLOTS, STAT_LABELS } from "../data/types.ts";
 import { buildShareText } from "../engine/share.ts";
 import { useGame } from "../state/store.tsx";
+import { RegularGameChip, PlayoffGameChip } from "./GameChip.tsx";
 
 const OUTCOME_BANNER: Record<string, { title: string; sub: string }> = {
   natty: { title: "NATIONAL CHAMPIONS", sub: "Ran the table." },
@@ -14,24 +15,27 @@ const OUTCOME_BANNER: Record<string, { title: string; sub: string }> = {
   loss: { title: "REBUILDING YEAR", sub: "The transfer portal beckons." },
 };
 
-function SlotLine({ slot, player }: { slot: Exclude<SlotId, "HC">; player: Player }) {
-  const { state } = useGame();
-  const r = state.resolved!;
-  const isAA = r.allAmericans.includes(player.player_id);
+const PERF_STYLES: Record<PerformanceCategory, { label: string; bg: string }> = {
+  significantly_worse: { label: "▼▼", bg: "bg-red-700" },
+  marginally_worse: { label: "▼", bg: "bg-red-400" },
+  same: { label: "—", bg: "bg-gray-400" },
+  marginally_better: { label: "▲", bg: "bg-emerald-400" },
+  significantly_better: { label: "▲▲", bg: "bg-emerald-700" },
+};
+
+function PerformanceBadge({ category }: { category?: PerformanceCategory }) {
+  if (!category) return null;
+  const style = PERF_STYLES[category];
   return (
-    <li className="flex items-baseline justify-between gap-2 border-b border-paper-edge py-1.5 text-sm">
-      <span className="w-10 shrink-0 font-display text-xs opacity-60">{slot}</span>
-      <span className="flex-1 truncate">
-        <strong>{player.display_short}</strong>
-        <span className="opacity-60"> · {player.school} ’{player.decade.slice(2, 4)}s</span>
-        {isAA && (
-          <span className="ml-1.5 rounded bg-amber-500/90 px-1 py-0.5 align-middle font-display text-[9px] tracking-wider text-white">
-            ALL-AMERICAN
-          </span>
-        )}
-      </span>
-    </li>
+    <span className={`rounded px-1.5 py-0.5 font-display text-[10px] text-white ${style.bg}`}>
+      {style.label}
+    </span>
   );
+}
+
+/** Format stat value - preserve decimals for ratio stats */
+function formatStat(value: number): string {
+  return Number.isInteger(value) ? value.toLocaleString() : value.toFixed(1);
 }
 
 export default function ResultsScreen() {
@@ -101,20 +105,35 @@ export default function ResultsScreen() {
         </div>
       </header>
 
-      {/* Game strip */}
-      <ol className="flex w-full flex-wrap justify-center gap-1" aria-label="Game by game">
-        {r.schedule.map((g) => (
-          <li
-            key={g.week}
-            title={`${g.phase === "REG" ? `Week ${g.week}` : g.phase}: ${g.score} vs ${g.opponent}`}
-            className={`flex h-7 w-7 items-center justify-center rounded text-xs font-bold text-white
-              ${g.result === "WIN" ? "bg-emerald-700" : "bg-red-800"}
-              ${g.phase !== "REG" ? "ring-2 ring-amber-400" : ""}`}
-          >
-            {g.result === "WIN" ? "W" : "L"}
-          </li>
-        ))}
-      </ol>
+      {/* Regular Season Games */}
+      <section className="w-full">
+        <h3 className="mb-2 text-center font-display text-[10px] tracking-[0.3em] opacity-50">
+          REGULAR SEASON
+        </h3>
+        <ol className="flex flex-wrap justify-center gap-2" aria-label="Regular season results">
+          {r.schedule
+            .filter((g) => g.phase === "REG")
+            .map((g) => (
+              <RegularGameChip key={g.week} game={g} />
+            ))}
+        </ol>
+      </section>
+
+      {/* Postseason Games - Separate section, larger */}
+      {r.schedule.some((g) => g.phase !== "REG") && (
+        <section className="w-full">
+          <h3 className="mb-2 text-center font-display text-[10px] tracking-[0.3em] opacity-50">
+            POSTSEASON
+          </h3>
+          <div className="flex flex-wrap justify-center gap-3" aria-label="Postseason results">
+            {r.schedule
+              .filter((g) => g.phase !== "REG")
+              .map((g) => (
+                <PlayoffGameChip key={g.week} game={g} />
+              ))}
+          </div>
+        </section>
+      )}
 
       {/* Awards */}
       <section className="flex w-full flex-wrap items-center justify-center gap-3 text-sm">
@@ -140,13 +159,46 @@ export default function ResultsScreen() {
         </p>
       </section>
 
-      {/* Roster */}
+      {/* Season Stats Roster */}
       <section className="w-full rounded-xl border border-paper-edge bg-white/50 p-4">
-        <h2 className="mb-1 font-display text-sm tracking-[0.25em] opacity-70">THE ROSTER</h2>
-        <ul className="grid gap-x-8 sm:grid-cols-2">
+        <h2 className="mb-2 font-display text-sm tracking-[0.25em] opacity-70">SEASON STATS</h2>
+        <ul className="space-y-1.5">
           {PLAYER_SLOTS.map((slot) => {
             const p = state.slots[slot];
-            return p ? <SlotLine key={slot} slot={slot} player={p} /> : null;
+            if (!p) return null;
+            const stats = r.fluffedStats[p.player_id];
+            const perf = r.playerPerformance?.[p.player_id];
+            const labels = STAT_LABELS[p.primary_position];
+            const values = [stats.stat_1, stats.stat_2, stats.stat_3, stats.stat_4, stats.stat_5];
+            const isAA = r.allAmericans.includes(p.player_id);
+
+            return (
+              <li key={slot} className="rounded-lg border border-paper-edge bg-white/60 px-3 py-2">
+                {/* Single row: player info + stats */}
+                <div className="flex items-center gap-3">
+                  {/* Player info */}
+                  <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                    <span className="w-7 font-display text-xs opacity-60">{slot}</span>
+                    <strong className="truncate text-sm">{p.display_short}</strong>
+                    <PerformanceBadge category={perf} />
+                    {isAA && (
+                      <span className="shrink-0 rounded bg-amber-500 px-1 py-0.5 font-display text-[8px] tracking-wider text-white">
+                        ALL-AMERICAN
+                      </span>
+                    )}
+                  </div>
+                  {/* Stats inline */}
+                  <div className="flex flex-1 justify-end gap-1.5 overflow-hidden text-xs">
+                    {labels.map((label, i) => (
+                      <div key={label} className="min-w-0 text-center">
+                        <span className="font-display tabular-nums text-sm">{formatStat(values[i])}</span>
+                        <span className="ml-0.5 truncate uppercase opacity-40 text-[9px]">{label.split(" ")[0]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </li>
+            );
           })}
         </ul>
       </section>

@@ -3,39 +3,67 @@
 import { useState } from "react";
 import type { Team } from "../data/types.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
-import { loadTrophyRoom } from "../state/storage.ts";
+import { loadTrophyRoom, type RunSummary } from "../state/storage.ts";
+
+const OUTCOME_LABELS: Record<string, string> = {
+  natty: "National Champions",
+  semis: "Final Four",
+  major: "Playoffs",
+  minor: "Bowl Game",
+  loss: "",
+};
+
+function RunRow({ run }: { run: RunSummary }) {
+  const borderClass =
+    run.outcome === "natty" ? "trophy-gold" :
+    run.outcome === "semis" ? "trophy-silver" :
+    run.outcome === "major" ? "trophy-bronze" : "";
+
+  return (
+    <div className={`flex items-center gap-3 rounded-lg bg-white/60 px-3 py-2 ${borderClass}`}>
+      <span className="font-display text-lg font-bold">{run.record}</span>
+      <div className="flex flex-wrap gap-1.5">
+        {run.outcome && OUTCOME_LABELS[run.outcome] && (
+          <span className="rounded bg-ink/10 px-2 py-0.5 text-xs">{OUTCOME_LABELS[run.outcome]}</span>
+        )}
+        {run.heisman && (
+          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-800">Heisman</span>
+        )}
+        {(run.allAmericansCount ?? 0) > 0 && (
+          <span className="rounded bg-blue-100 px-2 py-0.5 text-xs text-blue-800">
+            {run.allAmericansCount} All-American{run.allAmericansCount === 1 ? "" : "s"}
+          </span>
+        )}
+        {run.dynasty && (
+          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white">DYNASTY</span>
+        )}
+      </div>
+      <span className="ml-auto text-xs opacity-50">{run.favorite_team} · {run.mode}</span>
+    </div>
+  );
+}
 
 function TrophyRoom() {
   const [room] = useState(loadTrophyRoom);
   if (room.recent_runs.length === 0) return null;
-  const best = room.top_builds[0];
+
+  const recent = room.recent_runs.slice(0, 5);
+  const best = room.top_builds.slice(0, 5);
+
   return (
-    <section aria-label="Trophy room" className="w-full rounded-xl border border-paper-edge bg-white/50 p-4">
-      <h2 className="mb-2 font-display text-sm tracking-[0.25em] opacity-70">TROPHY ROOM</h2>
-      {best && (
-        <p className="mb-2 text-sm">
-          Best build: <strong>{best.record}</strong> · OVR {best.score} · {best.tier.replace("Tier", "Tier ")}
-          {best.dynasty && (
-            <span className="ml-1.5 rounded-full bg-amber-500 px-2 py-0.5 font-display text-[9px] tracking-wider text-white">
-              DYNASTY
-            </span>
-          )}
-          <span className="opacity-60"> · {best.mode}</span>
-        </p>
-      )}
-      <ol className="flex flex-wrap gap-1.5" aria-label="Recent runs">
-        {room.recent_runs.slice(0, 10).map((r) => (
-          <li
-            key={r.timestamp}
-            title={`${r.record} · ${r.tier} · ${r.mode}${r.dynasty ? " · DYNASTY" : ""}`}
-            className={`rounded px-2 py-1 font-display text-xs text-white ${
-              r.record.endsWith("-0") ? "bg-emerald-700" : r.dynasty ? "bg-amber-500" : "bg-ink/70"
-            }`}
-          >
-            {r.record}
-          </li>
-        ))}
-      </ol>
+    <section aria-label="Trophy room" className="w-full space-y-4">
+      <div className="rounded-xl border border-paper-edge bg-white/50 p-4">
+        <h2 className="mb-3 font-display text-sm tracking-[0.25em] opacity-70">RECENT RUNS</h2>
+        <div className="space-y-2">
+          {recent.map((r) => <RunRow key={r.timestamp} run={r} />)}
+        </div>
+      </div>
+      <div className="rounded-xl border border-paper-edge bg-white/50 p-4">
+        <h2 className="mb-3 font-display text-sm tracking-[0.25em] opacity-70">BEST BUILDS</h2>
+        <div className="space-y-2">
+          {best.map((r) => <RunRow key={r.timestamp} run={r} />)}
+        </div>
+      </div>
     </section>
   );
 }

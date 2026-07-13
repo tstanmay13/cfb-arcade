@@ -3,15 +3,7 @@
 // this is pure theater, so it's always skippable and honors reduced motion.
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "../state/store.tsx";
-
-const PHASE_LABEL: Record<string, string> = {
-  REG: "",
-  CCG: "Conference Championship",
-  QF: "Playoff Quarterfinal",
-  SF: "National Semifinal",
-  FINAL: "National Championship",
-  BOWL: "Bowl Game",
-};
+import { RegularGameChip, PlayoffGameChip } from "./GameChip.tsx";
 
 export default function SeasonScreen() {
   const { state, dispatch } = useGame();
@@ -31,38 +23,48 @@ export default function SeasonScreen() {
     return () => clearTimeout(timer.current);
   }, [shown, done, schedule]);
 
-  const wins = schedule.slice(0, shown).filter((g) => g.result === "WIN").length;
+  const shownGames = schedule.slice(0, shown);
+  const wins = shownGames.filter((g) => g.result === "WIN").length;
   const losses = shown - wins;
-  const current = shown > 0 ? schedule[Math.min(shown, schedule.length) - 1] : null;
+  const regularGames = shownGames.filter((g) => g.phase === "REG");
+  const postseasonGames = shownGames.filter((g) => g.phase !== "REG");
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-8 p-6">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 p-6">
       <header className="text-center">
         <p className="font-display text-xs tracking-[0.3em] opacity-60">THE SEASON</p>
         <p className="mt-2 font-display text-6xl tabular-nums tracking-wider">
           {wins}-{losses}
         </p>
-        <p className="mt-1 min-h-5 text-sm opacity-70">
-          {current && PHASE_LABEL[current.phase]
-            ? `${PHASE_LABEL[current.phase]} · ${current.result === "WIN" ? "won" : "lost"} ${current.score}`
-            : current
-              ? `Week ${current.week} · ${current.result === "WIN" ? "beat" : "fell to"} ${current.opponent} ${current.score}`
-              : "Kickoff…"}
-        </p>
       </header>
 
-      <ol className="flex max-w-xl flex-wrap justify-center gap-1.5" aria-label="Season results so far">
-        {schedule.slice(0, shown).map((g) => (
-          <li
-            key={g.week}
-            className={`chip-in flex h-9 w-9 items-center justify-center rounded font-display text-sm text-white shadow
-              ${g.result === "WIN" ? "bg-emerald-700" : "bg-red-800"}`}
-            title={`${g.phase === "REG" ? `Week ${g.week}` : PHASE_LABEL[g.phase]}: ${g.score} vs ${g.opponent}`}
-          >
-            {g.result === "WIN" ? "W" : "L"}
-          </li>
-        ))}
-      </ol>
+      {/* Regular Season Games */}
+      {regularGames.length > 0 && (
+        <section className="w-full max-w-2xl">
+          <h3 className="mb-2 text-center font-display text-[10px] tracking-[0.3em] opacity-50">
+            REGULAR SEASON
+          </h3>
+          <ol className="flex flex-wrap justify-center gap-2" aria-label="Regular season results">
+            {regularGames.map((g) => (
+              <RegularGameChip key={g.week} game={g} animate />
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* Postseason Games - Separate section, larger */}
+      {postseasonGames.length > 0 && (
+        <section className="w-full max-w-2xl">
+          <h3 className="mb-2 text-center font-display text-[10px] tracking-[0.3em] opacity-50">
+            POSTSEASON
+          </h3>
+          <div className="flex flex-wrap justify-center gap-3" aria-label="Postseason results">
+            {postseasonGames.map((g) => (
+              <PlayoffGameChip key={g.week} game={g} animate />
+            ))}
+          </div>
+        </section>
+      )}
 
       {done ? (
         <button

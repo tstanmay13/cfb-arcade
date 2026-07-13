@@ -112,3 +112,14 @@ body {
   }
   .chalk-ring { stroke-dashoffset: 0; }
 }
+
+/* Trophy room outcome borders */
+.trophy-gold {
+  box-shadow: inset 0 0 0 2px #fbbf24, 0 2px 8px #fbbf2440;
+}
+.trophy-silver {
+  box-shadow: inset 0 0 0 2px #9ca3af, 0 2px 8px #9ca3af30;
+}
+.trophy-bronze {
+  box-shadow: inset 0 0 0 2px #cd7f32, 0 2px 8px #cd7f3230;
+}

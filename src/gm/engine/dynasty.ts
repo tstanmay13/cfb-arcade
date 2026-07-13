@@ -19,7 +19,8 @@ import { buildPostseason, ccgGames, nextCfpRound, CFP_NC_WEEK } from "./postseas
 import { resolveRetention, runOffseason, submitPortalRound } from "./offseason.ts";
 import { baseBudget, marketValue } from "./nil.ts";
 import { generateRecruitPool, recruitingTick, signingDay, WEEKLY_RAP } from "./recruiting.ts";
-import { boosterTypeFor, gameBonus, genMandates, initCoaches } from "./coaches.ts";
+import { boosterTypeFor, gameBonus, genMandates, initCoaches, staffOf } from "./coaches.ts";
+import { poyTop } from "./awards.ts";
 import { rangeInt } from "./streams.ts";
 
 /** National recruit pool size per cycle (CFB_GM_DESIGN roster ecology). */
@@ -31,7 +32,12 @@ const ROSTER_MINIMUMS: [PosGroup, number][] = [
 ];
 const CREATE_CAP = 85;
 
-export function createDynasty(data: GmData, userTid: number, seed: number): DynastyState {
+export function createDynasty(
+  data: GmData,
+  userTid: number,
+  seed: number,
+  difficulty = 0,
+): DynastyState {
   const teams: Team[] = data.teams.map((t) => ({
     ...t,
     roster: [],
@@ -101,6 +107,7 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
   const state: DynastyState = {
     v: 1,
     seed,
+    difficulty,
     year: 1,
     season: data.season,
     week: 1,
@@ -286,6 +293,50 @@ export function commitOutcome(
       `DOWN GOES No. ${loserRank}! ${state.teams[winnerTid].school} shocks ${state.teams[loserTid].school} ${Math.max(out.hs, out.as)}-${Math.min(out.hs, out.as)}.`,
     );
   }
+
+  // Narrative layer (feel pass): thrillers, rivalry results, monster games.
+  if (out.ot >= 2) {
+    pushNews(
+      state,
+      `⚡ ${out.ot}OT MARATHON: ${state.teams[winnerTid].school} outlasts ${state.teams[loserTid].school} ${Math.max(out.hs, out.as)}-${Math.min(out.hs, out.as)}.`,
+    );
+  }
+  const userInGame = game.home === state.userTid || game.away === state.userTid;
+  if (userInGame && homeTeam.rivals?.includes(game.away)) {
+    pushNews(
+      state,
+      winnerTid === state.userTid
+        ? `🪓 RIVALRY WIN: you take down ${state.teams[loserTid].school} — the trophy stays home.`
+        : `🪓 Rivalry loss to ${state.teams[winnerTid].school}. The boosters felt that one.`,
+    );
+  }
+  let bigLine: { score: number; text: string } | null = null;
+  for (const [pid, s] of out.perStats) {
+    const p = state.players[pid];
+    if (!p) continue;
+    const hit =
+      s.paYd >= 380 || s.ruYd >= 190 || s.reYd >= 175 || s.sck >= 3 || s.int >= 2;
+    if (!hit) continue;
+    const score = s.paYd * 0.04 + s.ruYd * 0.1 + s.reYd * 0.1 + s.sck * 8 + s.int * 9;
+    const team = state.teams[game.home].roster.includes(pid) ? game.home : game.away;
+    const bits =
+      s.paYd >= 380
+        ? `${s.paYd} passing yds, ${s.paTD} TD`
+        : s.ruYd >= 190
+          ? `${s.ruYd} rushing yds`
+          : s.reYd >= 175
+            ? `${s.reYd} receiving yds`
+            : s.sck >= 3
+              ? `${s.sck} sacks`
+              : `${s.int} INTs`;
+    if (!bigLine || score > bigLine.score) {
+      bigLine = {
+        score,
+        text: `🔥 ${p.name} (${state.teams[team].school}) goes off: ${bits}.`,
+      };
+    }
+  }
+  if (bigLine) pushNews(state, bigLine.text);
   return result;
 }
 
@@ -306,7 +357,48 @@ function simCurrentWeek(state: DynastyState): void {
     const isUser = game.home === state.userTid || game.away === state.userTid;
     applyResult(state, game, isUser);
   }
+  const prevNo1 = state.poll[0]?.tid;
   state.poll = computePoll(state.teams, state.poll);
+  const newNo1 = state.poll[0]?.tid;
+  if (prevNo1 !== undefined && newNo1 !== undefined && prevNo1 !== newNo1) {
+    pushNews(state, `👑 New AP No. 1: ${state.teams[newNo1].school}.`);
+  }
+  weeklyStories(state);
+}
+
+/** Season-arc storylines (feel pass): Heisman watch, unbeatens, hot seats. */
+function weeklyStories(state: DynastyState): void {
+  if (state.phase !== "regular") return;
+  if (state.week === 8) {
+    const race = poyTop(state, 3);
+    if (race.length === 3) {
+      pushNews(
+        state,
+        `🏆 Heisman watch: ${race.map((c, i) => `${i + 1}) ${c.player.name} (${state.teams[c.tid].school})`).join("  ")}`,
+      );
+    }
+  }
+  if (state.week === 10) {
+    const seats = state.teams
+      .filter((t) => {
+        if (!t.p4 || t.id === state.userTid) return false;
+        const hc = staffOf(state, t.id).HC;
+        return !!hc && (hc.lastW[hc.lastW.length - 1] ?? 9) <= 4 && t.rec.l >= 5;
+      })
+      .slice(0, 3);
+    if (seats.length) {
+      pushNews(
+        state,
+        `🔥 Hot-seat watch: ${seats.map((t) => `${staffOf(state, t.id).HC!.name} (${t.school})`).join(", ")}.`,
+      );
+    }
+  }
+  if (state.week === 11) {
+    const unbeaten = state.teams.filter((t) => t.p4 && t.rec.l === 0 && t.rec.w >= 8);
+    if (unbeaten.length > 0 && unbeaten.length <= 6) {
+      pushNews(state, `💯 Still perfect: ${unbeaten.map((t) => t.school).join(", ")}.`);
+    }
+  }
 }
 
 /** Advance the dynasty by one sim step (a week, or a postseason round). */
@@ -340,6 +432,10 @@ export function advance(state: DynastyState): void {
     state.schedule.push(...slate.games);
     state.nextGid += slate.games.length;
     state.cfp = { field: slate.field, results: [], champion: null };
+    pushNews(
+      state,
+      `📋 CFP field revealed — top seeds: ${slate.field.slice(0, 4).map((tid, i) => `${i + 1}) ${state.teams[tid].school}`).join(", ")}${slate.field.includes(state.userTid) ? `. You're in at seed ${slate.field.indexOf(state.userTid) + 1}!` : "."}`,
+    );
     signingDay(state);
     state.phase = "cfp";
     state.week = slate.games[0]?.week ?? state.week + 1;
@@ -398,6 +494,10 @@ export function startNextSeason(state: DynastyState): void {
   state.pendingVisits = [];
   generateRecruitPool(state, RECRUIT_POOL);
   genMandates(state);
+  pushNews(
+    state,
+    `🗞️ ${state.season} preseason AP No. 1: ${state.teams[state.poll[0].tid].school}. Your board wants: ${state.mandates.map((m) => m.text.toLowerCase()).join(" + ") || "patience"}.`,
+  );
 }
 
 /** Fast-sim helper: advance until the offseason report is up. */

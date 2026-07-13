@@ -67,8 +67,8 @@ export default function GmCabinet({ onBack }: { onBack: () => void }) {
       <Shell onBack={() => setStage({ k: "slots" })}>
         <TeamPick
           data={data}
-          onPick={async (tid) => {
-            const state = createDynasty(data, tid, newSeed());
+          onPick={async (tid, difficulty) => {
+            const state = createDynasty(data, tid, newSeed(), difficulty);
             const slotId = await createSlot(state);
             setStage({ k: "play", slotId });
           }}
@@ -201,14 +201,43 @@ function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => 
   );
 }
 
-function TeamPick({ data, onPick }: { data: GmData; onPick: (tid: number) => void }) {
+function TeamPick({
+  data,
+  onPick,
+}: {
+  data: GmData;
+  onPick: (tid: number, difficulty: number) => void;
+}) {
   const confs = ["SEC", "Big Ten", "Big 12", "ACC", "FBS Independents"];
+  const [difficulty, setDifficulty] = useState(0);
   return (
     <section className="mt-6">
       <h2 className="mb-1 text-center font-display text-2xl tracking-widest">PICK YOUR PROGRAM</h2>
-      <p className="mb-6 text-center text-xs opacity-70">
+      <p className="mb-3 text-center text-xs opacity-70">
         Real 2026 rosters, projected ratings, real schedule. Prestige ★ sets your recruiting gravity.
       </p>
+      <div className="mb-6 flex items-center justify-center gap-2">
+        {["NORMAL", "HARD", "BRUTAL"].map((label, i) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => setDifficulty(i)}
+            aria-pressed={difficulty === i}
+            title={
+              i === 0
+                ? "Everyone plays by the same rules"
+                : i === 1
+                  ? "AI staffs recruit and bid 15% sharper; your NIL pool shrinks 15%"
+                  : "AI +30%, your pool −30%, boosters demand an extra win"
+            }
+            className={`rounded-full border-2 px-4 py-1 font-display text-xs tracking-widest transition ${
+              difficulty === i ? "border-ink bg-ink text-paper" : "border-paper-edge hover:border-ink/40"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       {confs.map((conf) => {
         const members = data.teams.filter((t) => t.p4 && t.conference === conf);
         if (!members.length) return null;
@@ -220,7 +249,7 @@ function TeamPick({ data, onPick }: { data: GmData; onPick: (tid: number) => voi
                 <button
                   key={t.id}
                   type="button"
-                  onClick={() => onPick(t.id)}
+                  onClick={() => onPick(t.id, difficulty)}
                   className="rounded-md border-2 border-paper-edge bg-white/50 px-2 py-2 text-left transition hover:border-ink/60 hover:shadow"
                   style={{ borderLeftWidth: 8, borderLeftColor: t.color ?? "#1b2a41" }}
                 >

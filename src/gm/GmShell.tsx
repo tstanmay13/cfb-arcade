@@ -16,10 +16,11 @@ import {
   RosterPanel, SchedulePanel, StandingsPanel,
 } from "./panels.tsx";
 import RecruitingPanel from "./recruitingPanel.tsx";
+import HelpPanel from "./helpPanel.tsx";
 
 type Tab =
   | "dashboard" | "roster" | "recruiting" | "schedule" | "standings"
-  | "top25" | "playoffs" | "history" | "offseason";
+  | "top25" | "playoffs" | "history" | "help" | "offseason";
 
 const TABS: [Tab, string][] = [
   ["dashboard", "Dashboard"],
@@ -30,6 +31,7 @@ const TABS: [Tab, string][] = [
   ["top25", "Top 25"],
   ["playoffs", "Postseason"],
   ["history", "History"],
+  ["help", "How to Play"],
 ];
 
 export default function GmShell({ slotId, onExit }: { slotId: number; onExit: () => void }) {
@@ -205,6 +207,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         {tab === "top25" && <RankingsPanel state={state} />}
         {tab === "playoffs" && <PlayoffsPanel state={state} />}
         {tab === "history" && <HistoryPanel state={state} slotId={slotId} />}
+        {tab === "help" && <HelpPanel />}
         {tab === "offseason" && state.offseason && (
           <OffseasonPanel
             state={state}

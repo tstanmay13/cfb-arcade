@@ -8,6 +8,7 @@ import { committeeOrder } from "./engine/poll.ts";
 import { fmtMoney, marketValue } from "./engine/nil.ts";
 import type { PortalOffer } from "./engine/offseason.ts";
 import { ARCHETYPE_LABELS, BOOSTER_LABELS, staffOf } from "./engine/coaches.ts";
+import { buildSeasonRecap } from "./engine/recap.ts";
 import { archiveFor, type ArchiveRow } from "./db.ts";
 
 const card = "rounded-md border-2 border-paper-edge bg-white/60 p-4";
@@ -1024,6 +1025,7 @@ function OffseasonReportView({
             ))}
           </p>
         )}
+        <ShareRecapButton state={state} />
       </div>
 
       {state.openJobs.length > 0 && onTakeJob && (
@@ -1125,6 +1127,24 @@ function OffseasonReportView({
         </ul>
       </div>
     </div>
+  );
+}
+
+function ShareRecapButton({ state }: { state: DynastyState }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      className="mt-3 rounded-full border-2 border-paper-edge px-4 py-1 font-display text-[10px] tracking-widest transition hover:border-ink/40"
+      onClick={() => {
+        void navigator.clipboard.writeText(buildSeasonRecap(state)).then(() => {
+          setCopied(true);
+          window.setTimeout(() => setCopied(false), 2000);
+        });
+      }}
+    >
+      {copied ? "COPIED ✓" : "📋 COPY SEASON RECAP"}
+    </button>
   );
 }
 

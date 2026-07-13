@@ -330,7 +330,10 @@ export function submitPortalRound(state: DynastyState, userOffers: PortalOffer[]
       if (team.roster.length >= ROSTER_CAP || team.nilBudget < entry.ask) continue;
       const need = teamNeeds(state, team).get(p.g) ?? 0;
       if (need <= 0 && p.ovr < 80 && rng() > 0.2) continue;
-      const amount = Math.min(team.nilBudget, Math.round((entry.ask * (0.95 + rng() * 0.35)) / 500) * 500);
+      const amount = Math.min(
+        team.nilBudget,
+        Math.round((entry.ask * (0.95 + rng() * 0.35 + state.difficulty * 0.08)) / 500) * 500,
+      );
       if (amount < entry.ask * 0.9) continue;
       bids.push({
         tid: team.id,
@@ -455,7 +458,9 @@ export function finishOffseason(state: DynastyState): void {
     if (team.prestige !== from) {
       report.prestigeChanges.push({ school: team.school, from, to: team.prestige });
     }
-    const mult = team.id === state.userTid ? mandateMult : 1;
+    // Difficulty squeezes the user's collective, never the AI's.
+    const diffMult = team.id === state.userTid ? 1 - state.difficulty * 0.15 : 1;
+    const mult = (team.id === state.userTid ? mandateMult : 1) * diffMult;
     team.nilBudget = Math.round(nextBudget(team.prestige, team.rec.w, team.id === championTid) * mult);
     if (team.id === state.userTid && team.rec.w <= 4) {
       pushNews(state, `💰 Boosters slash ${team.school}'s NIL pool after a ${team.rec.w}-win season.`);

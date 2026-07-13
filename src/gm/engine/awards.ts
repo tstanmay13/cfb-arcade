@@ -12,8 +12,27 @@ function rawValue(s: SeasonStats): number {
   );
 }
 
-export function playerOfTheYear(state: DynastyState): { player: Player; tid: number; line: string } | null {
-  let best: { player: Player; tid: number; score: number } | null = null;
+export interface PoyCandidate {
+  player: Player;
+  tid: number;
+  line: string;
+  score: number;
+}
+
+function lineFor(p: Player): string {
+  const s = p.stats;
+  const bits: string[] = [];
+  if (s.paYd > 0) bits.push(`${s.paYd} pass yds, ${s.paTD} TD`);
+  if (s.ruYd > 200) bits.push(`${s.ruYd} rush yds, ${s.ruTD} TD`);
+  if (s.reYd > 200) bits.push(`${s.reYd} rec yds, ${s.reTD} TD`);
+  if (s.sck > 3) bits.push(`${s.sck} sacks`);
+  if (s.int > 2) bits.push(`${s.int} INT`);
+  return bits.join(" · ") || "dominant season";
+}
+
+/** Ranked POY race (Heisman-watch news + the award itself). */
+export function poyTop(state: DynastyState, n: number): PoyCandidate[] {
+  const all: PoyCandidate[] = [];
   for (const team of state.teams) {
     if (!team.p4) continue;
     const winsMult = 1 + team.rec.w / 15;
@@ -23,16 +42,12 @@ export function playerOfTheYear(state: DynastyState): { player: Player; tid: num
       const p = state.players[pid];
       if (!p) continue;
       const score = rawValue(p.stats) * winsMult * prestigeMult * userMult;
-      if (!best || score > best.score) best = { player: p, tid: team.id, score };
+      all.push({ player: p, tid: team.id, line: lineFor(p), score });
     }
   }
-  if (!best) return null;
-  const s = best.player.stats;
-  const bits: string[] = [];
-  if (s.paYd > 0) bits.push(`${s.paYd} pass yds, ${s.paTD} TD`);
-  if (s.ruYd > 200) bits.push(`${s.ruYd} rush yds, ${s.ruTD} TD`);
-  if (s.reYd > 200) bits.push(`${s.reYd} rec yds, ${s.reTD} TD`);
-  if (s.sck > 3) bits.push(`${s.sck} sacks`);
-  if (s.int > 2) bits.push(`${s.int} INT`);
-  return { player: best.player, tid: best.tid, line: bits.join(" · ") || "dominant season" };
+  return all.sort((a, b) => b.score - a.score).slice(0, n);
+}
+
+export function playerOfTheYear(state: DynastyState): { player: Player; tid: number; line: string } | null {
+  return poyTop(state, 1)[0] ?? null;
 }

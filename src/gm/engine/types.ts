@@ -327,6 +327,8 @@ export interface OffseasonReport {
 export interface DynastyState {
   v: number;
   seed: number;
+  /** 0 Normal · 1 Hard · 2 Brutal — AI gets sharper, your money gets tighter. */
+  difficulty: number;
   /** Dynasty year, 1-based. */
   year: number;
   season: number;

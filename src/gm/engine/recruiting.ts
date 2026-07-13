@@ -197,7 +197,11 @@ function aiWeeklyPoints(state: DynastyState, team: Team, rng: Rng): void {
   }
   candidates.sort((a, b) => b.score - a.score);
   // Same 600-RAP budget as the user, converted at blended action efficiency.
-  let budget = Math.round(WEEKLY_RAP * (1.35 + team.prestige * 0.05) * recruitMult(state, team.id));
+  // Higher difficulty sharpens every AI staff.
+  let budget = Math.round(
+    WEEKLY_RAP * (1.35 + team.prestige * 0.05) * recruitMult(state, team.id) *
+      (1 + state.difficulty * 0.15),
+  );
   for (const { r } of candidates.slice(0, 9)) {
     const spend = Math.min(budget, rangeInt(rng, 60, 190));
     addInterest(r, team.id, spend);

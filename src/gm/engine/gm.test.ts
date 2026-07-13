@@ -13,6 +13,7 @@ import { resolveRetention, submitPortalRound } from "./offseason.ts";
 import { gameBonus, recruitMult, staffOf, takeJob } from "./coaches.ts";
 import { commitOutcome, prepareGame, togglePin, sideFor } from "./dynasty.ts";
 import { GameSim, simGame } from "./game.ts";
+import { buildSeasonRecap } from "./recap.ts";
 
 const data = JSON.parse(
   readFileSync(new URL("../../../public/gm-data.json", import.meta.url), "utf8"),
@@ -533,6 +534,71 @@ describe("watch mode & football edges (v1.4)", () => {
       expect(p.cls).toBeLessThanOrEqual(4);
     }
   });
+});
+
+describe("quick wins: difficulty, recap, 50-year soak", () => {
+  it("difficulty squeezes the user's NIL, never helps it", () => {
+    const normal = createDynasty(data, USER_TID, 61, 0);
+    const brutal = createDynasty(data, USER_TID, 61, 2);
+    simToSeasonEnd(normal);
+    simToSeasonEnd(brutal);
+    autoOffseason(normal);
+    autoOffseason(brutal);
+    expect(brutal.teams[USER_TID].nilBudget).toBeLessThan(normal.teams[USER_TID].nilBudget);
+  });
+
+  it("the season recap shares a full result grid", () => {
+    const state = freshDynasty(62);
+    simToSeasonEnd(state);
+    autoOffseason(state);
+    const recap = buildSeasonRecap(state);
+    const userGames = state.results.filter(
+      (r) => r.home === USER_TID || r.away === USER_TID,
+    ).length;
+    const squares = [...recap].filter((c) => "🟩🟥🟨🟧".includes(c)).length;
+    expect(squares).toBe(userGames);
+    expect(recap).toContain(state.teams[USER_TID].school);
+    expect(recap).toMatch(/\d+-\d+/);
+    expect(recap).toContain("Class #");
+  });
+
+  it(
+    "survives a 50-year dynasty without leaks, bloat, or drift",
+    () => {
+      const state = freshDynasty(63);
+      for (let y = 0; y < 50; y++) {
+        simToSeasonEnd(state);
+        autoOffseason(state);
+        startNextSeason(state);
+      }
+      expect(state.year).toBe(51);
+      expect(state.honors).toHaveLength(50);
+      for (const t of state.teams) {
+        if (t.p4) expect(t.roster.length).toBe(85);
+        expect(t.prestige).toBeGreaterThanOrEqual(t.p4 ? 1 : 0);
+        expect(t.nilBudget).toBeGreaterThanOrEqual(0);
+      }
+      const rostered = state.teams.reduce((a, t) => a + t.roster.length, 0);
+      expect(Object.keys(state.players)).toHaveLength(rostered);
+      expect(state.coaches.length).toBeLessThan(260);
+      expect(state.news.length).toBeLessThanOrEqual(60);
+      for (const book of Object.values(state.records)) {
+        expect(book.season.length).toBeLessThanOrEqual(10);
+        expect(book.career.length).toBeLessThanOrEqual(10);
+      }
+      // Snapshot stays exportable at a sane size.
+      const bytes = JSON.stringify(state).length;
+      expect(bytes).toBeLessThan(15_000_000);
+      // League strength anchored after 50 generated cohorts.
+      const ovrs = state.teams
+        .filter((t) => t.p4)
+        .flatMap((t) => t.roster.map((pid) => state.players[pid].ovr));
+      const mean = ovrs.reduce((a, b) => a + b, 0) / ovrs.length;
+      expect(mean).toBeGreaterThan(55);
+      expect(mean).toBeLessThan(75);
+    },
+    120_000,
+  );
 });
 
 describe("advance is safe at the boundaries", () => {

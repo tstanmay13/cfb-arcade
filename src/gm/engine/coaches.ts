@@ -213,9 +213,14 @@ export function coachCarousel(state: DynastyState, championTid: number | null): 
     }
   }
 
-  // Keep the free-agent pool stocked.
+  // Keep the free-agent pool stocked — and pruned (50-year hygiene).
   while (freeAgents(state).length < 15) {
     state.coaches.push(genCoach(state, "HC", rangeInt(rng, 48, 72), null));
+  }
+  const pool = freeAgents(state);
+  if (pool.length > 40) {
+    const drop = new Set(pool.slice(40).map((c) => c.id));
+    state.coaches = state.coaches.filter((c) => !drop.has(c.id));
   }
 }
 
@@ -250,7 +255,11 @@ export function genMandates(state: DynastyState): void {
   const user = state.teams[state.userTid];
   const rng = stream(state.seed, "mandates", state.season, state.userTid);
   const mandates: Mandate[] = [];
-  const winTarget = clamp(user.prevW + (user.boosterType === 2 ? 2 : 1), 6, 11);
+  const winTarget = clamp(
+    user.prevW + (user.boosterType === 2 ? 2 : 1) + (state.difficulty >= 2 ? 1 : 0),
+    6,
+    11,
+  );
   mandates.push({
     kind: "wins",
     text: `Win at least ${winTarget} games`,

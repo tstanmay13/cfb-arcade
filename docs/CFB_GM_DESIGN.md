@@ -308,8 +308,20 @@ All four roadmap phases landed:
   blocks the busy state so a rollover write can't be aborted by navigation.
 
 Still deferred: wear-and-tear, academics, scheme fit, interactive staff
-hiring, watch-mode fatigue. The calibration harness grew to 37 GM tests and
-remains the acceptance gate.
+hiring, watch-mode fatigue. The calibration harness remains the acceptance
+gate.
+
+**Quick-wins pass (same day):** difficulty tiers (Normal/Hard/Brutal — AI
+recruiting/portal sharpness up, user NIL down, Brutal boosters +1 win; picked
+at dynasty creation), a 50-year soak test certifying the advertised lifespan
+(no leaks, bounded stores, <15 MB saves, anchored league OVR), a narrative
+layer (~10 new templated triggers: preseason No. 1 + board, new-No. 1, 2OT+
+thrillers, rivalry results, monster stat lines, Heisman watch wk 8, hot-seat
+watch wk 10, unbeaten watch wk 11, CFP-field reveal), a copyable season-recap
+share text (emoji result grid), free-agent coach pool pruning, and an
+in-cabinet **How to Play** tab documenting every tab and mechanic. GM global
+stats (ADR-0019 pattern) were deliberately skipped: the arcade_results table
+is guess-shaped; a GM variant needs one owner-side migration + RPC first.
 
 ## Open items (deferred, non-blocking)
 

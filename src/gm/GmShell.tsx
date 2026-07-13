@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import type { DynastyState } from "./engine/types.ts";
 import { advance, simToSeasonEnd, startNextSeason } from "./engine/dynasty.ts";
+import { cutPlayer, resolveRetention, submitPortalRound, type PortalOffer } from "./engine/offseason.ts";
+import { fmtMoney } from "./engine/nil.ts";
 import { loadDynasty, saveDynasty } from "./db.ts";
 import {
   Dashboard, HistoryPanel, OffseasonPanel, PlayoffsPanel, RankingsPanel,
@@ -59,11 +61,11 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
     // Yield a frame so the button state paints before a long sync sim.
     window.setTimeout(() => {
       const before = state.phase;
+      const prevArchive = state.offseason?.archive;
       fn(state);
+      // Departed players persist to the history store once, at rollover.
       const departed =
-        before !== "offseason" && state.phase === "offseason"
-          ? state.offseason?.archive
-          : undefined;
+        before === "offseason" && state.phase === "regular" ? prevArchive : undefined;
       void saveDynasty(slotId, state, departed).catch((e) => console.error("autosave failed", e));
       if (before !== "offseason" && state.phase === "offseason") setTab("offseason");
       if (before === "offseason" && state.phase === "regular") setTab("dashboard");
@@ -97,7 +99,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
             <p className="text-xs opacity-70">
               {rank ? `${rank} · ` : ""}
               {team.rec.w}-{team.rec.l} ({team.rec.cw}-{team.rec.cl} conf) · {"★".repeat(team.prestige)} ·{" "}
-              {state.season} · Year {state.year}
+              {state.season} · Year {state.year} · NIL {fmtMoney(team.nilBudget)}
             </p>
           </div>
         </div>
@@ -121,7 +123,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
                 SIM TO SEASON END
               </button>
             </>
-          ) : (
+          ) : state.offStage === "done" ? (
             <button
               type="button"
               disabled={busy}
@@ -130,6 +132,10 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
             >
               START {state.season + 1} SEASON
             </button>
+          ) : (
+            <span className="rounded-full border-2 border-paper-edge px-4 py-2 font-display text-[10px] tracking-widest opacity-70">
+              OFFSEASON: {state.offStage.toUpperCase()} IN PROGRESS
+            </span>
           )}
         </div>
       </header>
@@ -154,14 +160,22 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
 
       <section className="mt-4">
         {tab === "dashboard" && <Dashboard state={state} />}
-        {tab === "roster" && <RosterPanel state={state} />}
+        {tab === "roster" && (
+          <RosterPanel state={state} onCut={(pid) => runAction((s) => void cutPlayer(s, pid))} />
+        )}
         {tab === "recruiting" && <RecruitingPanel state={state} onMutate={mutate} />}
         {tab === "schedule" && <SchedulePanel state={state} />}
         {tab === "standings" && <StandingsPanel state={state} />}
         {tab === "top25" && <RankingsPanel state={state} />}
         {tab === "playoffs" && <PlayoffsPanel state={state} />}
         {tab === "history" && <HistoryPanel state={state} slotId={slotId} />}
-        {tab === "offseason" && state.offseason && <OffseasonPanel state={state} />}
+        {tab === "offseason" && state.offseason && (
+          <OffseasonPanel
+            state={state}
+            onRetention={(pids) => runAction((s) => resolveRetention(s, pids))}
+            onPortal={(offers: PortalOffer[]) => runAction((s) => submitPortalRound(s, offers))}
+          />
+        )}
       </section>
     </main>
   );

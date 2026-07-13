@@ -15,7 +15,8 @@ import { eloDelta, eloPreseason } from "./elo.ts";
 import { computePoll } from "./poll.ts";
 import { generateSchedule, REG_WEEKS } from "./schedule.ts";
 import { buildPostseason, ccgGames, nextCfpRound, CFP_NC_WEEK } from "./postseason.ts";
-import { runOffseason } from "./offseason.ts";
+import { resolveRetention, runOffseason, submitPortalRound } from "./offseason.ts";
+import { baseBudget, marketValue } from "./nil.ts";
 import { generateRecruitPool, recruitingTick, signingDay, WEEKLY_RAP } from "./recruiting.ts";
 import { rangeInt } from "./streams.ts";
 
@@ -34,6 +35,7 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     roster: [],
     rec: { w: 0, l: 0, cw: 0, cl: 0, pf: 0, pa: 0 },
     prevW: 6,
+    nilBudget: t.p4 ? baseBudget(t.prestige) : 0,
   }));
 
   const players: Record<number, Player> = {};
@@ -116,10 +118,26 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     nextRid: 1,
     rapLeft: WEEKLY_RAP,
     pendingVisits: [],
+    offStage: "done",
+    retention: [],
+    portal: [],
+    portalRound: 0,
+    portalLog: [],
+    records: {},
   };
   state.poll = computePoll(teams, []);
   // Preseason-ranked programs count as "contenders" for deal-breakers in year 1.
   for (const e of state.poll) state.teams[e.tid].prevW = 9;
+  // Established players open with NIL money already in hand (morale baseline).
+  for (const team of teams) {
+    for (const pid of team.roster) {
+      const p = players[pid];
+      if (p.ovr >= 75) {
+        const rng = stream(seed, "nil0", pid);
+        p.nil = Math.round((marketValue(p) * (0.5 + rng() * 0.5)) / 500) * 500;
+      }
+    }
+  }
   generateRecruitPool(state, RECRUIT_POOL);
   return state;
 }
@@ -291,9 +309,20 @@ export function advance(state: DynastyState): void {
   state.week++;
 }
 
+/** Headless offseason: skip retention, make no portal offers (AI still bids). */
+export function autoOffseason(state: DynastyState): void {
+  if (state.phase !== "offseason") return;
+  if (state.offStage === "retention") resolveRetention(state, []);
+  let guard = 0;
+  while (state.offStage === "portal" && guard++ < 5) {
+    submitPortalRound(state, []);
+  }
+}
+
 /** Leave the offseason: regenerate the world for the next season. */
 export function startNextSeason(state: DynastyState): void {
   if (state.phase !== "offseason") return;
+  if (state.offStage !== "done") autoOffseason(state);
   state.season++;
   state.year++;
   state.week = 1;

@@ -99,6 +99,12 @@ export interface Player {
   seed: number;
   /** Weeks remaining out injured (0 = healthy). */
   inj: number;
+  /** Annual NIL money on this player's deal (v1.2). */
+  nil: number;
+  /** 0-100; feeds portal flight risk. */
+  morale: number;
+  /** 1-99, hidden; loyalty resists the portal. */
+  loyalty: number;
   stats: SeasonStats;
   career: CareerLine[];
 }
@@ -119,7 +125,39 @@ export interface Team extends GmTeam {
   rec: TeamSeason;
   /** Last season's win total (CHAMPIONSHIP_CONTENDER deal-breaker). */
   prevW: number;
+  /** This cycle's NIL pool (retention + portal spending), v1.2. */
+  nilBudget: number;
 }
+
+// ---------------------------------------------------------------------------
+// Portal & NIL (v1.2)
+// ---------------------------------------------------------------------------
+
+export type OffStage = "report" | "retention" | "portal" | "done";
+
+export interface RetentionCase {
+  pid: number;
+  /** NIL ask to attempt retention (market value + premium). */
+  ask: number;
+  reason: string;
+}
+
+export interface PortalEntry {
+  pid: number;
+  fromTid: number;
+  /** Minimum NIL a bid must clear to interest the player. */
+  ask: number;
+}
+
+export interface RecordEntry {
+  name: string;
+  school: string;
+  value: number;
+  /** Season for single-season records; first season for career. */
+  season: number;
+}
+
+export type RecordBook = Record<string, { season: RecordEntry[]; career: RecordEntry[] }>;
 
 // ---------------------------------------------------------------------------
 // Recruiting (v1.1)
@@ -234,6 +272,8 @@ export interface SeasonHonors {
   poy: string | null;
   userRecord: string;
   userPollRank: number | null;
+  /** All-America first team, formatted "QB Name (School)" (v1.2). */
+  allAmericans?: string[];
 }
 
 export type Phase = "regular" | "ccg" | "cfp" | "offseason";
@@ -242,7 +282,9 @@ export interface DepartureLine {
   name: string;
   pos: string;
   ovr: number;
-  reason: "graduated" | "nfl-draft" | "transfer-down" | "cut";
+  reason: "graduated" | "nfl-draft" | "transfer-down" | "cut" | "portal";
+  /** e.g. draft slot ("Rd 2, #45") or portal destination. */
+  detail?: string;
 }
 
 /** Full career record archived to the history store when a player departs. */
@@ -255,6 +297,8 @@ export interface ArchivedPlayer {
   tid: number;
   reason: DepartureLine["reason"];
   career: CareerLine[];
+  /** NFL draft slot when drafted (v1.2). */
+  draft?: { round: number; pick: number };
 }
 
 export interface OffseasonReport {
@@ -298,4 +342,14 @@ export interface DynastyState {
   rapLeft: number;
   /** Recruits with an official visit pending this week's home result. */
   pendingVisits: number[];
+  /** Offseason interactive stage (v1.2). */
+  offStage: OffStage;
+  /** User-team retention cases awaiting a decision. */
+  retention: RetentionCase[];
+  /** Open transfer portal pool (players live in `players`, off-roster). */
+  portal: PortalEntry[];
+  portalRound: number;
+  /** Human-readable portal ins/outs for the user's team this cycle. */
+  portalLog: string[];
+  records: RecordBook;
 }

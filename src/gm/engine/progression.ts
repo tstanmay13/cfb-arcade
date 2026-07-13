@@ -17,7 +17,7 @@ export function facilityMult(prestige: number): number {
  */
 export function progressPlayer(p: Player, facMult: number, rng: Rng): number {
   const gap = Math.max(0, p.ceil - p.ovr);
-  const raw = gap * (0.22 + p.dev / 240) * facMult + (rng() * 2.5 - 1);
+  const raw = gap * (0.18 + p.dev / 280) * facMult + (rng() * 2.5 - 1);
   const gain = clamp(Math.round(raw), 0, gap);
   if (gain > 0) {
     p.ovr += gain;

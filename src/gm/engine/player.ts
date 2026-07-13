@@ -62,12 +62,22 @@ export function devTierOf(dev: number): DevTier {
   return dev >= 91 ? 3 : dev >= 71 ? 2 : dev >= 41 ? 1 : 0;
 }
 
-/** Potential ceiling from the dev tier (the PRD table, now literally true). */
+/**
+ * Ceiling bands per dev tier. Tier 0 is deliberately wide and low — most
+ * depth players never become starters, which keeps the league OVR curve
+ * anchored to the real baked distribution (no inflation).
+ */
+export const CEILING_BANDS: [number, number][] = [
+  [58, 76], // Normal
+  [72, 84], // Impact
+  [82, 92], // Star
+  [90, 99], // Elite
+];
+
+/** Potential ceiling from the dev tier. */
 export function rollCeiling(dev: number, ovr: number, cls: number, rng: Rng): number {
-  const tier = devTierOf(dev);
-  const band: [number, number] =
-    tier === 3 ? [95, 99] : tier === 2 ? [89, 94] : tier === 1 ? [83, 88] : [74, 82];
-  const rolled = rangeInt(rng, band[0], band[1]);
+  const [lo, hi] = CEILING_BANDS[devTierOf(dev)];
+  const rolled = rangeInt(rng, lo, hi);
   // Never below what the player already is; underclassmen keep some headroom.
   return clamp(Math.max(rolled, ovr + (cls <= 2 ? 3 : 1)), 40, 99);
 }
@@ -99,6 +109,9 @@ export function playerFromSeed(seed: GmPlayerSeed, pid: number, dynastySeed: num
     stars: starsOf(seed.o, ceil),
     seed: subSeed(dynastySeed, "p", pid),
     inj: 0,
+    nil: 0,
+    morale: 60,
+    loyalty: rangeInt(rng, 20, 95),
     stats: emptyStats(),
     career: [],
   };
@@ -115,11 +128,10 @@ export function generatePlayer(
 ): Player {
   const dev = rollDev(rng);
   const ceil = rollCeiling(dev, ovr, cls, rng);
-  const pos = g === "CB" || g === "S" ? g : g;
   return {
     id: pid,
     name: genName(rng),
-    pos,
+    pos: g,
     g,
     cls,
     ovr,
@@ -130,6 +142,9 @@ export function generatePlayer(
     stars: starsOf(ovr, ceil),
     seed: subSeed(rootSeed, "p", pid),
     inj: 0,
+    nil: 0,
+    morale: 60,
+    loyalty: rangeInt(rng, 20, 95),
     stats: emptyStats(),
     career: [],
   };

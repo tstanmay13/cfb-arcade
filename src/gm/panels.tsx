@@ -5,6 +5,8 @@ import type { DynastyState, GameResult, Player } from "./engine/types.ts";
 import { CLASS_LABELS, DEV_TIER_LABELS, expandSheet } from "./engine/player.ts";
 import { confStandings, REAL_CONFS } from "./engine/postseason.ts";
 import { committeeOrder } from "./engine/poll.ts";
+import { fmtMoney, marketValue } from "./engine/nil.ts";
+import type { PortalOffer } from "./engine/offseason.ts";
 import { archiveFor, type ArchiveRow } from "./db.ts";
 
 const card = "rounded-md border-2 border-paper-edge bg-white/60 p-4";
@@ -127,9 +129,16 @@ function ResultLine({ state, r }: { state: DynastyState; r: GameResult }) {
 
 type SortKey = "pos" | "name" | "cls" | "ovr" | "dev";
 
-export function RosterPanel({ state }: { state: DynastyState }) {
+export function RosterPanel({
+  state,
+  onCut,
+}: {
+  state: DynastyState;
+  onCut?: (pid: number) => void;
+}) {
   const [sort, setSort] = useState<SortKey>("ovr");
   const [sel, setSel] = useState<Player | null>(null);
+  const canCut = state.phase === "offseason" && !!onCut;
   const roster = useMemo(() => {
     const players = state.teams[state.userTid].roster.map((pid) => state.players[pid]);
     const by: Record<SortKey, (a: Player, b: Player) => number> = {
@@ -163,8 +172,10 @@ export function RosterPanel({ state }: { state: DynastyState }) {
               {header("cls", "YR")}
               {header("ovr", "OVR")}
               {header("dev", "DEV")}
-              <th className={th}>STARS</th>
+              <th className={th}>NIL</th>
+              <th className={th}>MOR</th>
               <th className={th}>STATUS</th>
+              {canCut && <th className={th}></th>}
             </tr>
           </thead>
           <tbody>
@@ -181,10 +192,25 @@ export function RosterPanel({ state }: { state: DynastyState }) {
                 <td className={td}>
                   <DevBadge tier={p.devTier} />
                 </td>
-                <td className={td}>{"★".repeat(p.stars)}</td>
+                <td className={`${td} font-mono text-xs`}>{p.nil > 0 ? fmtMoney(p.nil) : "—"}</td>
+                <td className={`${td} font-mono text-xs ${p.morale <= 35 ? "text-red-800" : ""}`}>{p.morale}</td>
                 <td className={`${td} text-xs`}>
                   {p.inj > 0 ? <span className="text-red-800">OUT {p.inj}w</span> : <span className="opacity-50">—</span>}
                 </td>
+                {canCut && (
+                  <td className={td}>
+                    <button
+                      type="button"
+                      className="rounded border border-paper-edge px-1.5 py-0.5 text-[10px] text-red-900 hover:border-red-800/50"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Cut ${p.name}?`)) onCut!(p.id);
+                      }}
+                    >
+                      CUT
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
@@ -221,6 +247,10 @@ function PlayerCard({ state, player, onClose }: { state: DynastyState; player: P
         {player.pos} · {CLASS_LABELS[player.cls] ?? player.cls} · {"★".repeat(player.stars)} ·{" "}
         <DevBadge tier={player.devTier} />
         {player.inj > 0 ? <span className="ml-2 text-red-800">OUT {player.inj} week(s)</span> : null}
+      </p>
+      <p className="mt-1 text-xs opacity-70">
+        NIL {player.nil > 0 ? fmtMoney(player.nil) : "unpaid"} · market {fmtMoney(marketValue(player))} ·
+        morale {player.morale}
       </p>
 
       <h4 className="mt-4 font-display text-xs tracking-[0.25em] opacity-60">RATINGS</h4>
@@ -614,6 +644,7 @@ export function HistoryPanel({ state, slotId }: { state: DynastyState; slotId: n
           </tbody>
         </table>
       </div>
+      <RecordBookCard state={state} />
       <div className={card}>
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
           PROGRAM LEGENDS · {rows ? rows.filter((r) => r.player.tid === state.userTid).length : "…"} DEPARTED
@@ -636,9 +667,258 @@ export function HistoryPanel({ state, slotId }: { state: DynastyState; slotId: n
   );
 }
 
-// --- Offseason ------------------------------------------------------------------
+function RecordBookCard({ state }: { state: DynastyState }) {
+  const cats = Object.keys(state.records);
+  const [cat, setCat] = useState<string>(cats[0] ?? "Passing yards");
+  const [mode, setMode] = useState<"season" | "career">("season");
+  const book = state.records[cat];
+  return (
+    <div className={`${card} md:col-span-2`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">NATIONAL RECORD BOOK</h3>
+        <div className="flex items-center gap-2 text-xs">
+          <select
+            value={cat}
+            onChange={(e) => setCat(e.target.value)}
+            className="rounded border border-paper-edge bg-white/70 px-1 py-0.5"
+          >
+            {cats.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          {(["season", "career"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={`rounded-full border px-2 py-0.5 font-display tracking-widest ${mode === m ? "border-ink bg-ink text-paper" : "border-paper-edge"}`}
+            >
+              {m.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+      {book ? (
+        <ol className="mt-2 columns-1 text-sm sm:columns-2">
+          {book[mode].map((e, i) => (
+            <li key={`${e.name}-${e.season}-${i}`} className="mb-0.5">
+              <span className="inline-block w-6 font-display">{i + 1}.</span>
+              <span className="font-bold">{e.name}</span>{" "}
+              <span className="text-xs opacity-60">
+                {e.school} · {mode === "season" ? e.season : `since ${e.season}`}
+              </span>{" "}
+              <span className="font-mono">{e.value}</span>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="mt-2 text-xs opacity-60">Finish a season to open the book.</p>
+      )}
+    </div>
+  );
+}
 
-export function OffseasonPanel({ state }: { state: DynastyState }) {
+// --- Offseason (stage-driven, v1.2) ---------------------------------------------
+
+export function OffseasonPanel({
+  state,
+  onRetention,
+  onPortal,
+}: {
+  state: DynastyState;
+  onRetention: (paidPids: number[]) => void;
+  onPortal: (offers: PortalOffer[]) => void;
+}) {
+  if (state.offStage === "retention") {
+    return <RetentionStage state={state} onRetention={onRetention} />;
+  }
+  if (state.offStage === "portal") {
+    return <PortalStage state={state} onPortal={onPortal} />;
+  }
+  return <OffseasonReportView state={state} />;
+}
+
+function BudgetBar({ state, committed }: { state: DynastyState; committed: number }) {
+  const budget = state.teams[state.userTid].nilBudget;
+  const over = committed > budget;
+  return (
+    <p className={`text-sm ${over ? "text-red-800" : ""}`}>
+      NIL pool: <span className="font-display">{fmtMoney(budget)}</span>
+      {committed > 0 && (
+        <>
+          {" "}· committed <span className="font-display">{fmtMoney(committed)}</span>
+          {over ? " — over budget, trim your offers" : ""}
+        </>
+      )}
+    </p>
+  );
+}
+
+function RetentionStage({
+  state,
+  onRetention,
+}: {
+  state: DynastyState;
+  onRetention: (paidPids: number[]) => void;
+}) {
+  const [picked, setPicked] = useState<number[]>([]);
+  const committed = state.retention
+    .filter((c) => picked.includes(c.pid))
+    .reduce((a, c) => a + c.ask, 0);
+  const budget = state.teams[state.userTid].nilBudget;
+  return (
+    <div className={card}>
+      <h3 className="font-display text-lg">Retention window</h3>
+      <p className="mt-1 text-sm opacity-75">
+        These players have one foot in the portal. Pay their ask and they'll
+        probably stay (loyalty helps); pass and they're gone. Money only leaves
+        your pool on a successful re-sign.
+      </p>
+      <div className="mt-2">
+        <BudgetBar state={state} committed={committed} />
+      </div>
+      <ul className="mt-3 space-y-2">
+        {state.retention.map((c) => {
+          const p = state.players[c.pid];
+          const on = picked.includes(c.pid);
+          return (
+            <li key={c.pid} className="flex items-center justify-between rounded border border-paper-edge bg-white/50 px-3 py-2">
+              <div>
+                <span className="font-bold">{p.name}</span>{" "}
+                <span className="text-xs opacity-60">
+                  {p.pos} · {p.ovr} OVR · morale {p.morale} · {c.reason}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPicked(on ? picked.filter((x) => x !== c.pid) : [...picked, c.pid])}
+                className={`rounded-full border-2 px-4 py-1 font-display text-xs tracking-widest transition ${
+                  on ? "border-ink bg-ink text-paper" : "border-paper-edge hover:border-ink/40"
+                }`}
+              >
+                {on ? `PAYING ${fmtMoney(c.ask)}` : `PAY ${fmtMoney(c.ask)}`}
+              </button>
+            </li>
+          );
+        })}
+        {state.retention.length === 0 && (
+          <li className="text-sm opacity-60">Nobody is threatening to leave. Lucky you.</li>
+        )}
+      </ul>
+      <button
+        type="button"
+        disabled={committed > budget}
+        onClick={() => onRetention(picked)}
+        className="mt-4 rounded-full border-2 border-ink bg-ink px-6 py-2 font-display text-xs tracking-widest text-paper transition hover:opacity-85 disabled:opacity-40"
+      >
+        CONFIRM → OPEN THE PORTAL
+      </button>
+    </div>
+  );
+}
+
+function PortalStage({
+  state,
+  onPortal,
+}: {
+  state: DynastyState;
+  onPortal: (offers: PortalOffer[]) => void;
+}) {
+  const [offers, setOffers] = useState<Record<number, number>>({});
+  const committed = Object.values(offers).reduce((a, b) => a + b, 0);
+  const budget = state.teams[state.userTid].nilBudget;
+  const rows = state.portal.slice(0, 40);
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      <div className={`${card} md:col-span-2`}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-lg">Transfer portal — round {state.portalRound}/3</h3>
+          <BudgetBar state={state} committed={committed} />
+        </div>
+        <p className="mt-1 text-xs opacity-70">
+          Bids need to clear ~90% of the ask to register. Everyone else is bidding too.
+        </p>
+        <table className="mt-2 w-full text-sm">
+          <thead>
+            <tr className="border-b border-paper-edge">
+              <th className={th}>PLAYER</th>
+              <th className={th}>OVR</th>
+              <th className={th}>FROM</th>
+              <th className={th}>ASK</th>
+              <th className={th}>MY OFFER</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((e) => {
+              const p = state.players[e.pid];
+              return (
+                <tr key={e.pid} className="border-b border-paper-edge/50">
+                  <td className={td}>
+                    <span className="font-display">{p.pos}</span> <span className="font-bold">{p.name}</span>{" "}
+                    <span className="text-xs opacity-50">{CLASS_LABELS[p.cls] ?? p.cls}</span>
+                  </td>
+                  <td className={`${td} font-mono`}>{p.ovr}</td>
+                  <td className={`${td} text-xs`}>{school(state, e.fromTid)}</td>
+                  <td className={`${td} font-mono text-xs`}>{fmtMoney(e.ask)}</td>
+                  <td className={td}>
+                    <input
+                      type="number"
+                      min={0}
+                      step={50}
+                      value={offers[e.pid] ? offers[e.pid] / 1000 : ""}
+                      placeholder="$k"
+                      onChange={(ev) => {
+                        const v = Math.max(0, Number(ev.target.value)) * 1000;
+                        setOffers((o) => {
+                          const next = { ...o };
+                          if (v > 0) next[e.pid] = v;
+                          else delete next[e.pid];
+                          return next;
+                        });
+                      }}
+                      className="w-24 rounded border border-paper-edge bg-white/70 px-1 py-0.5 font-mono text-xs"
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+            {rows.length === 0 && (
+              <tr>
+                <td className={td} colSpan={5}>
+                  <span className="text-sm opacity-60">The portal is empty this round.</span>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        <button
+          type="button"
+          disabled={committed > budget}
+          onClick={() => {
+            onPortal(Object.entries(offers).map(([pid, amount]) => ({ pid: Number(pid), amount })));
+            setOffers({});
+          }}
+          className="mt-4 rounded-full border-2 border-ink bg-ink px-6 py-2 font-display text-xs tracking-widest text-paper transition hover:opacity-85 disabled:opacity-40"
+        >
+          SUBMIT ROUND {state.portalRound}
+        </button>
+      </div>
+      <div className={card}>
+        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">YOUR PORTAL LEDGER</h3>
+        <ul className="mt-2 space-y-1 text-xs">
+          {state.portalLog.map((l, i) => (
+            <li key={i} className={l.startsWith("IN") ? "text-green-900" : l.startsWith("STAY") ? "" : "text-red-900/80"}>
+              {l}
+            </li>
+          ))}
+          {state.portalLog.length === 0 && <li className="opacity-60">Quiet so far.</li>}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function OffseasonReportView({ state }: { state: DynastyState }) {
   const r = state.offseason!;
   const honors = state.honors[state.honors.length - 1];
   return (
@@ -646,7 +926,7 @@ export function OffseasonPanel({ state }: { state: DynastyState }) {
       <div className={`${card} md:col-span-2`}>
         <h3 className="font-display text-lg">{r.season} Season Wrapped</h3>
         <p className="mt-1 text-sm">
-          {honors?.champion !== null && honors ? (
+          {honors && honors.champion !== null ? (
             <>🏆 <span className="font-bold">{school(state, honors.champion)}</span> won it all. </>
           ) : null}
           You went <span className="font-bold">{honors?.userRecord}</span>
@@ -654,8 +934,12 @@ export function OffseasonPanel({ state }: { state: DynastyState }) {
           {honors?.poy ? ` POY: ${honors.poy}.` : ""}
         </p>
         <p className="mt-1 text-sm">
-          Your recruiting class ranked <span className="font-display">#{r.classRank}</span> nationally.
+          Class rank <span className="font-display">#{r.classRank}</span> · next season's NIL pool{" "}
+          <span className="font-display">{fmtMoney(state.teams[state.userTid].nilBudget)}</span>
         </p>
+        {honors?.allAmericans && honors.allAmericans.length > 0 && (
+          <p className="mt-1 text-xs opacity-70">All-Americans: {honors.allAmericans.join(" · ")}</p>
+        )}
       </div>
 
       <div className={card}>
@@ -664,7 +948,10 @@ export function OffseasonPanel({ state }: { state: DynastyState }) {
           {r.departures.map((d, i) => (
             <li key={i}>
               <span className="font-bold">{d.name}</span>{" "}
-              <span className="text-xs opacity-60">{d.pos} · {d.ovr} OVR · {d.reason}</span>
+              <span className="text-xs opacity-60">
+                {d.pos} · {d.ovr} OVR · {d.reason}
+                {d.detail ? ` (${d.detail})` : ""}
+              </span>
             </li>
           ))}
           {r.departures.length === 0 && <li className="text-xs opacity-60">Everyone returns!</li>}
@@ -672,7 +959,7 @@ export function OffseasonPanel({ state }: { state: DynastyState }) {
       </div>
 
       <div className={card}>
-        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">SIGNING CLASS</h3>
+        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">SIGNING CLASS + PORTAL</h3>
         <ul className="mt-2 space-y-0.5 text-sm">
           {r.signees.map((s, i) => (
             <li key={i}>
@@ -681,6 +968,15 @@ export function OffseasonPanel({ state }: { state: DynastyState }) {
             </li>
           ))}
         </ul>
+        {state.portalLog.length > 0 && (
+          <ul className="mt-3 space-y-0.5 border-t border-paper-edge pt-2 text-xs">
+            {state.portalLog.map((l, i) => (
+              <li key={i} className={l.startsWith("IN") ? "text-green-900" : l.startsWith("STAY") ? "" : "text-red-900/80"}>
+                {l}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className={card}>

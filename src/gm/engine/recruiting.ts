@@ -7,7 +7,7 @@
 import type { Rng } from "../../engine/rng.ts";
 import type { DealBreaker, DynastyState, Player, PosGroup, Recruit, Team } from "./types.ts";
 import { clamp, rangeInt, stream, subSeed } from "./streams.ts";
-import { devTierOf, generatePlayer, rollDev, synthAttrs, emptyStats } from "./player.ts";
+import { CEILING_BANDS, devTierOf, generatePlayer, rollDev, synthAttrs, emptyStats } from "./player.ts";
 import { genName } from "./names.ts";
 import { ovrForStars, rollPos, rollStars } from "./recruits.ts";
 
@@ -25,10 +25,9 @@ export const RAP_ACTIONS = {
 } as const;
 export type RapAction = keyof typeof RAP_ACTIONS;
 
-/** Ceiling band per tier, shiftable ±1 for gems/busts. */
+/** Ceiling band per tier (shared table), shiftable ±1 tier for gems/busts. */
 function ceilingFor(tier: number, ovr: number, rng: Rng): number {
-  const bands: [number, number][] = [[74, 82], [83, 88], [89, 94], [95, 99]];
-  const [lo, hi] = bands[clamp(tier, 0, 3)];
+  const [lo, hi] = CEILING_BANDS[clamp(tier, 0, 3)];
   return clamp(Math.max(rangeInt(rng, lo, hi), ovr + 3), 40, 99);
 }
 
@@ -156,7 +155,7 @@ export function userAction(state: DynastyState, rid: number, action: RapAction):
 }
 
 /** Positional need for AI targeting: departing seniors + thin groups. */
-function teamNeeds(state: DynastyState, team: Team): Map<PosGroup, number> {
+export function teamNeeds(state: DynastyState, team: Team): Map<PosGroup, number> {
   const targets: [PosGroup, number][] = [
     ["QB", 4], ["RB", 6], ["WR", 9], ["TE", 4], ["OL", 14],
     ["DL", 12], ["LB", 9], ["CB", 7], ["S", 6], ["K", 2], ["P", 2],
@@ -290,6 +289,9 @@ export function recruitToPlayer(r: Recruit, pid: number, rootSeed: number): Play
     stars: r.stars,
     seed: subSeed(rootSeed, "p", pid),
     inj: 0,
+    nil: 0,
+    morale: 65,
+    loyalty: rangeInt(rng, 20, 95),
     stats: emptyStats(),
     career: [],
   };

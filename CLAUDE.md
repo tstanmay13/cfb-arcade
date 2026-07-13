@@ -81,6 +81,9 @@ credential beyond the public anon key to this repo.
   (Supabase-only; ADR-0017).
 - `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM (Supabase-only;
   ADR-0023).
+- `npm run bench:gm -- run|report` — CFB-GM policy benchmark (headless
+  30-year dynasties under scripted profiles). Baselines + method live in
+  `docs/benchmarks/`; re-run and diff after ANY GM tuning change.
 - `npm run build` — tsc + vite production build (static `dist/`).
 
 ## Gotchas

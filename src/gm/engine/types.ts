@@ -2,6 +2,8 @@
 // and the runtime dynasty state. Plain type-strippable TS (no enums), shared by
 // the app AND the bake script like the draft cabinet's types.ts.
 
+import type { Coach, Mandate } from "./coaches.ts";
+
 // ---------------------------------------------------------------------------
 // Baked reference data (the Supabase seam, read-only)
 // ---------------------------------------------------------------------------
@@ -24,6 +26,8 @@ export interface GmTeam {
   elo: number;
   /** 1..6 stars for P4 (from Elo percentile); 0 for shells. */
   prestige: number;
+  /** Real rivals (team ids), from 2010-25 matchup history (v1.3). */
+  rivals?: number[];
 }
 
 /** Compact baked player seed — expanded into a full Player at dynasty creation. */
@@ -127,6 +131,8 @@ export interface Team extends GmTeam {
   prevW: number;
   /** This cycle's NIL pool (retention + portal spending), v1.2. */
   nilBudget: number;
+  /** Booster board profile 0-2 (Old Guard / New Money / Win-Now), v1.3. */
+  boosterType: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -352,4 +358,11 @@ export interface DynastyState {
   /** Human-readable portal ins/outs for the user's team this cycle. */
   portalLog: string[];
   records: RecordBook;
+  /** Coaching staffs + free agents (v1.3). */
+  coaches: Coach[];
+  nextCoachId: number;
+  /** This season's booster mandates for the user program. */
+  mandates: Mandate[];
+  /** Programs whose HC job opened this cycle (user may take one). */
+  openJobs: number[];
 }

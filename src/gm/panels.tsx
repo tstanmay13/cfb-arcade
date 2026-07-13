@@ -7,6 +7,7 @@ import { confStandings, REAL_CONFS } from "./engine/postseason.ts";
 import { committeeOrder } from "./engine/poll.ts";
 import { fmtMoney, marketValue } from "./engine/nil.ts";
 import type { PortalOffer } from "./engine/offseason.ts";
+import { ARCHETYPE_LABELS, BOOSTER_LABELS, staffOf } from "./engine/coaches.ts";
 import { archiveFor, type ArchiveRow } from "./db.ts";
 
 const card = "rounded-md border-2 border-paper-edge bg-white/60 p-4";
@@ -90,6 +91,50 @@ export function Dashboard({ state }: { state: DynastyState }) {
             </li>
           ))}
         </ol>
+      </div>
+
+      <div className={card}>
+        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
+          BOOSTER MANDATES · {BOOSTER_LABELS[state.teams[state.userTid].boosterType]}
+        </h3>
+        <ul className="mt-2 space-y-1 text-sm">
+          {state.mandates.map((m, i) => (
+            <li key={i}>
+              {m.met === null ? "⏳" : m.met ? "✅" : "❌"} {m.text}
+            </li>
+          ))}
+          {state.mandates.length === 0 && <li className="text-xs opacity-60">The board is quiet.</li>}
+        </ul>
+        <p className="mt-2 text-[10px] opacity-60">
+          Hit every mandate: +25% NIL next cycle. Miss them all: −20% and a locker-room hit.
+        </p>
+      </div>
+
+      <div className={card}>
+        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">YOUR STAFF</h3>
+        <ul className="mt-2 space-y-1 text-sm">
+          {(["HC", "OC", "DC"] as const).map((role) => {
+            const c = staffOf(state, state.userTid)[role];
+            return (
+              <li key={role}>
+                <span className="font-display">{role}</span>{" "}
+                {c ? (
+                  <>
+                    <span className="font-bold">{c.name}</span>{" "}
+                    <span className="text-xs opacity-60">
+                      {c.rating} · {ARCHETYPE_LABELS[c.archetype]} · {c.w}-{c.l}
+                    </span>
+                  </>
+                ) : (
+                  <span className="opacity-50">vacant</span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-[10px] opacity-60">
+          Recruiters boost interest · Tacticians boost execution · Developers boost camp gains.
+        </p>
       </div>
 
       <div className={`${card} md:col-span-2`}>
@@ -724,10 +769,12 @@ export function OffseasonPanel({
   state,
   onRetention,
   onPortal,
+  onTakeJob,
 }: {
   state: DynastyState;
   onRetention: (paidPids: number[]) => void;
   onPortal: (offers: PortalOffer[]) => void;
+  onTakeJob?: (tid: number) => void;
 }) {
   if (state.offStage === "retention") {
     return <RetentionStage state={state} onRetention={onRetention} />;
@@ -735,7 +782,7 @@ export function OffseasonPanel({
   if (state.offStage === "portal") {
     return <PortalStage state={state} onPortal={onPortal} />;
   }
-  return <OffseasonReportView state={state} />;
+  return <OffseasonReportView state={state} onTakeJob={onTakeJob} />;
 }
 
 function BudgetBar({ state, committed }: { state: DynastyState; committed: number }) {
@@ -918,7 +965,13 @@ function PortalStage({
   );
 }
 
-function OffseasonReportView({ state }: { state: DynastyState }) {
+function OffseasonReportView({
+  state,
+  onTakeJob,
+}: {
+  state: DynastyState;
+  onTakeJob?: (tid: number) => void;
+}) {
   const r = state.offseason!;
   const honors = state.honors[state.honors.length - 1];
   return (
@@ -940,7 +993,51 @@ function OffseasonReportView({ state }: { state: DynastyState }) {
         {honors?.allAmericans && honors.allAmericans.length > 0 && (
           <p className="mt-1 text-xs opacity-70">All-Americans: {honors.allAmericans.join(" · ")}</p>
         )}
+        {state.mandates.length > 0 && (
+          <p className="mt-1 text-sm">
+            Mandates:{" "}
+            {state.mandates.map((m, i) => (
+              <span key={i} className="mr-3">
+                {m.met === null ? "⏳" : m.met ? "✅" : "❌"} {m.text}
+              </span>
+            ))}
+          </p>
+        )}
       </div>
+
+      {state.openJobs.length > 0 && onTakeJob && (
+        <div className={`${card} md:col-span-2`}>
+          <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
+            🧳 OPEN JOBS — THE CAROUSEL IS SPINNING
+          </h3>
+          <ul className="mt-2 space-y-1 text-sm">
+            {state.openJobs.map((tid) => {
+              const t = state.teams[tid];
+              return (
+                <li key={tid} className="flex items-center justify-between">
+                  <span>
+                    <span className="font-bold">{t.school}</span>{" "}
+                    <span className="text-xs opacity-60">
+                      {"★".repeat(t.prestige)} · {t.conference} · NIL {fmtMoney(t.nilBudget)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className="rounded-full border-2 border-paper-edge px-3 py-0.5 font-display text-[10px] tracking-widest transition hover:border-ink/50"
+                    onClick={() => {
+                      if (window.confirm(`Leave ${school(state, state.userTid)} for ${t.school}?`)) {
+                        onTakeJob(tid);
+                      }
+                    }}
+                  >
+                    TAKE JOB
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className={card}>
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">DEPARTURES</h3>

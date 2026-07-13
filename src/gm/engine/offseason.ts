@@ -21,6 +21,7 @@ import { lateSigningPeriod, recruitToPlayer, teamNeeds, walkOns } from "./recrui
 import { selectLineup } from "./lineup.ts";
 import { marketValue, nextBudget, fmtMoney } from "./nil.ts";
 import { updateRecords } from "./records.ts";
+import { coachCarousel, devBonus, evalMandates } from "./coaches.ts";
 
 export const ROSTER_CAP = 85;
 const PORTAL_ROUNDS = 3;
@@ -189,7 +190,7 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
   // --- Progression toward ceilings + class advance -----------------------------
   for (const team of state.teams) {
     if (!team.p4) continue;
-    const fac = facilityMult(team.prestige);
+    const fac = facilityMult(team.prestige) + devBonus(state, team.id);
     for (const pid of team.roster) {
       const p = state.players[pid];
       const from = p.ovr;
@@ -436,7 +437,9 @@ export function finishOffseason(state: DynastyState): void {
     }
   }
 
-  // Prestige drift + next cycle's NIL budgets.
+  // Mandates + coaching carousel (v1.3), then prestige + next NIL budgets.
+  const mandateMult = evalMandates(state, report.classRank);
+  coachCarousel(state, championTid);
   for (const team of state.teams) {
     if (!team.p4) continue;
     const from = team.prestige;
@@ -446,7 +449,8 @@ export function finishOffseason(state: DynastyState): void {
     if (team.prestige !== from) {
       report.prestigeChanges.push({ school: team.school, from, to: team.prestige });
     }
-    team.nilBudget = nextBudget(team.prestige, team.rec.w, team.id === championTid);
+    const mult = team.id === state.userTid ? mandateMult : 1;
+    team.nilBudget = Math.round(nextBudget(team.prestige, team.rec.w, team.id === championTid) * mult);
     if (team.id === state.userTid && team.rec.w <= 4) {
       pushNews(state, `💰 Boosters slash ${team.school}'s NIL pool after a ${team.rec.w}-win season.`);
     }

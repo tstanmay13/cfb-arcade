@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { DynastyState } from "./engine/types.ts";
 import { advance, simToSeasonEnd, startNextSeason } from "./engine/dynasty.ts";
 import { cutPlayer, resolveRetention, submitPortalRound, type PortalOffer } from "./engine/offseason.ts";
+import { takeJob } from "./engine/coaches.ts";
 import { fmtMoney } from "./engine/nil.ts";
 import { loadDynasty, saveDynasty } from "./db.ts";
 import {
@@ -174,6 +175,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
             state={state}
             onRetention={(pids) => runAction((s) => resolveRetention(s, pids))}
             onPortal={(offers: PortalOffer[]) => runAction((s) => submitPortalRound(s, offers))}
+            onTakeJob={(tid) => runAction((s) => void takeJob(s, tid))}
           />
         )}
       </section>

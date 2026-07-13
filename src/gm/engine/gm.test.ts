@@ -10,6 +10,7 @@ import { advance, autoOffseason, createDynasty, simToSeasonEnd, startNextSeason,
 import { selectLineup, traitsFromElo, traitsFromLineup } from "./lineup.ts";
 import { dealBreakerLock, userAction, userPoints } from "./recruiting.ts";
 import { resolveRetention, submitPortalRound } from "./offseason.ts";
+import { gameBonus, recruitMult, staffOf, takeJob } from "./coaches.ts";
 
 const data = JSON.parse(
   readFileSync(new URL("../../../public/gm-data.json", import.meta.url), "utf8"),
@@ -266,7 +267,8 @@ describe("recruiting (v1.1)", () => {
     expect(userAction(state, open.id, "s2")).toBeTruthy(); // S1 required first
     expect(userAction(state, open.id, "dm")).toBeNull();
     expect(state.rapLeft).toBe(590);
-    expect(userPoints(open, USER_TID)).toBe(15);
+    // Staff recruiter multiplier scales interest gains (v1.3).
+    expect(userPoints(open, USER_TID)).toBe(Math.round(15 * recruitMult(state, USER_TID)));
     expect(userAction(state, open.id, "s1")).toBeNull();
     expect(userAction(state, open.id, "s2")).toBeNull();
     expect(open.scouted).toBe(2);
@@ -369,6 +371,69 @@ describe("portal & NIL (v1.2)", () => {
       resolveRetention(s2, [c.pid]);
       const stayed = s2.teams[s2.userTid].roster.includes(c.pid);
       expect(s2.teams[s2.userTid].nilBudget).toBe(stayed ? before - c.ask : before);
+    }
+  });
+});
+
+describe("coaches & boosters (v1.3)", () => {
+  it("every P4 program has a full staff and effects stay bounded", () => {
+    const state = freshDynasty(41);
+    for (const t of state.teams) {
+      if (!t.p4) continue;
+      const staff = staffOf(state, t.id);
+      expect(staff.HC).toBeDefined();
+      expect(staff.OC).toBeDefined();
+      expect(staff.DC).toBeDefined();
+      const b = gameBonus(state, t.id);
+      expect(b).toBeGreaterThanOrEqual(-2);
+      expect(b).toBeLessThanOrEqual(6);
+    }
+    expect(state.mandates.length).toBeGreaterThanOrEqual(1);
+    expect(state.mandates.length).toBeLessThanOrEqual(2);
+  });
+
+  it("rivalries are baked, mutual, and real-shaped", () => {
+    const state = freshDynasty(42);
+    const withRivals = state.teams.filter((t) => t.p4 && (t.rivals?.length ?? 0) > 0);
+    expect(withRivals.length).toBe(68);
+    for (const t of withRivals) {
+      for (const r of t.rivals!) {
+        expect(state.teams[r].rivals).toContain(t.id);
+      }
+    }
+  });
+
+  it("the carousel fires and hires over a few seasons; mandates get verdicts", () => {
+    const state = freshDynasty(43);
+    const initialHCs = new Map(
+      state.teams.filter((t) => t.p4).map((t) => [t.id, staffOf(state, t.id).HC!.id]),
+    );
+    for (let y = 0; y < 3; y++) {
+      simToSeasonEnd(state);
+      autoOffseason(state);
+      for (const m of state.mandates) expect(m.met).not.toBeNull();
+      startNextSeason(state);
+    }
+    let changed = 0;
+    for (const t of state.teams) {
+      if (!t.p4) continue;
+      const hc = staffOf(state, t.id).HC;
+      expect(hc).toBeDefined(); // no program left headless
+      if (hc!.id !== initialHCs.get(t.id)) changed++;
+    }
+    expect(changed).toBeGreaterThan(3); // the carousel actually spins
+  });
+
+  it("takeJob moves the user and backfills the old program", () => {
+    const state = freshDynasty(44);
+    simToSeasonEnd(state);
+    autoOffseason(state);
+    const oldTid = state.userTid;
+    if (state.openJobs.length > 0) {
+      const target = state.openJobs[0];
+      expect(takeJob(state, target)).toBe(true);
+      expect(state.userTid).toBe(target);
+      expect(staffOf(state, oldTid).HC).toBeDefined();
     }
   });
 });

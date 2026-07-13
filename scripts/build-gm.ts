@@ -102,6 +102,10 @@ async function main(): Promise<void> {
     `cfb_games?select=season,week,home_team,away_team,home_points,away_points&season=eq.${SEASON - 1}&completed=is.true&order=week.asc`,
   )) as unknown as GameRow[];
 
+  const histGames = (await rest(
+    `cfb_games?select=home_team,away_team&season=gte.2010&season=lte.${SEASON - 1}&completed=is.true`,
+  )) as unknown as { home_team: string; away_team: string }[];
+
   // --- Elo from real 2025 results (FCS opponents fixed, never updated) ------
   const elo = new Map<string, number>(teamRows.map((t) => [t.school, ELO_BASE]));
   for (const g of games25) {
@@ -143,6 +147,36 @@ async function main(): Promise<void> {
   p4Sorted.forEach((t, i) => {
     t.prestige = i < 5 ? 6 : i < 16 ? 5 : i < 32 ? 4 : i < 48 ? 3 : i < 60 ? 2 : 1;
   });
+
+  // Real rivalries: most-played P4 matchups since 2010 (mutualized top pairs).
+  const pairCount = new Map<string, number>();
+  for (const g of histGames) {
+    const a = idOf.get(g.home_team);
+    const b = idOf.get(g.away_team);
+    if (a === undefined || b === undefined || !teams[a].p4 || !teams[b].p4) continue;
+    const key = a < b ? `${a}|${b}` : `${b}|${a}`;
+    pairCount.set(key, (pairCount.get(key) ?? 0) + 1);
+  }
+  const topPartner = new Map<number, [number, number][]>();
+  for (const [key, n] of pairCount) {
+    if (n < 8) continue; // rivalry needs history
+    const [a, b] = key.split("|").map(Number);
+    topPartner.set(a, [...(topPartner.get(a) ?? []), [b, n]]);
+    topPartner.set(b, [...(topPartner.get(b) ?? []), [a, n]]);
+  }
+  const rivals = new Map<number, Set<number>>();
+  for (const [tid, partners] of topPartner) {
+    partners.sort((x, y) => y[1] - x[1]);
+    for (const [other] of partners.slice(0, 2)) {
+      if (!rivals.has(tid)) rivals.set(tid, new Set());
+      if (!rivals.has(other)) rivals.set(other, new Set());
+      rivals.get(tid)!.add(other);
+      rivals.get(other)!.add(tid);
+    }
+  }
+  for (const t of teams) {
+    if (t.p4) t.rivals = [...(rivals.get(t.id) ?? [])].sort((a, b) => a - b);
+  }
 
   // --- Schedule: real 2026 regular season, P4-involved games only -----------
   const schedule: GmSchedGame[] = [];

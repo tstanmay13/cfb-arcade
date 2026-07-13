@@ -10,6 +10,7 @@ import { clamp, rangeInt, stream, subSeed } from "./streams.ts";
 import { CEILING_BANDS, devTierOf, generatePlayer, rollDev, synthAttrs, emptyStats } from "./player.ts";
 import { genName } from "./names.ts";
 import { ovrForStars, rollPos, rollStars } from "./recruits.ts";
+import { recruitMult } from "./coaches.ts";
 
 export const WEEKLY_RAP = 600;
 export const COMMIT_THRESHOLD = 1000;
@@ -131,6 +132,7 @@ export function userAction(state: DynastyState, rid: number, action: RapAction):
   const lock = dealBreakerLock(state, r, state.userTid);
   if (lock && action !== "s1" && action !== "s2") return `Locked: ${lock}`;
 
+  const staffPts = Math.round(def.pts * recruitMult(state, state.userTid));
   if (action === "s1") {
     if (r.scouted >= 1) return "Already scouted";
     r.scouted = 1;
@@ -141,14 +143,14 @@ export function userAction(state: DynastyState, rid: number, action: RapAction):
   } else if (action === "hc") {
     if (r.hcUsed) return "HC visit already used on this recruit";
     r.hcUsed = true;
-    addInterest(r, state.userTid, def.pts);
+    addInterest(r, state.userTid, staffPts);
   } else if (action === "visit") {
     if (!hasHomeGame(state)) return "Official visits need a home game this week";
     if (state.pendingVisits.includes(rid)) return "Visit already scheduled";
     state.pendingVisits.push(rid);
-    addInterest(r, state.userTid, def.pts);
+    addInterest(r, state.userTid, staffPts);
   } else {
-    addInterest(r, state.userTid, def.pts);
+    addInterest(r, state.userTid, staffPts);
   }
   state.rapLeft -= def.cost;
   return null;
@@ -195,7 +197,7 @@ function aiWeeklyPoints(state: DynastyState, team: Team, rng: Rng): void {
   }
   candidates.sort((a, b) => b.score - a.score);
   // Same 600-RAP budget as the user, converted at blended action efficiency.
-  let budget = Math.round(WEEKLY_RAP * (1.35 + team.prestige * 0.05));
+  let budget = Math.round(WEEKLY_RAP * (1.35 + team.prestige * 0.05) * recruitMult(state, team.id));
   for (const { r } of candidates.slice(0, 9)) {
     const spend = Math.min(budget, rangeInt(rng, 60, 190));
     addInterest(r, team.id, spend);

@@ -18,6 +18,7 @@ import { buildPostseason, ccgGames, nextCfpRound, CFP_NC_WEEK } from "./postseas
 import { resolveRetention, runOffseason, submitPortalRound } from "./offseason.ts";
 import { baseBudget, marketValue } from "./nil.ts";
 import { generateRecruitPool, recruitingTick, signingDay, WEEKLY_RAP } from "./recruiting.ts";
+import { boosterTypeFor, gameBonus, genMandates, initCoaches } from "./coaches.ts";
 import { rangeInt } from "./streams.ts";
 
 /** National recruit pool size per cycle (CFB_GM_DESIGN roster ecology). */
@@ -36,6 +37,7 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     rec: { w: 0, l: 0, cw: 0, cl: 0, pf: 0, pa: 0 },
     prevW: 6,
     nilBudget: t.p4 ? baseBudget(t.prestige) : 0,
+    boosterType: boosterTypeFor(seed, t.id),
   }));
 
   const players: Record<number, Player> = {};
@@ -124,6 +126,10 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     portalRound: 0,
     portalLog: [],
     records: {},
+    coaches: [],
+    nextCoachId: 1,
+    mandates: [],
+    openJobs: [],
   };
   state.poll = computePoll(teams, []);
   // Preseason-ranked programs count as "contenders" for deal-breakers in year 1.
@@ -139,6 +145,8 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     }
   }
   generateRecruitPool(state, RECRUIT_POOL);
+  initCoaches(state);
+  genMandates(state);
   return state;
 }
 
@@ -154,6 +162,14 @@ function sideFor(state: DynastyState, tid: number): SideInput {
   if (team.p4) {
     lineup = selectLineup(team.roster.map((id) => state.players[id]));
     traits = traitsFromLineup(lineup);
+    // Coaching quality shifts execution across the board (v1.3).
+    const bonus = gameBonus(state, tid);
+    if (bonus !== 0) {
+      traits.airO += bonus; traits.gndO += bonus; traits.prot += bonus;
+      traits.sec += bonus; traits.rzO += bonus; traits.st += bonus;
+      traits.airD += bonus; traits.gndD += bonus; traits.havoc += bonus;
+      traits.hunt += bonus; traits.rzD += bonus;
+    }
   } else {
     traits = traitsFromElo(team.elo);
   }
@@ -167,9 +183,10 @@ function applyResult(state: DynastyState, game: SchedGame, keepDetail: boolean):
   const neutral = game.kind !== "reg";
   const homeTeam = state.teams[game.home];
   const awayTeam = state.teams[game.away];
+  const isRival = !!homeTeam.rivals?.includes(game.away);
   const out = simGame(home, away, rng, {
     neutral,
-    rivalry: !!game.conf && game.week >= 12,
+    rivalry: isRival || (!!game.conf && game.week >= 12),
     hostileNoise: !neutral && homeTeam.p4 && homeTeam.prestige >= 5,
   });
 
@@ -342,6 +359,7 @@ export function startNextSeason(state: DynastyState): void {
   state.rapLeft = WEEKLY_RAP;
   state.pendingVisits = [];
   generateRecruitPool(state, RECRUIT_POOL);
+  genMandates(state);
 }
 
 /** Fast-sim helper: advance until the offseason report is up. */

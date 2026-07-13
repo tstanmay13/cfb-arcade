@@ -16,6 +16,7 @@ function mkResolved(outcome: Outcome, over: Partial<Resolved> = {}): Resolved {
     schedule: generateSchedule(outcome, mulberry32(1), OPPONENTS),
     record: "",
     fluffedStats: {},
+    playerPerformance: {},
     heisman: null,
     allAmericans: [],
     ...over,

@@ -19,19 +19,19 @@ function board(ovr = 90): PlayerSlots {
 }
 
 describe("stat fluff (§7.1)", () => {
-  it("stays within the 0.70–1.30 envelope and matches base precision", () => {
+  it("stays within the 0.70–1.35 envelope and matches base precision", () => {
     const rng = mulberry32(1);
     for (let i = 0; i < 2000; i++) {
       const f = calculateStatFluff(1000, rng);
       expect(f.appliedModifier).toBeGreaterThanOrEqual(0.7);
-      expect(f.appliedModifier).toBeLessThanOrEqual(1.3);
+      expect(f.appliedModifier).toBeLessThanOrEqual(1.35);
       expect(Number.isInteger(f.value)).toBe(true);
     }
     const ratio = calculateStatFluff(6.3, rng);
     expect(ratio.value).toBeCloseTo(6.3 * ratio.appliedModifier, 1);
   });
 
-  it("distributes 40% wild / 40% mild / 20% locked", () => {
+  it("distributes across the five 20% performance buckets", () => {
     const rng = mulberry32(99);
     let wild = 0;
     let locked = 0;
@@ -41,17 +41,18 @@ describe("stat fluff (§7.1)", () => {
       if (f.appliedModifier < 0.9 || f.appliedModifier > 1.1) wild++;
       if (f.appliedModifier >= 0.98 && f.appliedModifier <= 1.02) locked++;
     }
-    // wild swings beyond ±10% happen only in the 40% bucket (and only ~2/3 of it)
-    expect(wild / n).toBeGreaterThan(0.2);
-    expect(wild / n).toBeLessThan(0.35);
-    expect(locked / n).toBeGreaterThan(0.2); // 20% lock + slice of mild
+    // Beyond ±10%: all of significantly_worse/better (40%) plus half of each
+    // marginal band (~20%) → ~60%.
+    expect(wild / n).toBeGreaterThan(0.5);
+    expect(wild / n).toBeLessThan(0.7);
+    expect(locked / n).toBeGreaterThan(0.15); // the 20% "same" band
   });
 
   it("computedModifier is the max across the 5 stats", () => {
     const p = mkPlayer({ primary_position: "QB", school_id: "x", decade: "2020s" });
     const f = fluffPlayerStats(p, mulberry32(7));
     expect(f.computedModifier).toBeGreaterThanOrEqual(0.98); // max of 5 draws is ~never the floor
-    expect(f.computedModifier).toBeLessThanOrEqual(1.3);
+    expect(f.computedModifier).toBeLessThanOrEqual(1.35);
   });
 });
 

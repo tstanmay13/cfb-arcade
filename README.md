@@ -12,9 +12,11 @@ system but nothing else. The title screen links between them; each cabinet
 bakes its own JSON and lazy-loads it.
 
 This repo is deliberately self-sufficient: clone, install, run — **no secrets,
-no database, no data pipeline**. The v2 design doc and the ADR decision log
-(0009+) live with the private `cfb` data-platform repo, owner-side; the §N
-references in code comments point at that design doc.
+no database, no data pipeline**. Architecture decisions live in
+[`docs/adr/`](docs/adr/) — one ADR sequence shared across both repos: the
+historical 0001–0021 stay owner-side in the private `cfb` data-platform repo,
+this repo owns 0022 onward. The v2 design doc also lives with the platform repo;
+the §N references in code comments point at it.
 
 ## Run it
 

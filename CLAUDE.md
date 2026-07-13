@@ -75,6 +75,9 @@ credential beyond the public anon key to this repo.
   decade, not the 2010s) and never author a kicker/TE/OL into a board position.
 - Decade powerhouse flags live per-program in `scripts/content/*.json`
   (`powerhouse_eras`), not in code.
-- The ADR log (0009+) stays in the private platform repo; ADR numbers in
-  comments refer to it. Record new load-bearing decisions in `README.md` here
-  until this repo needs its own `docs/`.
+- **ADRs share one global sequence across both repos** (see `docs/adr/`).
+  Historical 0001–0021 stay in the private platform repo (owner-side); this
+  repo owns **0022 onward** and is where new arcade decisions go. Numbers mean
+  the same thing everywhere, so the `ADR-NNNN` refs in code comments never go
+  stale. Record a new load-bearing decision as a `docs/adr/00NN-*.md` (bump from
+  the highest number in either repo), not in `README.md`.

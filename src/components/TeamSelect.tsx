@@ -40,7 +40,13 @@ function TrophyRoom() {
   );
 }
 
-export default function TeamSelect({ onOpenArcade }: { onOpenArcade?: () => void }) {
+export default function TeamSelect({
+  onOpenArcade,
+  onOpenGm,
+}: {
+  onOpenArcade?: () => void;
+  onOpenGm?: () => void;
+}) {
   const { data } = useGame();
   const { startRun } = useGameActions();
   const [team, setTeam] = useState<Team | null>(null);
@@ -61,15 +67,26 @@ export default function TeamSelect({ onOpenArcade }: { onOpenArcade?: () => void
           star at every position, land a coach, and find out if your team runs the
           table.
         </p>
-        {onOpenArcade && (
-          <button
-            type="button"
-            onClick={onOpenArcade}
-            className="mx-auto mt-4 block rounded-full border-2 border-ink/30 bg-white/60 px-5 py-2 font-display text-xs tracking-[0.2em] shadow-sm transition hover:border-ink/60 hover:shadow"
-          >
-            🕹 ARCADE · GUESS THE SEASON →
-          </button>
-        )}
+        <div className="mx-auto mt-4 flex flex-wrap items-center justify-center gap-2">
+          {onOpenArcade && (
+            <button
+              type="button"
+              onClick={onOpenArcade}
+              className="rounded-full border-2 border-ink/30 bg-white/60 px-5 py-2 font-display text-xs tracking-[0.2em] shadow-sm transition hover:border-ink/60 hover:shadow"
+            >
+              🕹 ARCADE · GUESS THE SEASON →
+            </button>
+          )}
+          {onOpenGm && (
+            <button
+              type="button"
+              onClick={onOpenGm}
+              className="rounded-full border-2 border-ink/30 bg-white/60 px-5 py-2 font-display text-xs tracking-[0.2em] shadow-sm transition hover:border-ink/60 hover:shadow"
+            >
+              🏈 CFB-GM · RUN A DYNASTY →
+            </button>
+          )}
+        </div>
       </header>
 
       <section aria-label="Pick your program" className="w-full">

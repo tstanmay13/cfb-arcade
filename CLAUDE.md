@@ -6,11 +6,13 @@ resolved decisions and five pillars are non-negotiable; the §N references in
 code comments point at it.
 
 This is an **arcade** of independent game "cabinets" in one static SPA
-(ADR-0017): The 16-0 Draft (cabinet #1) and Guess the Season (cabinet #2). They
-share the design system, `rng.ts`, and `scripts/lib.ts` — nothing else. `App`
-switches between them with a `view` union. **Do not entangle a new cabinet with
-the draft's `runState`/reducer** (`src/state/store.tsx`) — that's the shipped
-game.
+(ADR-0017): The 16-0 Draft (cabinet #1), Guess the Season (cabinet #2), and
+CFB-GM (cabinet #3, ADR-0023 — the dynasty sim, design doc
+`docs/CFB_GM_DESIGN.md`). They share the design system, `rng.ts`, and
+`scripts/lib.ts` — nothing else. `App` switches between them with a `view`
+union mapped to URL paths (`/` draft · `/guess` · `/gm`; SPA rewrite in
+`vercel.json`). **Do not entangle a new cabinet with the draft's
+`runState`/reducer** (`src/state/store.tsx`) — that's the shipped game.
 
 The data pipeline lives in a separate, private platform repo; the ONLY seam
 between the two is Supabase (see README "The Supabase seam"). Never add a
@@ -53,6 +55,17 @@ credential beyond the public anon key to this repo.
   (`supabase/migrations/0006_arcade_results.sql`): anon can only INSERT rows
   and call the aggregate RPC. The Playwright harness intercepts + blocks the
   POSTs so verification runs never pollute real stats.
+- **CFB-GM** (cabinet #3, ADR-0023): `src/gm/engine/*` (pure, no React, no
+  storage — dynasty creation, drive-level game sim, Elo+poll, schedules,
+  postseason, offseason; `gm.test.ts` is the calibration harness and the
+  acceptance gate for any tuning-constant change), `src/gm/db.ts` (Dexie —
+  the ONLY IndexedDB in the repo; snapshot per slot + append-only departed
+  archive; engines never import it), `src/gm/GmCabinet.tsx`/`GmShell.tsx`/
+  `panels.tsx` (screens; lazy chunk so the dailies never pay for it),
+  `scripts/build-gm.ts` → `public/gm-data.json` (real 2026 P4 universe:
+  projected rosters + Elo from real 2025 results; Supabase-only, anon key).
+  All game "AI" is seeded policy code — zero LLM/network at runtime. Design
+  deltas live in `docs/CFB_GM_DESIGN.md` "v1.0 implementation notes".
 
 ## Commands
 
@@ -63,6 +76,8 @@ credential beyond the public anon key to this repo.
   public anon key; no warehouse dependency, works from a clean clone).
 - `npm run build:seasons` — re-bake `public/seasons.json` for Guess the Season
   (Supabase-only; ADR-0017).
+- `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM (Supabase-only;
+  ADR-0023).
 - `npm run build` — tsc + vite production build (static `dist/`).
 
 ## Gotchas

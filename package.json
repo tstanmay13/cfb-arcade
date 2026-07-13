@@ -11,11 +11,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:data": "node --no-warnings scripts/build-data.ts",
-    "build:seasons": "node --no-warnings scripts/build-seasons.ts"
+    "build:seasons": "node --no-warnings scripts/build-seasons.ts",
+    "build:gm": "node --no-warnings scripts/build-gm.ts"
   },
   "dependencies": {
     "@fontsource-variable/archivo": "^5.2.8",
     "@fontsource/graduate": "^5.2.7",
+    "dexie": "^4.4.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

@@ -238,6 +238,14 @@ export interface BoxLine {
   line: string;
 }
 
+/** Per-side box totals (v-QoL): pass/rush/total yards + turnovers. */
+export interface TeamGameTotals {
+  py: number;
+  ry: number;
+  yd: number;
+  to: number;
+}
+
 export interface GameResult {
   gid: number;
   week: number;
@@ -248,6 +256,7 @@ export interface GameResult {
   as: number;
   ot: number;
   name?: string;
+  totals?: { h: TeamGameTotals; a: TeamGameTotals };
   /** Drive log + box score kept only for user-team games (state weight). */
   drives?: DriveLine[];
   box?: BoxLine[];
@@ -284,6 +293,11 @@ export interface SeasonHonors {
   userPollRank: number | null;
   /** All-America first team, formatted "QB Name (School)" (v1.2). */
   allAmericans?: string[];
+  /** Did the user win their conference / make the CFP this season? (QoL) */
+  userCcg?: boolean;
+  userCfp?: boolean;
+  /** First-team all-conference, per conference (QoL). */
+  allConf?: Record<string, string[]>;
 }
 
 export type Phase = "regular" | "ccg" | "cfp" | "offseason";

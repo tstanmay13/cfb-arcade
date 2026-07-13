@@ -138,6 +138,8 @@ export function Dashboard({ state }: { state: DynastyState }) {
         </p>
       </div>
 
+      <InjuryReport state={state} />
+
       <div className={`${card} md:col-span-2`} data-tour="news">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">#CFB_PULSE</h3>
         <ul className="mt-2 space-y-1 text-sm">
@@ -150,6 +152,34 @@ export function Dashboard({ state }: { state: DynastyState }) {
           {state.news.length === 0 && <li className="opacity-60">Quiet so far. Sim a week.</li>}
         </ul>
       </div>
+    </div>
+  );
+}
+
+function InjuryReport({ state }: { state: DynastyState }) {
+  const hurt = state.teams[state.userTid].roster
+    .map((pid) => state.players[pid])
+    .filter((p) => p.inj > 0)
+    .sort((a, b) => b.inj - a.inj);
+  return (
+    <div className={`${card} md:col-span-2`}>
+      <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
+        INJURY REPORT · {hurt.length} OUT
+      </h3>
+      {hurt.length === 0 ? (
+        <p className="mt-2 text-sm opacity-60">Clean bill of health.</p>
+      ) : (
+        <ul className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          {hurt.map((p) => (
+            <li key={p.id}>
+              <span className="font-display">{p.pos}</span> <span className="font-bold">{p.name}</span>{" "}
+              <span className="text-xs text-red-800">
+                {p.inj >= 15 ? "out for season" : `${p.inj} wk${p.inj > 1 ? "s" : ""}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -221,8 +251,8 @@ export function RosterPanel({
               {header("cls", "YR")}
               {header("ovr", "OVR")}
               {header("dev", "DEV")}
-              <th className={th}>NIL</th>
-              <th className={th}>MOR</th>
+              <th className={`${th} hidden sm:table-cell`}>NIL</th>
+              <th className={`${th} hidden sm:table-cell`}>MOR</th>
               <th className={th}>STATUS</th>
               {canCut && <th className={th}></th>}
             </tr>
@@ -259,8 +289,8 @@ export function RosterPanel({
                 <td className={td}>
                   <DevBadge tier={p.devTier} />
                 </td>
-                <td className={`${td} font-mono text-xs`}>{p.nil > 0 ? fmtMoney(p.nil) : "—"}</td>
-                <td className={`${td} font-mono text-xs ${p.morale <= 35 ? "text-red-800" : ""}`}>{p.morale}</td>
+                <td className={`${td} hidden font-mono text-xs sm:table-cell`}>{p.nil > 0 ? fmtMoney(p.nil) : "—"}</td>
+                <td className={`${td} hidden font-mono text-xs sm:table-cell ${p.morale <= 35 ? "text-red-800" : ""}`}>{p.morale}</td>
                 <td className={`${td} text-xs`}>
                   {p.inj > 0 ? <span className="text-red-800">OUT {p.inj}w</span> : <span className="opacity-50">—</span>}
                 </td>
@@ -397,6 +427,7 @@ export function SchedulePanel({ state }: { state: DynastyState }) {
       <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
         {state.season} SCHEDULE · {school(state, state.userTid)}
       </h3>
+      <div className="overflow-x-auto">
       <table className="mt-2 w-full text-sm">
         <thead>
           <tr className="border-b border-paper-edge">
@@ -446,6 +477,7 @@ export function SchedulePanel({ state }: { state: DynastyState }) {
           })}
         </tbody>
       </table>
+      </div>
       {boxFor && <BoxModal state={state} result={boxFor} onClose={() => setBoxFor(null)} />}
     </div>
   );
@@ -460,6 +492,13 @@ function BoxModal({ state, result, onClose }: { state: DynastyState; result: Gam
         {result.ot > 0 ? ` (${result.ot}OT)` : ""}
       </h3>
       {result.name && <p className="text-xs opacity-60">{result.name}</p>}
+      {result.totals && (
+        <p className="mt-1 text-xs opacity-75">
+          {school(state, result.away)}: {result.totals.a.yd} yds ({result.totals.a.py} pass · {result.totals.a.ry} rush),{" "}
+          {result.totals.a.to} TO — {school(state, result.home)}: {result.totals.h.yd} yds ({result.totals.h.py} pass ·{" "}
+          {result.totals.h.ry} rush), {result.totals.h.to} TO
+        </p>
+      )}
       {result.star && <p className="mt-1 text-sm">⭐ {result.star}</p>}
 
       {result.box && (
@@ -515,7 +554,7 @@ export function StandingsPanel({ state }: { state: DynastyState }) {
   return (
     <div className="grid gap-3 md:grid-cols-2" data-tour="standings-grid">
       {REAL_CONFS.map((conf) => (
-        <div key={conf} className={card}>
+        <div key={conf} className={`${card} overflow-x-auto`}>
           <h3 className="font-display text-xs tracking-[0.25em] opacity-60">{conf.toUpperCase()}</h3>
           <table className="mt-2 w-full text-sm">
             <thead>
@@ -678,6 +717,7 @@ export function HistoryPanel({ state, slotId }: { state: DynastyState; slotId: n
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
+      <TrophyCase state={state} />
       <div className={card} data-tour="history-ledger">
         <h3 className="font-display text-xs tracking-[0.25em] opacity-60">SEASON LEDGER</h3>
         <table className="mt-2 w-full text-sm">
@@ -729,6 +769,41 @@ export function HistoryPanel({ state, slotId }: { state: DynastyState; slotId: n
             <li className="text-xs opacity-60">Your departed greats will be remembered here.</li>
           )}
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function TrophyCase({ state }: { state: DynastyState }) {
+  const natties = state.honors.filter((h) => h.champion === state.userTid);
+  const ccgs = state.honors.filter((h) => h.userCcg);
+  const cfps = state.honors.filter((h) => h.userCfp).length;
+  if (natties.length === 0 && ccgs.length === 0 && cfps === 0) return null;
+  return (
+    <div className={`${card} md:col-span-2`}>
+      <h3 className="font-display text-xs tracking-[0.25em] opacity-60">YOUR TROPHY CASE</h3>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {natties.map((h) => (
+          <span
+            key={`n${h.season}`}
+            className="rounded-lg border-2 border-amber-500 bg-amber-100 px-3 py-2 font-display text-sm shadow-sm"
+          >
+            🏆 {h.season} NATIONAL CHAMPIONS
+          </span>
+        ))}
+        {ccgs.map((h) => (
+          <span
+            key={`c${h.season}`}
+            className="rounded-lg border-2 border-slate-400 bg-white/70 px-3 py-2 font-display text-xs"
+          >
+            🥇 {h.season} CONFERENCE CHAMPS
+          </span>
+        ))}
+        {cfps > 0 && (
+          <span className="rounded-lg border-2 border-paper-edge bg-white/70 px-3 py-2 font-display text-xs">
+            🎟️ {cfps} CFP APPEARANCE{cfps > 1 ? "S" : ""}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -894,9 +969,34 @@ function PortalStage({
   onPortal: (offers: PortalOffer[]) => void;
 }) {
   const [offers, setOffers] = useState<Record<number, number>>({});
+  const [posFilter, setPosFilter] = useState<string>("ALL");
+  const [needsFirst, setNeedsFirst] = useState(true);
   const committed = Object.values(offers).reduce((a, b) => a + b, 0);
   const budget = state.teams[state.userTid].nilBudget;
-  const rows = state.portal.slice(0, 40);
+  const needs = useMemo(() => {
+    const have = new Map<string, number>();
+    for (const pid of state.teams[state.userTid].roster) {
+      const p = state.players[pid];
+      have.set(p.g, (have.get(p.g) ?? 0) + 1);
+    }
+    const targets: [string, number][] = [
+      ["QB", 4], ["RB", 6], ["WR", 9], ["TE", 4], ["OL", 14],
+      ["DL", 12], ["LB", 9], ["CB", 7], ["S", 6], ["K", 2], ["P", 2],
+    ];
+    return new Map(targets.map(([g, want]) => [g, Math.max(0, want - (have.get(g) ?? 0))]));
+  }, [state]);
+  const rows = useMemo(() => {
+    let list = state.portal;
+    if (posFilter !== "ALL") list = list.filter((e) => state.players[e.pid]?.g === posFilter);
+    if (needsFirst) {
+      list = [...list].sort((x, y) => {
+        const nx = (needs.get(state.players[x.pid]?.g) ?? 0) > 0 ? 1 : 0;
+        const ny = (needs.get(state.players[y.pid]?.g) ?? 0) > 0 ? 1 : 0;
+        return ny - nx || state.players[y.pid].ovr - state.players[x.pid].ovr;
+      });
+    }
+    return list.slice(0, 40);
+  }, [state, posFilter, needsFirst, needs]);
   return (
     <div className="grid gap-3 md:grid-cols-3">
       <div className={`${card} md:col-span-2`}>
@@ -907,6 +1007,29 @@ function PortalStage({
         <p className="mt-1 text-xs opacity-70">
           Bids need to clear ~90% of the ask to register. Everyone else is bidding too.
         </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+          <select
+            value={posFilter}
+            onChange={(e) => setPosFilter(e.target.value)}
+            className="rounded border border-paper-edge bg-white/70 px-1 py-0.5"
+          >
+            {["ALL", "QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"].map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setNeedsFirst(!needsFirst)}
+            className={`rounded-full border px-2 py-0.5 font-display tracking-widest ${needsFirst ? "border-ink bg-ink text-paper" : "border-paper-edge"}`}
+          >
+            NEEDS FIRST
+          </button>
+          <span className="opacity-60">
+            Open spots by need:{" "}
+            {[...needs.entries()].filter(([, n]) => n > 0).map(([g, n]) => `${g}×${n}`).join(" ") || "none"}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
         <table className="mt-2 w-full text-sm">
           <thead>
             <tr className="border-b border-paper-edge">
@@ -925,6 +1048,9 @@ function PortalStage({
                   <td className={td}>
                     <span className="font-display">{p.pos}</span> <span className="font-bold">{p.name}</span>{" "}
                     <span className="text-xs opacity-50">{CLASS_LABELS[p.cls] ?? p.cls}</span>
+                    {(needs.get(p.g) ?? 0) > 0 && (
+                      <span className="ml-1 rounded bg-green-800/10 px-1 text-[10px] text-green-900">NEED</span>
+                    )}
                   </td>
                   <td className={`${td} font-mono`}>{p.ovr}</td>
                   <td className={`${td} text-xs`}>{school(state, e.fromTid)}</td>
@@ -960,6 +1086,7 @@ function PortalStage({
             )}
           </tbody>
         </table>
+        </div>
         <button
           type="button"
           disabled={committed > budget}
@@ -1014,6 +1141,12 @@ function OffseasonReportView({
         </p>
         {honors?.allAmericans && honors.allAmericans.length > 0 && (
           <p className="mt-1 text-xs opacity-70">All-Americans: {honors.allAmericans.join(" · ")}</p>
+        )}
+        {honors?.allConf?.[state.teams[state.userTid].conference] && (
+          <p className="mt-1 text-xs opacity-70">
+            All-{state.teams[state.userTid].conference}:{" "}
+            {honors.allConf[state.teams[state.userTid].conference].join(" · ")}
+          </p>
         )}
         {state.mandates.length > 0 && (
           <p className="mt-1 text-sm">

@@ -442,6 +442,23 @@ describe("coaches & boosters (v1.3)", () => {
 });
 
 describe("watch mode & football edges (v1.4)", () => {
+  it("results carry team totals and honors carry conference hardware", () => {
+    const state = freshDynasty(71);
+    simToSeasonEnd(state);
+    const reg = state.results.filter((r) => r.kind === "reg");
+    for (const r of reg.slice(0, 30)) {
+      expect(r.totals).toBeDefined();
+      expect(r.totals!.h.yd).toBeGreaterThan(0);
+      expect(r.totals!.a.to).toBeGreaterThanOrEqual(0);
+    }
+    const honors = state.honors[0];
+    expect(typeof honors.userCcg).toBe("boolean");
+    expect(typeof honors.userCfp).toBe("boolean");
+    const confs = Object.keys(honors.allConf ?? {});
+    expect(confs.length).toBeGreaterThanOrEqual(4);
+    for (const c of confs) expect(honors.allConf![c]).toHaveLength(9);
+  });
+
   it("stepping a GameSim matches the fast-sim exactly (same stream)", () => {
     const state = freshDynasty(51);
     const game = state.schedule.find((g) => g.week === 1)!;

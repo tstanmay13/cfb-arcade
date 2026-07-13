@@ -4,7 +4,7 @@
 import { useMemo, useState } from "react";
 import type { DynastyState, PosGroup, Recruit } from "./engine/types.ts";
 import {
-  dealBreakerLock, hasHomeGame, shownOvr, userAction, userPoints,
+  dealBreakerLock, hasHomeGame, shownOvr, teamNeeds, userAction, userPoints,
   type RapAction,
 } from "./engine/recruiting.ts";
 import { STAR_POINTS } from "./engine/recruits.ts";
@@ -76,6 +76,8 @@ export default function RecruitingPanel({
         </div>
       </div>
 
+      <NeedsStrip state={state} />
+
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         {(["board", "targets", "commits"] as ViewFilter[]).map((v) => (
           <button
@@ -116,9 +118,9 @@ export default function RecruitingPanel({
               <th className={th}>NAME</th>
               <th className={th}>POS</th>
               <th className={th}>OVR</th>
-              <th className={th}>DEV</th>
+              <th className={`${th} hidden sm:table-cell`}>DEV</th>
               <th className={th}>STATUS</th>
-              <th className={th}>MY PTS</th>
+              <th className={`${th} hidden sm:table-cell`}>MY PTS</th>
               <th className={th} data-tour="recruit-actions">ACTIONS</th>
             </tr>
           </thead>
@@ -132,6 +134,40 @@ export default function RecruitingPanel({
           <p className="mt-1 text-xs opacity-60">Showing top 150 — narrow with the filters.</p>
         )}
       </div>
+    </div>
+  );
+}
+
+function NeedsStrip({ state }: { state: DynastyState }) {
+  const team = state.teams[state.userTid];
+  const needs = teamNeeds(state, team);
+  const leaving = new Map<string, number>();
+  for (const pid of team.roster) {
+    const p = state.players[pid];
+    if (p.cls >= 4) leaving.set(p.g, (leaving.get(p.g) ?? 0) + 1);
+  }
+  const commits = new Map<string, number>();
+  for (const r of state.recruits) {
+    if (r.committed === state.userTid) commits.set(r.g, (commits.get(r.g) ?? 0) + 1);
+  }
+  const groups = [...needs.entries()].filter(
+    ([g, n]) => n > 0 || (leaving.get(g) ?? 0) > 0 || (commits.get(g) ?? 0) > 0,
+  );
+  if (!groups.length) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+      <span className="font-display tracking-widest opacity-60">NEEDS</span>
+      {groups.map(([g, n]) => (
+        <span
+          key={g}
+          className={`rounded border px-1.5 py-0.5 ${n > (commits.get(g) ?? 0) ? "border-red-800/40 bg-red-800/5" : "border-paper-edge bg-white/50"}`}
+          title={`${leaving.get(g) ?? 0} seniors leaving · ${commits.get(g) ?? 0} committed`}
+        >
+          <span className="font-display">{g}</span> {n > 0 ? `need ${n}` : "ok"}
+          {(leaving.get(g) ?? 0) > 0 && <span className="opacity-60"> · −{leaving.get(g)}SR</span>}
+          {(commits.get(g) ?? 0) > 0 && <span className="text-green-900"> · +{commits.get(g)}✓</span>}
+        </span>
+      ))}
     </div>
   );
 }
@@ -187,7 +223,7 @@ function RecruitRow({
       <td className={`${td} font-bold`}>{r.name}</td>
       <td className={`${td} font-display`}>{r.g}</td>
       <td className={`${td} font-mono`}>{shownOvr(r)}</td>
-      <td className={td}>
+      <td className={`${td} hidden sm:table-cell`}>
         {r.scouted >= 2 ? (
           <span className="flex items-center gap-1">
             <DevBadge tier={r.devTier} />
@@ -199,7 +235,7 @@ function RecruitRow({
         )}
       </td>
       <td className={td}>{status}</td>
-      <td className={`${td} font-mono`}>{Math.round(mine) || "—"}</td>
+      <td className={`${td} hidden font-mono sm:table-cell`}>{Math.round(mine) || "—"}</td>
       <td className={`${td} whitespace-nowrap`}>
         <span className="flex gap-1">
           {btn("dm", "DM 10", lockActions || state.rapLeft < 10, "+15 interest")}

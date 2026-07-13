@@ -2,7 +2,7 @@
 // clock / no-huddle / blitz toggles and the one-shot QB spark swap. Runs the
 // exact GameSim the fast-sim would (same seeded stream), so watching is a
 // choice, not a different game. Outcome commits through the shared path.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DynastyState, SchedGame } from "./engine/types.ts";
 import { GameSim, type SimOutcome, type Tactics } from "./engine/game.ts";
 import { prepareGame } from "./engine/dynasty.ts";
@@ -33,7 +33,19 @@ export default function WatchGame({
   const [tactics, setTactics] = useState<Tactics>({});
   const [sparkMsg, setSparkMsg] = useState<string | null>(null);
   const [committed, setCommitted] = useState(false);
+  const [auto, setAuto] = useState(false);
   const rerender = () => force((x) => x + 1);
+
+  // Broadcast mode: one drive every ~0.8s until the final gun (or toggle off).
+  useEffect(() => {
+    if (!auto || sim.done) return;
+    const id = window.setInterval(() => {
+      sim.playDrive(tactics);
+      force((x) => x + 1);
+      if (sim.done) setAuto(false);
+    }, 800);
+    return () => window.clearInterval(id);
+  }, [auto, tactics, sim, sim.done]);
 
   const homeSchool = state.teams[game.home].school;
   const awaySchool = state.teams[game.away].school;
@@ -126,6 +138,17 @@ export default function WatchGame({
                 className="rounded-full border-2 border-ink bg-ink px-6 py-2 font-display text-xs tracking-widest text-paper transition hover:opacity-85"
               >
                 NEXT DRIVE ▶
+              </button>
+              <button
+                type="button"
+                onClick={() => setAuto(!auto)}
+                aria-pressed={auto}
+                className={`rounded-full border-2 px-4 py-2 font-display text-[10px] tracking-widest transition ${
+                  auto ? "border-ink bg-ink text-paper" : "border-paper-edge hover:border-ink/40"
+                }`}
+                title="Broadcast mode: a drive every ~0.8s"
+              >
+                {auto ? "⏸ PAUSE" : "▶▶ AUTO"}
               </button>
               <button
                 type="button"

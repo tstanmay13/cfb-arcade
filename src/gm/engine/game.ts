@@ -5,7 +5,7 @@
 // players; the season loop applies them.
 
 import type { Rng } from "../../engine/rng.ts";
-import type { BoxLine, DriveLine, Player, SeasonStats } from "./types.ts";
+import type { BoxLine, DriveLine, Player, SeasonStats, TeamGameTotals } from "./types.ts";
 import { traitsFromLineup, type Lineup, type Traits } from "./lineup.ts";
 import { clamp, rangeInt } from "./streams.ts";
 import { emptyStats } from "./player.ts";
@@ -50,6 +50,7 @@ export interface SimOutcome {
   box: BoxLine[];
   injuries: InjuryEvent[];
   star: string | null;
+  totals: { h: TeamGameTotals; a: TeamGameTotals };
 }
 
 /** PRD drive-outcome table: Δ → [TD, FG-attempt, punt, turnover] in %. */
@@ -536,6 +537,21 @@ export class GameSim {
         }
       }
     }
+    const sideTotals = (tid: number, sheet: StatSheet): TeamGameTotals => {
+      let py = 0;
+      let ry = 0;
+      for (const s of sheet.map.values()) {
+        py += s.paYd;
+        ry += s.ruYd;
+      }
+      const mine = this.drives.filter((d) => d.t === tid && d.q <= 4);
+      return {
+        py,
+        ry,
+        yd: mine.reduce((a, d) => a + d.y, 0),
+        to: mine.filter((d) => d.r === "INT" || d.r === "FUM").length,
+      };
+    };
     return {
       hs: this.hs,
       as: this.as,
@@ -545,6 +561,10 @@ export class GameSim {
       box,
       injuries: this.injuriesCache,
       star,
+      totals: {
+        h: sideTotals(this.home.tid, this.homeSheet),
+        a: sideTotals(this.away.tid, this.awaySheet),
+      },
     };
   }
 

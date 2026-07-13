@@ -90,6 +90,35 @@ function allAmericans(state: DynastyState): string[] {
   return out;
 }
 
+/** First-team all-conference: top stat player per group per conference. */
+function allConference(state: DynastyState): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  const confs = new Set(state.teams.filter((t) => t.p4).map((t) => t.conference));
+  for (const conf of confs) {
+    const list: string[] = [];
+    for (const g of AA_GROUPS) {
+      let best: { p: Player; tid: number; v: number } | null = null;
+      for (const team of state.teams) {
+        if (!team.p4 || team.conference !== conf) continue;
+        for (const pid of team.roster) {
+          const p = state.players[pid];
+          if (p.g !== g) continue;
+          const v = statValue(p);
+          if (!best || v > best.v) best = { p, tid: team.id, v };
+        }
+      }
+      if (best) list.push(`${g} ${best.p.name} (${state.teams[best.tid].school})`);
+    }
+    out[conf] = list;
+  }
+  const userConf = state.teams[state.userTid].conference;
+  const mine = (out[userConf] ?? []).filter((s) => s.includes(`(${state.teams[state.userTid].school})`)).length;
+  if (mine > 0) {
+    pushNews(state, `🎖️ ${mine} of yours named first-team All-${userConf}.`);
+  }
+  return out;
+}
+
 /** Stage 1: everything up to the interactive decisions. */
 export function runOffseason(state: DynastyState, championTid: number | null): OffseasonReport {
   const user = state.teams[state.userTid];
@@ -119,6 +148,13 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
     userRecord: `${user.rec.w}-${user.rec.l}`,
     userPollRank: userRank >= 0 ? userRank + 1 : null,
     allAmericans: allAmericans(state),
+    allConf: allConference(state),
+    userCcg: state.results.some(
+      (r) =>
+        r.kind === "ccg" &&
+        ((r.home === state.userTid && r.hs > r.as) || (r.away === state.userTid && r.as > r.hs)),
+    ),
+    userCfp: state.cfp?.field.includes(state.userTid) ?? false,
   });
 
   // --- Morale (before careers reset; uses this season's context) --------------

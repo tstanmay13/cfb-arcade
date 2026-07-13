@@ -269,6 +269,7 @@ export function commitOutcome(
     ot: out.ot,
     name: game.name,
     star: out.star ?? undefined,
+    totals: out.totals,
   };
   if (keepDetail) {
     result.drives = out.drives;

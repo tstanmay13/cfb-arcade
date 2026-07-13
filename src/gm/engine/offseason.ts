@@ -10,7 +10,8 @@ import { stream } from "./streams.ts";
 import { playerOfTheYear } from "./awards.ts";
 import { emptyStats } from "./player.ts";
 import { declaresForDraft, facilityMult, progressPlayer } from "./progression.ts";
-import { generateClasses } from "./recruits.ts";
+import { STAR_POINTS } from "./recruits.ts";
+import { lateSigningPeriod, recruitToPlayer, walkOns } from "./recruiting.ts";
 
 export const ROSTER_CAP = 85;
 
@@ -106,31 +107,56 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
     }
   }
 
-  // --- Recruiting classes (prestige gravity, auto for everyone in v1.0) -----
+  // --- Sign the committed class (interactive recruiting, v1.1) --------------
+  const classPoints = new Map<number, number>();
+  const signees: OffseasonReport["signees"] = [];
+  for (const r of state.recruits) {
+    if (r.committed === null) continue;
+    const team = state.teams[r.committed];
+    if (team.roster.length >= ROSTER_CAP + 6) continue; // overflow guard
+    const p = recruitToPlayer(r, state.nextPid++, state.seed);
+    state.players[p.id] = p;
+    team.roster.push(p.id);
+    classPoints.set(team.id, (classPoints.get(team.id) ?? 0) + STAR_POINTS[r.stars]);
+    if (team.id === state.userTid) {
+      signees.push({ name: r.name, pos: r.pos, stars: r.stars, ovr: p.ovr });
+    }
+  }
+  // Late signing period: unsigned recruits land by prestige gravity, then
+  // true walk-ons cover anything the pool couldn't.
   const needs = new Map<number, number>();
   for (const team of state.teams) {
-    if (!team.p4) continue;
-    needs.set(team.id, Math.max(0, ROSTER_CAP - team.roster.length));
+    if (team.p4) needs.set(team.id, Math.max(0, ROSTER_CAP - team.roster.length));
   }
-  const classes = generateClasses(state.teams, needs, state.nextPid, state.seed, rng);
-  const signees: OffseasonReport["signees"] = [];
-  for (const [tid, players] of classes.byTeam) {
+  const late = lateSigningPeriod(state, needs, rng);
+  for (const [tid, players] of late) {
     const team = state.teams[tid];
     for (const p of players) {
       state.players[p.id] = p;
       team.roster.push(p.id);
-      state.nextPid = Math.max(state.nextPid, p.id + 1);
       if (tid === state.userTid) {
         signees.push({ name: p.name, pos: p.pos, stars: p.stars, ovr: p.ovr });
       }
     }
   }
+  for (const team of state.teams) {
+    if (!team.p4) continue;
+    const short = ROSTER_CAP - team.roster.length;
+    if (short <= 0) continue;
+    for (const p of walkOns(state, short, rng)) {
+      state.players[p.id] = p;
+      team.roster.push(p.id);
+      if (team.id === state.userTid) {
+        signees.push({ name: p.name, pos: p.pos, stars: p.stars, ovr: p.ovr });
+      }
+    }
+  }
   signees.sort((a, b) => b.stars - a.stars || b.ovr - a.ovr);
-  const classRank =
-    1 +
-    [...classes.points.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .findIndex(([tid]) => tid === state.userTid);
+  const rankIdx = [...classPoints.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .findIndex(([tid]) => tid === state.userTid);
+  const classRank = rankIdx >= 0 ? rankIdx + 1 : classPoints.size + 1;
+  state.recruits = []; // a fresh pool generates at the next season's start
 
   // --- Hard cap: cut the lowest-value overflow -------------------------------
   for (const team of state.teams) {

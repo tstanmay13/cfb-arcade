@@ -16,7 +16,11 @@ import { computePoll } from "./poll.ts";
 import { generateSchedule, REG_WEEKS } from "./schedule.ts";
 import { buildPostseason, ccgGames, nextCfpRound, CFP_NC_WEEK } from "./postseason.ts";
 import { runOffseason } from "./offseason.ts";
+import { generateRecruitPool, recruitingTick, signingDay, WEEKLY_RAP } from "./recruiting.ts";
 import { rangeInt } from "./streams.ts";
+
+/** National recruit pool size per cycle (CFB_GM_DESIGN roster ecology). */
+const RECRUIT_POOL = 1450;
 
 const ROSTER_MINIMUMS: [PosGroup, number][] = [
   ["QB", 3], ["RB", 4], ["WR", 6], ["TE", 3], ["OL", 10],
@@ -29,6 +33,7 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     ...t,
     roster: [],
     rec: { w: 0, l: 0, cw: 0, cl: 0, pf: 0, pa: 0 },
+    prevW: 6,
   }));
 
   const players: Record<number, Player> = {};
@@ -107,8 +112,15 @@ export function createDynasty(data: GmData, userTid: number, seed: number): Dyna
     news: [],
     honors: [],
     offseason: null,
+    recruits: [],
+    nextRid: 1,
+    rapLeft: WEEKLY_RAP,
+    pendingVisits: [],
   };
   state.poll = computePoll(teams, []);
+  // Preseason-ranked programs count as "contenders" for deal-breakers in year 1.
+  for (const e of state.poll) state.teams[e.tid].prevW = 9;
+  generateRecruitPool(state, RECRUIT_POOL);
   return state;
 }
 
@@ -231,6 +243,7 @@ export function advance(state: DynastyState): void {
   simCurrentWeek(state);
 
   if (state.phase === "regular") {
+    recruitingTick(state);
     if (state.week >= REG_WEEKS) {
       const ccgs = ccgGames(state);
       state.schedule.push(...ccgs);
@@ -254,6 +267,7 @@ export function advance(state: DynastyState): void {
     state.schedule.push(...slate.games);
     state.nextGid += slate.games.length;
     state.cfp = { field: slate.field, results: [], champion: null };
+    signingDay(state);
     state.phase = "cfp";
     state.week = slate.games[0]?.week ?? state.week + 1;
     return;
@@ -288,6 +302,7 @@ export function startNextSeason(state: DynastyState): void {
   state.cfp = null;
   state.offseason = null;
   for (const team of state.teams) {
+    team.prevW = team.rec.w;
     team.rec = { w: 0, l: 0, cw: 0, cl: 0, pf: 0, pa: 0 };
     team.elo = Math.round(eloPreseason(team.elo));
   }
@@ -295,6 +310,9 @@ export function startNextSeason(state: DynastyState): void {
   state.schedule = schedule;
   state.nextGid = Math.max(...schedule.map((g) => g.id)) + 1;
   state.poll = computePoll(state.teams, []);
+  state.rapLeft = WEEKLY_RAP;
+  state.pendingVisits = [];
+  generateRecruitPool(state, RECRUIT_POOL);
 }
 
 /** Fast-sim helper: advance until the offseason report is up. */
@@ -313,6 +331,9 @@ export function stateHash(state: DynastyState): number {
   }
   for (const r of state.results) {
     h = subSeed(h, r.gid, r.hs, r.as);
+  }
+  for (const r of state.recruits) {
+    h = subSeed(h, r.id, r.committed ?? -1, r.leads[0]?.p ?? 0);
   }
   return h;
 }

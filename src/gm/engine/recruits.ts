@@ -13,7 +13,7 @@ const POS_WEIGHTS: [PosGroup, number][] = [
   ["DL", 0.15], ["LB", 0.11], ["CB", 0.10], ["S", 0.08], ["K", 0.025], ["P", 0.025],
 ];
 
-function rollStars(rng: Rng): number {
+export function rollStars(rng: Rng): number {
   const r = rng();
   if (r < 0.021) return 5;
   if (r < 0.21) return 4;
@@ -21,14 +21,14 @@ function rollStars(rng: Rng): number {
   return 2;
 }
 
-function ovrForStars(stars: number, rng: Rng): number {
+export function ovrForStars(stars: number, rng: Rng): number {
   if (stars === 5) return rangeInt(rng, 66, 77);
   if (stars === 4) return rangeInt(rng, 60, 70);
   if (stars === 3) return rangeInt(rng, 53, 64);
   return rangeInt(rng, 47, 56);
 }
 
-function rollPos(rng: Rng): PosGroup {
+export function rollPos(rng: Rng): PosGroup {
   const total = POS_WEIGHTS.reduce((a, [, w]) => a + w, 0);
   let roll = rng() * total;
   for (const [g, w] of POS_WEIGHTS) {
@@ -45,7 +45,7 @@ export interface ClassResult {
   points: Map<number, number>;
 }
 
-const STAR_POINTS: Record<number, number> = { 5: 10, 4: 4, 3: 1.5, 2: 0.5 };
+export const STAR_POINTS: Record<number, number> = { 5: 10, 4: 4, 3: 1.5, 2: 0.5 };
 
 /**
  * Generate + allocate the national class. `needs` says how many signees each

@@ -9,14 +9,16 @@ import {
   Dashboard, HistoryPanel, OffseasonPanel, PlayoffsPanel, RankingsPanel,
   RosterPanel, SchedulePanel, StandingsPanel,
 } from "./panels.tsx";
+import RecruitingPanel from "./recruitingPanel.tsx";
 
 type Tab =
-  | "dashboard" | "roster" | "schedule" | "standings"
+  | "dashboard" | "roster" | "recruiting" | "schedule" | "standings"
   | "top25" | "playoffs" | "history" | "offseason";
 
 const TABS: [Tab, string][] = [
   ["dashboard", "Dashboard"],
   ["roster", "Roster"],
+  ["recruiting", "Recruiting"],
   ["schedule", "Schedule"],
   ["standings", "Standings"],
   ["top25", "Top 25"],
@@ -44,6 +46,12 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   const team = state.teams[state.userTid];
   const rankIdx = state.poll.findIndex((e) => e.tid === state.userTid);
   const rank = rankIdx >= 0 ? `#${rankIdx + 1}` : null;
+
+  // Light mutation (recruiting actions etc.): autosave + re-render, no sim.
+  const mutate = () => {
+    void saveDynasty(slotId, state).catch((e) => console.error("autosave failed", e));
+    setState({ ...state });
+  };
 
   const runAction = (fn: (s: DynastyState) => void) => {
     if (busy) return;
@@ -147,6 +155,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
       <section className="mt-4">
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "roster" && <RosterPanel state={state} />}
+        {tab === "recruiting" && <RecruitingPanel state={state} onMutate={mutate} />}
         {tab === "schedule" && <SchedulePanel state={state} />}
         {tab === "standings" && <StandingsPanel state={state} />}
         {tab === "top25" && <RankingsPanel state={state} />}

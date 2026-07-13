@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import type { DynastyState, GmData } from "./types.ts";
 import { advance, createDynasty, simToSeasonEnd, startNextSeason, stateHash } from "./dynasty.ts";
 import { selectLineup, traitsFromElo, traitsFromLineup } from "./lineup.ts";
+import { dealBreakerLock, userAction, userPoints } from "./recruiting.ts";
 
 const data = JSON.parse(
   readFileSync(new URL("../../../public/gm-data.json", import.meta.url), "utf8"),
@@ -234,6 +235,69 @@ describe("year-2 generated schedule", () => {
     simToSeasonEnd(state);
     expect(state.phase).toBe("offseason");
     expect(state.honors).toHaveLength(2);
+  });
+});
+
+describe("recruiting (v1.1)", () => {
+  it("generates a national pool with the designed star shape", () => {
+    const state = freshDynasty(21);
+    expect(state.recruits.length).toBe(1450);
+    const five = state.recruits.filter((r) => r.stars === 5).length;
+    const four = state.recruits.filter((r) => r.stars === 4).length;
+    expect(five).toBeGreaterThan(10);
+    expect(five).toBeLessThan(60);
+    expect(four).toBeGreaterThan(180);
+    expect(state.recruits.every((r) => r.committed === null)).toBe(true);
+    // Gems/busts hidden in ~30% of the pool.
+    const gb = state.recruits.filter((r) => r.gb !== 0).length / 1450;
+    expect(gb).toBeGreaterThan(0.2);
+    expect(gb).toBeLessThan(0.4);
+  });
+
+  it("user actions spend RAP, add interest, and respect scouting order + locks", () => {
+    const state = freshDynasty(22);
+    const open = state.recruits.find((r) => !dealBreakerLock(state, r, USER_TID))!;
+    expect(userAction(state, open.id, "s2")).toBeTruthy(); // S1 required first
+    expect(userAction(state, open.id, "dm")).toBeNull();
+    expect(state.rapLeft).toBe(590);
+    expect(userPoints(open, USER_TID)).toBe(15);
+    expect(userAction(state, open.id, "s1")).toBeNull();
+    expect(userAction(state, open.id, "s2")).toBeNull();
+    expect(open.scouted).toBe(2);
+
+    const locked = state.recruits.find((r) => dealBreakerLock(state, r, USER_TID));
+    if (locked) {
+      expect(userAction(state, locked.id, "dm")).toContain("Locked");
+      expect(userAction(state, locked.id, "s1")).toBeNull(); // scouting always allowed
+    }
+  });
+
+  it("interest race commits recruits during the season and signs classes that track prestige", () => {
+    const state = freshDynasty(23);
+    simToSeasonEnd(state);
+    // After the offseason, cls-1 players are the signed class.
+    const byPrestige: [number, number][] = state.teams
+      .filter((t) => t.p4)
+      .map((t) => {
+        const frosh = t.roster.map((pid) => state.players[pid]).filter((p) => p.cls === 1);
+        const avg = frosh.reduce((a, p) => a + p.ovr, 0) / Math.max(1, frosh.length);
+        return [t.prestige, avg] as [number, number];
+      });
+    const hi = byPrestige.filter(([p]) => p >= 5).map(([, v]) => v);
+    const lo = byPrestige.filter(([p]) => p <= 2).map(([, v]) => v);
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(mean(hi)).toBeGreaterThan(mean(lo) + 2); // blue bloods sign better
+    // Most of the pool found a home or was consumed by fills, pool then reset.
+    expect(state.recruits).toHaveLength(0);
+  });
+
+  it("weekly RAP refreshes and commits show up in news", () => {
+    const state = freshDynasty(24);
+    state.rapLeft = 5;
+    advance(state);
+    expect(state.rapLeft).toBe(600);
+    for (let i = 0; i < 9; i++) advance(state);
+    expect(state.recruits.some((r) => r.committed !== null)).toBe(true);
   });
 });
 

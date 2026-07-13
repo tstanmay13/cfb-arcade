@@ -117,6 +117,42 @@ export interface Team extends GmTeam {
   /** Player ids (P4 teams only; shells have none). */
   roster: number[];
   rec: TeamSeason;
+  /** Last season's win total (CHAMPIONSHIP_CONTENDER deal-breaker). */
+  prevW: number;
+}
+
+// ---------------------------------------------------------------------------
+// Recruiting (v1.1)
+// ---------------------------------------------------------------------------
+
+export type DealBreaker = "PLAYING_TIME" | "CONTENDER" | "PRO_POTENTIAL" | null;
+
+export interface RecruitLead {
+  t: number;
+  p: number;
+}
+
+export interface Recruit {
+  id: number;
+  name: string;
+  pos: string;
+  g: PosGroup;
+  stars: number;
+  /** True overall — hidden until scouted (UI shows a fuzzy band). */
+  ovr: number;
+  dev: number;
+  devTier: DevTier;
+  ceil: number;
+  /** -1 bust / 0 normal / +1 gem (ceiling shifted a tier; stage-2 reveal). */
+  gb: -1 | 0 | 1;
+  db: DealBreaker;
+  /** Interest leaders, sorted desc, capped. */
+  leads: RecruitLead[];
+  committed: number | null;
+  /** User scouting stage 0/1/2. */
+  scouted: 0 | 1 | 2;
+  /** User's one in-home HC visit spent. */
+  hcUsed: boolean;
 }
 
 export type GameKind =
@@ -255,4 +291,11 @@ export interface DynastyState {
   news: NewsItem[];
   honors: SeasonHonors[];
   offseason: OffseasonReport | null;
+  /** Recruiting (v1.1): this cycle's national pool. */
+  recruits: Recruit[];
+  nextRid: number;
+  /** User's weekly recruiting action points. */
+  rapLeft: number;
+  /** Recruits with an official visit pending this week's home result. */
+  pendingVisits: number[];
 }

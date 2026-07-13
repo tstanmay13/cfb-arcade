@@ -195,7 +195,7 @@ export function RosterPanel({ state }: { state: DynastyState }) {
   );
 }
 
-function DevBadge({ tier }: { tier: number }) {
+export function DevBadge({ tier }: { tier: number }) {
   const styles = [
     "border-stone-400 text-stone-600",
     "border-slate-500 text-slate-700",

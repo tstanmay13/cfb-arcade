@@ -5,6 +5,14 @@ import type { Team } from "../data/types.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
 import { loadTrophyRoom } from "../state/storage.ts";
 
+const OUTCOME_LABELS: Record<string, string> = {
+  natty: "National Champions",
+  semis: "Final Four",
+  major: "Playoffs",
+  minor: "Bowl Game",
+  loss: "",
+};
+
 function TrophyRoom() {
   const [room] = useState(loadTrophyRoom);
   if (room.recent_runs.length === 0) return null;
@@ -14,7 +22,10 @@ function TrophyRoom() {
       <h2 className="mb-2 font-display text-sm tracking-[0.25em] opacity-70">TROPHY ROOM</h2>
       {best && (
         <p className="mb-2 text-sm">
-          Best build: <strong>{best.record}</strong> · OVR {best.score} · {best.tier.replace("Tier", "Tier ")}
+          Best build: <strong>{best.record}</strong>
+          {best.heisman && " · Heisman"}
+          {(best.allAmericansCount ?? 0) > 0 && ` · ${best.allAmericansCount} All-American${best.allAmericansCount === 1 ? "" : "s"}`}
+          {best.outcome && OUTCOME_LABELS[best.outcome] && ` · ${OUTCOME_LABELS[best.outcome]}`}
           {best.dynasty && (
             <span className="ml-1.5 rounded-full bg-amber-500 px-2 py-0.5 font-display text-[9px] tracking-wider text-white">
               DYNASTY
@@ -27,7 +38,7 @@ function TrophyRoom() {
         {room.recent_runs.slice(0, 10).map((r) => (
           <li
             key={r.timestamp}
-            title={`${r.record} · ${r.tier} · ${r.mode}${r.dynasty ? " · DYNASTY" : ""}`}
+            title={`${r.record}${r.heisman ? " · Heisman" : ""}${(r.allAmericansCount ?? 0) > 0 ? ` · ${r.allAmericansCount} AA` : ""}${r.outcome && OUTCOME_LABELS[r.outcome] ? ` · ${OUTCOME_LABELS[r.outcome]}` : ""} · ${r.mode}${r.dynasty ? " · DYNASTY" : ""}`}
             className={`rounded px-2 py-1 font-display text-xs text-white ${
               r.record.endsWith("-0") ? "bg-emerald-700" : r.dynasty ? "bg-amber-500" : "bg-ink/70"
             }`}

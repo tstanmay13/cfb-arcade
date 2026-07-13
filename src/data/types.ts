@@ -96,6 +96,14 @@ export interface Player {
 
 export type CoachTier = "Elite" | "Great" | "Standard" | "Sub-Par";
 
+/** Season performance category for player stat display (20% each). */
+export type PerformanceCategory =
+  | "significantly_worse"
+  | "marginally_worse"
+  | "same"
+  | "marginally_better"
+  | "significantly_better";
+
 export interface Coach {
   coach_id: string;
   name: string;

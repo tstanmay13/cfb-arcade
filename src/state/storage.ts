@@ -11,6 +11,10 @@ export interface RunSummary {
   mode: Mode;
   score: number;
   dynasty: boolean;
+  // Season highlights (optional for backward compatibility)
+  heisman?: boolean;
+  allAmericansCount?: number;
+  outcome?: string; // "natty" | "semis" | "major" | "minor" | "loss"
 }
 
 export interface TrophyRoom {
@@ -50,6 +54,9 @@ export function recordRun(
     mode,
     score: Math.round(resolved.power * 10) / 10,
     dynasty: resolved.isDynasty,
+    heisman: resolved.heisman !== null,
+    allAmericansCount: resolved.allAmericans.length,
+    outcome: resolved.outcome,
   };
   const room = loadTrophyRoom();
   room.recent_runs = [run, ...room.recent_runs].slice(0, RECENT_CAP);

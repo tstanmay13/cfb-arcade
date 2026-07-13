@@ -9,8 +9,9 @@ import type {
 } from "./types.ts";
 import { stream, subSeed } from "./streams.ts";
 import { playerFromSeed, generatePlayer } from "./player.ts";
+import type { Rng } from "../../engine/rng.ts";
 import { selectLineup, traitsFromElo, traitsFromLineup, type Lineup } from "./lineup.ts";
-import { simGame, type SideInput } from "./game.ts";
+import { simGame, type SideInput, type SimOptions, type SimOutcome } from "./game.ts";
 import { eloDelta, eloPreseason } from "./elo.ts";
 import { computePoll } from "./poll.ts";
 import { generateSchedule, REG_WEEKS } from "./schedule.ts";
@@ -155,12 +156,12 @@ function pushNews(state: DynastyState, text: string): void {
   state.news.splice(60);
 }
 
-function sideFor(state: DynastyState, tid: number): SideInput {
+export function sideFor(state: DynastyState, tid: number): SideInput {
   const team = state.teams[tid];
   let lineup: Lineup | null = null;
   let traits;
   if (team.p4) {
-    lineup = selectLineup(team.roster.map((id) => state.players[id]));
+    lineup = selectLineup(team.roster.map((id) => state.players[id]), team.pins);
     traits = traitsFromLineup(lineup);
     // Coaching quality shifts execution across the board (v1.3).
     const bonus = gameBonus(state, tid);
@@ -176,19 +177,49 @@ function sideFor(state: DynastyState, tid: number): SideInput {
   return { tid, school: team.school, traits, lineup };
 }
 
-function applyResult(state: DynastyState, game: SchedGame, keepDetail: boolean): GameResult {
+/** Everything the engine needs to simulate one scheduled game (fast or watched). */
+export function prepareGame(
+  state: DynastyState,
+  game: SchedGame,
+): { home: SideInput; away: SideInput; rng: Rng; opts: SimOptions } {
   const rng = stream(state.seed, "game", state.season, game.id);
   const home = sideFor(state, game.home);
   const away = sideFor(state, game.away);
   const neutral = game.kind !== "reg";
   const homeTeam = state.teams[game.home];
-  const awayTeam = state.teams[game.away];
   const isRival = !!homeTeam.rivals?.includes(game.away);
-  const out = simGame(home, away, rng, {
-    neutral,
-    rivalry: isRival || (!!game.conf && game.week >= 12),
-    hostileNoise: !neutral && homeTeam.p4 && homeTeam.prestige >= 5,
-  });
+  const userSide =
+    game.home === state.userTid ? ("home" as const) : game.away === state.userTid ? ("away" as const) : null;
+  return {
+    home,
+    away,
+    rng,
+    opts: {
+      neutral,
+      rivalry: isRival || (!!game.conf && game.week >= 12),
+      hostileNoise: !neutral && homeTeam.p4 && homeTeam.prestige >= 5,
+      userSide,
+    },
+  };
+}
+
+/** Toggle a pinned starter on the user's depth chart. */
+export function togglePin(state: DynastyState, pid: number): void {
+  const team = state.teams[state.userTid];
+  const pins = team.pins ?? [];
+  team.pins = pins.includes(pid) ? pins.filter((x) => x !== pid) : [...pins, pid];
+}
+
+/** Apply a finished game's outcome to the dynasty (shared by both drivers). */
+export function commitOutcome(
+  state: DynastyState,
+  game: SchedGame,
+  out: SimOutcome,
+  keepDetail: boolean,
+): GameResult {
+  const homeTeam = state.teams[game.home];
+  const awayTeam = state.teams[game.away];
+  const neutral = game.kind !== "reg";
 
   // Records + Elo.
   const homeWon = out.hs > out.as;
@@ -237,6 +268,9 @@ function applyResult(state: DynastyState, game: SchedGame, keepDetail: boolean):
     result.box = out.box;
   }
   state.results.push(result);
+  if (state.cfp && game.kind.startsWith("cfp")) {
+    state.cfp.results.push(result);
+  }
 
   // Upset headline: unranked (or shell) knocks off a top-10 team.
   const rankOf = (tid: number) => {
@@ -255,18 +289,22 @@ function applyResult(state: DynastyState, game: SchedGame, keepDetail: boolean):
   return result;
 }
 
+function applyResult(state: DynastyState, game: SchedGame, keepDetail: boolean): GameResult {
+  const { home, away, rng, opts } = prepareGame(state, game);
+  const out = simGame(home, away, rng, opts);
+  return commitOutcome(state, game, out, keepDetail);
+}
+
 function simCurrentWeek(state: DynastyState): void {
   // Injured players heal one week at the top of each sim week.
   for (const p of Object.values(state.players)) {
     if (p.inj > 0) p.inj--;
   }
-  const games = state.schedule.filter((g) => g.week === state.week);
+  const played = new Set(state.results.map((r) => r.gid));
+  const games = state.schedule.filter((g) => g.week === state.week && !played.has(g.id));
   for (const game of games) {
     const isUser = game.home === state.userTid || game.away === state.userTid;
-    const result = applyResult(state, game, isUser);
-    if (state.cfp && game.kind.startsWith("cfp")) {
-      state.cfp.results.push(result);
-    }
+    applyResult(state, game, isUser);
   }
   state.poll = computePoll(state.teams, state.poll);
 }

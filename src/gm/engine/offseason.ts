@@ -195,7 +195,13 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
       const p = state.players[pid];
       const from = p.ovr;
       progressPlayer(p, fac, stream(state.seed, "prog", state.season, pid));
-      p.cls += 1;
+      // Redshirt rule (v1.4): ≤4 games played banks the year, once.
+      const gpLastSeason = p.career[p.career.length - 1]?.gp ?? 0;
+      if (!p.rs && gpLastSeason <= 4 && p.cls <= 3) {
+        p.rs = true;
+      } else {
+        p.cls += 1;
+      }
       if (team.id === state.userTid && p.ovr - from >= 4) {
         report.risers.push({ name: p.name, pos: p.pos, from, to: p.ovr });
       }

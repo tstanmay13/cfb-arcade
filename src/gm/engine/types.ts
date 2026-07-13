@@ -103,6 +103,8 @@ export interface Player {
   seed: number;
   /** Weeks remaining out injured (0 = healthy). */
   inj: number;
+  /** Redshirt used (v1.4): ≤4 games played preserves the class year once. */
+  rs?: boolean;
   /** Annual NIL money on this player's deal (v1.2). */
   nil: number;
   /** 0-100; feeds portal flight risk. */
@@ -133,6 +135,8 @@ export interface Team extends GmTeam {
   nilBudget: number;
   /** Booster board profile 0-2 (Old Guard / New Money / Win-Now), v1.3. */
   boosterType: number;
+  /** User-pinned starters (v1.4): preferred in depth-chart selection. */
+  pins?: number[];
 }
 
 // ---------------------------------------------------------------------------

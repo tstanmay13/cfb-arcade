@@ -56,16 +56,19 @@ credential beyond the public anon key to this repo.
   and call the aggregate RPC. The Playwright harness intercepts + blocks the
   POSTs so verification runs never pollute real stats.
 - **CFB-GM** (cabinet #3, ADR-0023): `src/gm/engine/*` (pure, no React, no
-  storage — dynasty creation, drive-level game sim, Elo+poll, schedules,
-  postseason, offseason; `gm.test.ts` is the calibration harness and the
-  acceptance gate for any tuning-constant change), `src/gm/db.ts` (Dexie —
-  the ONLY IndexedDB in the repo; snapshot per slot + append-only departed
-  archive; engines never import it), `src/gm/GmCabinet.tsx`/`GmShell.tsx`/
-  `panels.tsx` (screens; lazy chunk so the dailies never pay for it),
-  `scripts/build-gm.ts` → `public/gm-data.json` (real 2026 P4 universe:
-  projected rosters + Elo from real 2025 results; Supabase-only, anon key).
-  All game "AI" is seeded policy code — zero LLM/network at runtime. Design
-  deltas live in `docs/CFB_GM_DESIGN.md` "v1.0 implementation notes".
+  storage — dynasty creation, steppable drive-level game sim (`GameSim`),
+  Elo+poll, schedules, postseason, recruiting/RAP economy, portal+NIL,
+  coaches/mandates, interactive 4-stage offseason; `gm.test.ts` is the
+  calibration harness and the acceptance gate for any tuning-constant
+  change), `src/gm/db.ts` (Dexie — the ONLY IndexedDB in the repo; snapshot
+  per slot + append-only departed archive persisted at rollover; engines
+  never import it), `src/gm/GmCabinet.tsx`/`GmShell.tsx`/`panels.tsx`/
+  `recruitingPanel.tsx`/`WatchGame.tsx` (screens; lazy chunk so the dailies
+  never pay for it), `scripts/build-gm.ts` → `public/gm-data.json` (real
+  2026 P4 universe: projected rosters + Elo from real 2025 results + real
+  rivalries from 2010-25 matchup history; Supabase-only, anon key). All game
+  "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
+  live in `docs/CFB_GM_DESIGN.md` implementation-notes sections.
 
 ## Commands
 

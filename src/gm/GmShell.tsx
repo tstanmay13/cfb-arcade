@@ -4,10 +4,13 @@
 import { useEffect, useState } from "react";
 import type { DynastyState } from "./engine/types.ts";
 import { advance, simToSeasonEnd, startNextSeason } from "./engine/dynasty.ts";
+import { commitOutcome, togglePin } from "./engine/dynasty.ts";
 import { cutPlayer, resolveRetention, submitPortalRound, type PortalOffer } from "./engine/offseason.ts";
 import { takeJob } from "./engine/coaches.ts";
 import { fmtMoney } from "./engine/nil.ts";
+import type { SimOutcome } from "./engine/game.ts";
 import { loadDynasty, saveDynasty } from "./db.ts";
+import WatchGame from "./WatchGame.tsx";
 import {
   Dashboard, HistoryPanel, OffseasonPanel, PlayoffsPanel, RankingsPanel,
   RosterPanel, SchedulePanel, StandingsPanel,
@@ -33,6 +36,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   const [state, setState] = useState<DynastyState | null>(null);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [busy, setBusy] = useState(false);
+  const [watching, setWatching] = useState(false);
 
   useEffect(() => {
     loadDynasty(slotId).then((s) => setState(s));
@@ -67,11 +71,16 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
       // Departed players persist to the history store once, at rollover.
       const departed =
         before === "offseason" && state.phase === "regular" ? prevArchive : undefined;
-      void saveDynasty(slotId, state, departed).catch((e) => console.error("autosave failed", e));
-      if (before !== "offseason" && state.phase === "offseason") setTab("offseason");
-      if (before === "offseason" && state.phase === "regular") setTab("dashboard");
-      setState({ ...state });
-      setBusy(false);
+      // Busy releases only once the autosave lands — leaving the page right
+      // after a click can never abort a rollover write mid-transaction.
+      saveDynasty(slotId, state, departed)
+        .catch((e) => console.error("autosave failed", e))
+        .finally(() => {
+          if (before !== "offseason" && state.phase === "offseason") setTab("offseason");
+          if (before === "offseason" && state.phase === "regular") setTab("dashboard");
+          setState({ ...state });
+          setBusy(false);
+        });
     }, 16);
   };
 
@@ -81,6 +90,18 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
       : state.phase === "ccg"
         ? "SIM TITLE GAMES"
         : "SIM PLAYOFF ROUND";
+
+  // The user's unplayed game this week (watchable).
+  const played = new Set(state.results.map((r) => r.gid));
+  const userGame =
+    state.phase !== "offseason"
+      ? state.schedule.find(
+          (g) =>
+            g.week === state.week &&
+            !played.has(g.id) &&
+            (g.home === state.userTid || g.away === state.userTid),
+        )
+      : undefined;
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 sm:p-6">
@@ -107,6 +128,16 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         <div className="flex items-center gap-2">
           {state.phase !== "offseason" ? (
             <>
+              {userGame && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setWatching(true)}
+                  className="rounded-full border-2 border-ink px-5 py-2 font-display text-xs tracking-widest transition hover:bg-ink hover:text-paper disabled:opacity-40"
+                >
+                  🏈 PLAY GAME
+                </button>
+              )}
               <button
                 type="button"
                 disabled={busy}
@@ -162,7 +193,11 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
       <section className="mt-4">
         {tab === "dashboard" && <Dashboard state={state} />}
         {tab === "roster" && (
-          <RosterPanel state={state} onCut={(pid) => runAction((s) => void cutPlayer(s, pid))} />
+          <RosterPanel
+            state={state}
+            onCut={(pid) => runAction((s) => void cutPlayer(s, pid))}
+            onPin={(pid) => runAction((s) => togglePin(s, pid))}
+          />
         )}
         {tab === "recruiting" && <RecruitingPanel state={state} onMutate={mutate} />}
         {tab === "schedule" && <SchedulePanel state={state} />}
@@ -179,6 +214,17 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
           />
         )}
       </section>
+
+      {watching && userGame && (
+        <WatchGame
+          state={state}
+          game={userGame}
+          onCommit={(outcome: SimOutcome) =>
+            runAction((s) => void commitOutcome(s, userGame, outcome, true))
+          }
+          onClose={() => setWatching(false)}
+        />
+      )}
     </main>
   );
 }

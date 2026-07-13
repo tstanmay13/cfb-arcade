@@ -275,6 +275,42 @@ is tunable against these assertions, not sacred.
   stability, roster ecology, schedule legality). It is the acceptance gate
   for any constant change.
 
+## v1.1–v1.4 implementation notes (shipped 2026-07-13, same day)
+
+All four roadmap phases landed:
+
+- **v1.1 Recruiting**: full RAP action economy, 2-stage scouting (fuzzy OVR
+  band → exact + dev tier + gem/bust), three deal-breaker hard locks
+  (PLAYING_TIME / CONTENDER / PRO_POTENTIAL — NIL_VALUATION folded into the
+  portal's 90% rule), same-rules AI policy, weekly commit checks, signing-day
+  flips, and a **late signing period** (unsigned recruits land by prestige
+  gravity; true walk-ons only after the pool empties — the fix for the
+  quality-inversion the harness caught).
+- **v1.2 Portal & NIL**: budgets by prestige with natty/losing swings,
+  exponential market valuations, morale/loyalty → flight risk, offseason
+  became four interactive stages (report → retention → portal ×3 rounds →
+  close-out), draft rounds on departures, All-America teams, national record
+  books (state-resident, never erased), manual cuts. **Ceiling bands were
+  recalibrated here** (tier-0 = 58-76) after the harness showed walk-ons
+  growing into starters and killing portal churn.
+- **v1.3 Coaching & boosters**: HC/OC/DC staffs with Recruiter/Tactician/
+  Developer archetypes wired into interest gains, execution, and camp
+  development; growth + hot-seat carousel + coordinator poaching with
+  auto-backfill; open-jobs board with school switching; booster profiles
+  issuing 1-2 mandates (NIL ±); **real rivalries baked** from 2010-25 matchup
+  counts (replaces the week-12 proxy; the proxy remains as a fallback).
+- **v1.4 Watch mode & edges**: the drive loop became a steppable `GameSim`
+  (fast-sim and watch-mode share one seeded stream, so watching is a choice,
+  not a different game); per-drive tactics (chew/no-huddle/blitz), one-shot
+  QB spark swap (35/45/20), 2-pt chases, missed XPs, punt-return TDs,
+  safeties, pick-sixes, injury severity tiers (incl. season-ending),
+  redshirts (≤4 games banks the year once), pinned starters. Autosave now
+  blocks the busy state so a rollover write can't be aborted by navigation.
+
+Still deferred: wear-and-tear, academics, scheme fit, interactive staff
+hiring, watch-mode fatigue. The calibration harness grew to 37 GM tests and
+remains the acceptance gate.
+
 ## Open items (deferred, non-blocking)
 
 - Cabinet display name ("CFB-GM" is a working title; arcade names are

@@ -177,13 +177,16 @@ type SortKey = "pos" | "name" | "cls" | "ovr" | "dev";
 export function RosterPanel({
   state,
   onCut,
+  onPin,
 }: {
   state: DynastyState;
   onCut?: (pid: number) => void;
+  onPin?: (pid: number) => void;
 }) {
   const [sort, setSort] = useState<SortKey>("ovr");
   const [sel, setSel] = useState<Player | null>(null);
   const canCut = state.phase === "offseason" && !!onCut;
+  const pins = new Set(state.teams[state.userTid].pins ?? []);
   const roster = useMemo(() => {
     const players = state.teams[state.userTid].roster.map((pid) => state.players[pid]);
     const by: Record<SortKey, (a: Player, b: Player) => number> = {
@@ -231,8 +234,26 @@ export function RosterPanel({
                 onClick={() => setSel(p)}
               >
                 <td className={`${td} font-display`}>{p.pos}</td>
-                <td className={td}>{p.name}</td>
-                <td className={td}>{CLASS_LABELS[p.cls] ?? p.cls}</td>
+                <td className={td}>
+                  {onPin && (
+                    <button
+                      type="button"
+                      title={pins.has(p.id) ? "Unpin from the starting lineup" : "Pin as starter"}
+                      className={`mr-1 ${pins.has(p.id) ? "" : "opacity-25 hover:opacity-70"}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPin(p.id);
+                      }}
+                    >
+                      📌
+                    </button>
+                  )}
+                  {p.name}
+                </td>
+                <td className={td}>
+                  {p.rs ? "rs-" : ""}
+                  {CLASS_LABELS[p.cls] ?? p.cls}
+                </td>
                 <td className={`${td} font-bold`}>{p.ovr}</td>
                 <td className={td}>
                   <DevBadge tier={p.devTier} />

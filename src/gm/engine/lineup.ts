@@ -5,21 +5,27 @@
 import type { Player, PosGroup } from "./types.ts";
 import { clamp } from "./streams.ts";
 
+// QB carries the backup too (watch-mode spark swap); only QB1 "plays" unless
+// the swap fires — see GameSim.rollInjuries.
 export const LINEUP_COUNTS: [PosGroup, number][] = [
-  ["QB", 1], ["RB", 2], ["WR", 3], ["TE", 1], ["OL", 5],
+  ["QB", 2], ["RB", 2], ["WR", 3], ["TE", 1], ["OL", 5],
   ["DL", 4], ["LB", 3], ["CB", 2], ["S", 2], ["K", 1], ["P", 1],
 ];
 
 export type Lineup = Partial<Record<PosGroup, Player[]>>;
 
-/** Healthy best-available starters per group, ovr-sorted. */
-export function selectLineup(roster: Player[]): Lineup {
+/** Healthy best-available starters per group; user pins take priority. */
+export function selectLineup(roster: Player[], pins?: number[]): Lineup {
   const healthy = roster.filter((p) => p.inj === 0);
+  const pinned = new Set(pins ?? []);
   const lineup: Lineup = {};
   for (const [g, n] of LINEUP_COUNTS) {
     lineup[g] = healthy
       .filter((p) => p.g === g)
-      .sort((a, b) => b.ovr - a.ovr)
+      .sort(
+        (a, b) =>
+          Number(pinned.has(b.id)) - Number(pinned.has(a.id)) || b.ovr - a.ovr,
+      )
       .slice(0, n);
   }
   return lineup;

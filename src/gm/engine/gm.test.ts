@@ -11,6 +11,8 @@ import { selectLineup, traitsFromElo, traitsFromLineup } from "./lineup.ts";
 import { dealBreakerLock, userAction, userPoints } from "./recruiting.ts";
 import { resolveRetention, submitPortalRound } from "./offseason.ts";
 import { gameBonus, recruitMult, staffOf, takeJob } from "./coaches.ts";
+import { commitOutcome, prepareGame, togglePin, sideFor } from "./dynasty.ts";
+import { GameSim, simGame } from "./game.ts";
 
 const data = JSON.parse(
   readFileSync(new URL("../../../public/gm-data.json", import.meta.url), "utf8"),
@@ -434,6 +436,101 @@ describe("coaches & boosters (v1.3)", () => {
       expect(takeJob(state, target)).toBe(true);
       expect(state.userTid).toBe(target);
       expect(staffOf(state, oldTid).HC).toBeDefined();
+    }
+  });
+});
+
+describe("watch mode & football edges (v1.4)", () => {
+  it("stepping a GameSim matches the fast-sim exactly (same stream)", () => {
+    const state = freshDynasty(51);
+    const game = state.schedule.find((g) => g.week === 1)!;
+    const a = prepareGame(state, game);
+    const fast = simGame(a.home, a.away, a.rng, a.opts);
+    const b = prepareGame(state, game); // fresh identical stream
+    const sim = new GameSim(b.home, b.away, b.rng, b.opts);
+    let guard = 0;
+    while (!sim.done && guard++ < 80) sim.playDrive();
+    const stepped = sim.outcome();
+    expect(stepped.hs).toBe(fast.hs);
+    expect(stepped.as).toBe(fast.as);
+    expect(stepped.drives.length).toBe(fast.drives.length);
+  });
+
+  it("a watched game commits once and the week sim skips it", () => {
+    const state = freshDynasty(52);
+    const game = state.schedule.find(
+      (g) => g.week === 1 && (g.home === state.userTid || g.away === state.userTid),
+    );
+    if (game) {
+      const { home, away, rng, opts } = prepareGame(state, game);
+      const out = simGame(home, away, rng, opts);
+      commitOutcome(state, game, out, true);
+      const before = state.results.length;
+      advance(state); // sims the REST of week 1
+      const dupes = state.results.filter((r) => r.gid === game.id);
+      expect(dupes).toHaveLength(1);
+      expect(state.results.length).toBeGreaterThan(before);
+    }
+  });
+
+  it("QB spark swap benches the starter; blitz raises havoc plays", () => {
+    const state = freshDynasty(53);
+    const game = state.schedule.find(
+      (g) => g.week === 1 && (g.home === state.userTid || g.away === state.userTid),
+    )!;
+    const { home, away, rng, opts } = prepareGame(state, game);
+    const sim = new GameSim(home, away, rng, opts);
+    const side = opts.userSide === "home" ? sim.home : sim.away;
+    const qb1 = side.lineup!.QB![0].id;
+    const msg = sim.swapQb();
+    expect(msg).toBeTruthy();
+    expect(side.lineup!.QB![0].id).not.toBe(qb1);
+    expect(sim.swapQb()).toBeNull(); // once per game
+
+    // Blitz-heavy across many games → more sacks than base coaching.
+    let blitzSacks = 0;
+    let baseSacks = 0;
+    for (let i = 0; i < 24; i++) {
+      const g2 = state.schedule[i];
+      const p1 = prepareGame(state, g2);
+      const s1 = new GameSim(p1.home, p1.away, p1.rng, { ...p1.opts, userSide: "home" });
+      s1.finish({ blitz: true });
+      blitzSacks += s1.outcome().perStats.reduce((a, [, s]) => a + s.sck, 0);
+      const p2 = prepareGame(state, g2);
+      const s2 = new GameSim(p2.home, p2.away, p2.rng, { ...p2.opts, userSide: "home" });
+      s2.finish();
+      baseSacks += s2.outcome().perStats.reduce((a, [, s]) => a + s.sck, 0);
+    }
+    expect(blitzSacks).toBeGreaterThan(baseSacks);
+  });
+
+  it("pins promote a backup into the lineup", () => {
+    const state = freshDynasty(54);
+    const user = state.teams[state.userTid];
+    const qbs = user.roster
+      .map((pid) => state.players[pid])
+      .filter((p) => p.g === "QB" && p.inj === 0)
+      .sort((a, b) => b.ovr - a.ovr);
+    const backup = qbs[1];
+    togglePin(state, backup.id);
+    const lineup = sideFor(state, state.userTid).lineup!;
+    expect(lineup.QB![0].id).toBe(backup.id);
+    togglePin(state, backup.id);
+    expect(sideFor(state, state.userTid).lineup!.QB![0].id).toBe(qbs[0].id);
+  });
+
+  it("redshirts bank a year for low-usage players, once", () => {
+    const state = freshDynasty(55);
+    for (let y = 0; y < 2; y++) {
+      simToSeasonEnd(state);
+      autoOffseason(state);
+      startNextSeason(state);
+    }
+    const rsPlayers = Object.values(state.players).filter((p) => p.rs);
+    expect(rsPlayers.length).toBeGreaterThan(200);
+    for (const p of rsPlayers) {
+      expect(p.cls).toBeGreaterThanOrEqual(1);
+      expect(p.cls).toBeLessThanOrEqual(4);
     }
   });
 });

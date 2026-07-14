@@ -11,6 +11,7 @@ import {
   createSlot, deleteSlot, exportDynasty, importDynasty, listSlots, loadDynasty, type SlotRow,
 } from "./db.ts";
 import GmShell from "./GmShell.tsx";
+import { getTeamColors } from "./theme.ts";
 
 type Stage =
   | { k: "slots" }
@@ -251,7 +252,7 @@ function TeamPick({
                   type="button"
                   onClick={() => onPick(t.id, difficulty)}
                   className="rounded-md border-2 border-paper-edge bg-white/50 px-2 py-2 text-left transition hover:border-ink/60 hover:shadow"
-                  style={{ borderLeftWidth: 8, borderLeftColor: t.color ?? "#1b2a41" }}
+                  style={{ borderLeftWidth: 8, borderLeftColor: getTeamColors(t).primary }}
                 >
                   <span className="block truncate font-display text-sm">{t.school}</span>
                   <span className="block text-[10px] uppercase tracking-wide opacity-60">

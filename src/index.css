@@ -20,6 +20,31 @@
   --turf-a: #2e7d32;
   --turf-b: #29702d;
   --turf-line: rgba(253, 253, 248, 0.85);
+
+  /* ---------------------------------------------------------------- */
+  /* CFB-GM design system (V0 — ADR-0023 visual pass)                 */
+  /* Surfaces layer over the cream paper; a status ramp + accent give */
+  /* every module a readable, differentiable identity.                */
+  /* ---------------------------------------------------------------- */
+
+  /* Surfaces */
+  --surface-base: #f4eedd;   /* the page beneath the cards */
+  --surface-raised: #fffdf6; /* cards, panels — a hair brighter than paper */
+  --surface-sunken: #efe8d5; /* insets, table zebra, meter tracks */
+
+  /* Lines + elevation */
+  --line: #ded2b6;           /* default hairline border */
+  --line-strong: #c7b78f;    /* emphasized divider */
+
+  /* Accents + status ramp */
+  --accent: #b0521b;         /* burnt-orange — the one true accent */
+  --accent-soft: #f6e6d5;
+  --gold: #b7791f;           /* trophies / champions */
+  --pos: #15803d;            /* riser / win / gain */
+  --pos-soft: #dcf4e3;
+  --neu: #6b6250;            /* steady / neutral */
+  --neg: #b42318;            /* dropper / loss / over-budget */
+  --neg-soft: #fbe3e0;
 }
 
 @theme {
@@ -31,6 +56,25 @@
   --color-chalk: var(--chalk);
   --font-display: "Graduate", "Arial Narrow", serif;
   --font-body: "Archivo Variable", "Archivo", system-ui, sans-serif;
+
+  /* GM design-system tokens surfaced as Tailwind utilities (V0) */
+  --color-surface: var(--surface-base);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-pos: var(--pos);
+  --color-pos-soft: var(--pos-soft);
+  --color-neu: var(--neu);
+  --color-neg: var(--neg);
+  --color-neg-soft: var(--neg-soft);
+
+  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgba(27, 42, 65, 0.05), 0 3px 10px rgba(27, 42, 65, 0.07);
+  --shadow-raised: 0 8px 28px rgba(27, 42, 65, 0.16);
 }
 
 body {
@@ -122,4 +166,68 @@ body {
 }
 .trophy-bronze {
   box-shadow: inset 0 0 0 2px #cd7f32, 0 2px 8px #cd7f3230;
+}
+
+/* ------------------------------------------------------------------ */
+/* CFB-GM depth-chart field (V2)                                      */
+/* A cross-section of turf with mowing stripes + chalk hash marks;    */
+/* position clusters sit on top as jersey chips.                      */
+/* ------------------------------------------------------------------ */
+.gm-field {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      var(--turf-a) 0px,
+      var(--turf-a) 48px,
+      var(--turf-b) 48px,
+      var(--turf-b) 96px
+    );
+  box-shadow: inset 0 0 0 3px var(--turf-line), inset 0 0 70px rgba(0, 0, 0, 0.28);
+}
+/* faint yard hash line every quarter */
+.gm-field-hash {
+  background-image: linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), var(--turf-line) 100%);
+  opacity: 0.28;
+}
+/* Depth-chart jersey chip: program color with a soft top-light */
+.gm-chip {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--chip) 88%, white) 0%, var(--chip) 60%, color-mix(in srgb, var(--chip) 80%, black) 100%);
+  color: var(--chip-ink);
+}
+
+/* Meter / progress bar track fill uses currentColor of the wrapper */
+.gm-meter-fill {
+  transition: width 0.4s ease;
+}
+
+/* CFP bracket connectors (V5). Each match is an equal-height flex slot with a
+   centered card; byes fold into round 1 so it's a clean 8→4→2→1 halving tree.
+   Every next-round match centers on the midpoint of its two feeders, so the
+   connectors are pure slot-relative geometry. Card padding is px-3 (12px).
+   The outgoing connector is a single corner-box (::after) carrying both the
+   horizontal stub and the half of the vertical joiner, leaving ::before free
+   for the incoming stub on fed rounds. */
+.gm-bracket-feeds > .gm-bracket-match::after {
+  content: "";
+  position: absolute;
+  left: calc(100% - 12px);
+  width: 12px;
+  height: 50%;
+  border-right: 2px solid var(--line-strong);
+}
+.gm-bracket-feeds > .gm-bracket-match:nth-child(odd)::after {
+  top: 50%;                                   /* top of pair: horizontal + down */
+  border-top: 2px solid var(--line-strong);
+}
+.gm-bracket-feeds > .gm-bracket-match:nth-child(even)::after {
+  top: 0;                                     /* bottom of pair: horizontal + up */
+  border-bottom: 2px solid var(--line-strong);
+}
+.gm-bracket-fed > .gm-bracket-match::before {
+  content: "";
+  position: absolute;
+  right: calc(100% - 12px);
+  width: 12px;
+  top: 50%;
+  border-top: 2px solid var(--line-strong);
 }

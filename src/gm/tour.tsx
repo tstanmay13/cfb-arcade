@@ -82,14 +82,14 @@ export const TOUR_STEPS: TourStep[] = [
   {
     tab: "top25",
     key: "poll",
-    title: "The AP Top 25",
-    body: "Ranked teams recruit better (contender deal-breakers unlock) and the committee is watching. ▲▼ show weekly movement.",
+    title: "The Top 25",
+    body: "Ranked teams recruit better (contender deal-breakers unlock) and the committee is watching. ▲▼ show weekly movement. The top 12 are your Playoff Hopefuls.",
   },
   {
-    tab: "playoffs",
+    tab: "top25",
     key: "cfp",
     title: "The road to the natty",
-    body: "During the season this is the committee's live 12-team projection. In December it becomes the real bracket — 4 conference champs + 8 at-larges — plus the bowl slate.",
+    body: "Same tab, scroll down: during the season it's the committee's live 12-team projection, drawn as a bracket. In December it becomes the real bracket — 4 conference champs + 8 at-larges — plus the bowl slate.",
   },
   {
     tab: "history",

@@ -2,8 +2,8 @@
 // throws at you, in plain language.
 import { RAP_ACTIONS } from "./engine/recruiting.ts";
 
-const card = "rounded-md border-2 border-paper-edge bg-white/60 p-4";
-const h = "font-display text-xs tracking-[0.25em] opacity-60";
+const card = "rounded-card border border-line bg-surface-raised p-4 shadow-card";
+const h = "font-display text-xs tracking-[0.25em] text-ink/55";
 
 export default function HelpPanel({ onStartTour }: { onStartTour?: () => void }) {
   return (
@@ -44,7 +44,7 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
       <div className={card}>
         <h3 className={h}>DASHBOARD</h3>
         <p className="mt-2 text-sm">
-          Your week at a glance: next opponent, last result (with box score), the AP Top 10, your{" "}
+          Your week at a glance: next opponent, last result (with box score), the Top 10 rankings, your{" "}
           <span className="font-bold">booster mandates</span> (seasonal demands — meet them all for +25% NIL money
           next year, miss them all for −20% and an unhappy locker room), your three coaches, and the news feed.
         </p>
@@ -84,14 +84,14 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
       </div>
 
       <div className={card}>
-        <h3 className={h}>SCHEDULE · STANDINGS · TOP 25 · POSTSEASON</h3>
+        <h3 className={h}>SCHEDULE · STANDINGS · TOP 25</h3>
         <p className="mt-2 text-sm">
           <span className="font-bold">Schedule</span>: your slate, results, and box scores (with drive logs for
-          games you played or watched). <span className="font-bold">Standings</span>: all four conference races —
-          top two meet in the title game. <span className="font-bold">Top 25</span>: the weekly AP poll with
-          movement. <span className="font-bold">Postseason</span>: the committee's live CFP projection during the
-          season, then the full bracket + bowls. Four conference champs auto-qualify; eight at-larges fill the
-          12-team field.
+          games you played or watched) — rivalry games are flagged. <span className="font-bold">Standings</span>:
+          all four conference races — top two meet in the title game. <span className="font-bold">Top 25</span>:
+          the weekly poll with movement, the top 12 banded as Playoff Hopefuls, and — right below it — the
+          committee's live CFP projection, then the full 12-team bracket + bowls. Four conference champs
+          auto-qualify; eight at-larges fill the field.
         </p>
       </div>
 

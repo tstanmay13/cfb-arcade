@@ -12,18 +12,19 @@ import type { SimOutcome } from "./engine/game.ts";
 import { loadDynasty, saveDynasty } from "./db.ts";
 import WatchGame from "./WatchGame.tsx";
 import {
-  Dashboard, HistoryPanel, OffseasonPanel, PlayoffsPanel, RankingsPanel,
+  Dashboard, HistoryPanel, OffseasonPanel, RankingsPanel,
   RosterPanel, SchedulePanel, StandingsPanel,
 } from "./panels.tsx";
 import RecruitingPanel from "./recruitingPanel.tsx";
 import HelpPanel from "./helpPanel.tsx";
 import TourOverlay, { TOUR_STEPS } from "./tour.tsx";
+import { getTeamColors } from "./theme.ts";
 
 const TOUR_DONE_KEY = "cfbgm:tour-done";
 
 type Tab =
   | "dashboard" | "roster" | "recruiting" | "schedule" | "standings"
-  | "top25" | "playoffs" | "history" | "help" | "offseason";
+  | "top25" | "history" | "help" | "offseason";
 
 const TABS: [Tab, string][] = [
   ["dashboard", "Dashboard"],
@@ -32,7 +33,6 @@ const TABS: [Tab, string][] = [
   ["schedule", "Schedule"],
   ["standings", "Standings"],
   ["top25", "Top 25"],
-  ["playoffs", "Postseason"],
   ["history", "History"],
   ["help", "How to Play"],
 ];
@@ -90,6 +90,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   }
 
   const team = state.teams[state.userTid];
+  const teamColors = getTeamColors(team);
   const rankIdx = state.poll.findIndex((e) => e.tid === state.userTid);
   const rank = rankIdx >= 0 ? `#${rankIdx + 1}` : null;
 
@@ -144,22 +145,25 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 sm:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-md border-2 border-paper-edge bg-white/60 px-4 py-3">
+      <header
+        className="flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-card border border-line bg-surface-raised px-4 py-3 shadow-card"
+        style={{ borderLeft: `6px solid ${teamColors.primary}` }}
+      >
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onExit}
-            className="rounded-full border-2 border-paper-edge px-3 py-1 font-display text-[10px] tracking-[0.2em] transition hover:border-ink/40"
+            className="rounded-full border-2 border-line px-3 py-1 font-display text-[10px] tracking-[0.2em] transition hover:border-ink/40"
           >
             ← SAVES
           </button>
           <div data-tour="header-team">
-            <h1 className="font-display text-xl leading-none" style={{ color: team.color ?? undefined }}>
+            <h1 className="font-display text-xl leading-none" style={{ color: teamColors.ink }}>
               {team.school}
             </h1>
-            <p className="text-xs opacity-70">
+            <p className="mt-0.5 text-xs text-ink/70">
               {rank ? `${rank} · ` : ""}
-              {team.rec.w}-{team.rec.l} ({team.rec.cw}-{team.rec.cl} conf) · {"★".repeat(team.prestige)} ·{" "}
+              {team.rec.w}-{team.rec.l} ({team.rec.cw}-{team.rec.cl} conf) · <span className="text-gold">{"★".repeat(team.prestige)}</span> ·{" "}
               {state.season} · Year {state.year} · NIL {fmtMoney(team.nilBudget)}
             </p>
           </div>
@@ -222,7 +226,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
               onClick={() => setTab(key)}
               aria-pressed={tab === key}
               className={`rounded-full border-2 px-3 py-1 font-display text-[11px] tracking-widest transition ${
-                tab === key ? "border-ink bg-ink text-paper" : "border-paper-edge hover:border-ink/40"
+                tab === key ? "border-ink bg-ink text-paper" : "border-line hover:border-ink/40"
               }`}
             >
               {label.toUpperCase()}
@@ -244,7 +248,6 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         {tab === "schedule" && <SchedulePanel state={state} />}
         {tab === "standings" && <StandingsPanel state={state} />}
         {tab === "top25" && <RankingsPanel state={state} />}
-        {tab === "playoffs" && <PlayoffsPanel state={state} />}
         {tab === "history" && <HistoryPanel state={state} slotId={slotId} />}
         {tab === "help" && <HelpPanel onStartTour={startTour} />}
         {tab === "offseason" && state.offseason && (

@@ -1,0 +1,35 @@
+{
+  "school_id": "colorado",
+  "cfbd_name": "Colorado",
+  "name": "Colorado",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Mike MacIntyre",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 30,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 60
+      }
+    },
+    {
+      "name": "Deion Sanders",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 13,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 40
+      }
+    }
+  ],
+  "players": []
+}

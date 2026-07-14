@@ -1,0 +1,35 @@
+{
+  "school_id": "kansas",
+  "cfbd_name": "Kansas",
+  "name": "Kansas",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "David Beaty",
+      "decade": "2010s",
+      "coach_tier": "Sub-Par",
+      "stats": {
+        "stat_1": 6,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 0,
+        "stat_5": 6
+      }
+    },
+    {
+      "name": "Lance Leipold",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 22,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 59
+      }
+    }
+  ],
+  "players": []
+}

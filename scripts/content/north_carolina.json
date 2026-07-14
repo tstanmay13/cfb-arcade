@@ -1,0 +1,35 @@
+{
+  "school_id": "north_carolina",
+  "cfbd_name": "North Carolina",
+  "name": "North Carolina",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Larry Fedora",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 45,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 79
+      }
+    },
+    {
+      "name": "Mack Brown",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 37,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 288
+      }
+    }
+  ],
+  "players": []
+}

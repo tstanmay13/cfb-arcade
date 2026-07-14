@@ -1,0 +1,35 @@
+{
+  "school_id": "iowa_state",
+  "cfbd_name": "Iowa State",
+  "name": "Iowa State",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Matt Campbell",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 26,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 97
+      }
+    },
+    {
+      "name": "Matt Campbell",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 38,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 97
+      }
+    }
+  ],
+  "players": []
+}

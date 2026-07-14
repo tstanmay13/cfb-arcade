@@ -1,0 +1,35 @@
+{
+  "school_id": "arkansas",
+  "cfbd_name": "Arkansas",
+  "name": "Arkansas",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Bret Bielema",
+      "decade": "2010s",
+      "coach_tier": "Sub-Par",
+      "stats": {
+        "stat_1": 29,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 40,
+        "stat_5": 125
+      }
+    },
+    {
+      "name": "Sam Pittman",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 30,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 30
+      }
+    }
+  ],
+  "players": []
+}

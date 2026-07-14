@@ -1,0 +1,35 @@
+{
+  "school_id": "virginia",
+  "cfbd_name": "Virginia",
+  "name": "Virginia",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Bronco Mendenhall",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 25,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 135
+      }
+    },
+    {
+      "name": "Tony Elliott",
+      "decade": "2020s",
+      "coach_tier": "Sub-Par",
+      "stats": {
+        "stat_1": 11,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 30,
+        "stat_5": 11
+      }
+    }
+  ],
+  "players": []
+}

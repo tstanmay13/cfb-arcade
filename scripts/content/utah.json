@@ -1,0 +1,35 @@
+{
+  "school_id": "utah",
+  "cfbd_name": "Utah",
+  "name": "Utah",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Kyle Whittingham",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 83,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 60,
+        "stat_5": 167
+      }
+    },
+    {
+      "name": "Kyle Whittingham",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 36,
+        "stat_2": 0,
+        "stat_3": 2,
+        "stat_4": 60,
+        "stat_5": 167
+      }
+    }
+  ],
+  "players": []
+}

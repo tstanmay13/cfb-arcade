@@ -1,0 +1,35 @@
+{
+  "school_id": "oklahoma_state",
+  "cfbd_name": "Oklahoma State",
+  "name": "Oklahoma State",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Mike Gundy",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 93,
+        "stat_2": 0,
+        "stat_3": 1,
+        "stat_4": 60,
+        "stat_5": 169
+      }
+    },
+    {
+      "name": "Mike Gundy",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 40,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 169
+      }
+    }
+  ],
+  "players": []
+}

@@ -1,0 +1,35 @@
+{
+  "school_id": "arizona",
+  "cfbd_name": "Arizona",
+  "name": "Arizona",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Rich Rodriguez",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 43,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 150
+      }
+    },
+    {
+      "name": "Jedd Fisch",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 16,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 22
+      }
+    }
+  ],
+  "players": []
+}

@@ -84,7 +84,7 @@ state is Supabase serving **runtime stats only**):
 | ----------------- | --------------------------------------------------------------------- | ----------------------------- |
 | read              | `cfb_games`, `cfb_teams`, `cfb_player_ratings` (+ `cfb_rosters` for gm) | `npm run build:seasons` / `build:gm` (bakes — not yet ported to the warehouse) |
 | append            | `arcade_results` (INSERT only; raw reads are RLS/privilege-denied)    | runtime, finishing a round    |
-| read (aggregates) | `arcade_daily_stats(game, puzzle)` RPC                                | runtime, stats sheet          |
+| read (aggregates) | `arcade_daily_stats(game, puzzle)` + `arcade_overview(game, days)` RPCs | runtime, stats sheet          |
 
 The pipeline that fills the warehouse and the `cfb_*` tables, the schema
 migrations, and the service-role key all live in the private platform repo.

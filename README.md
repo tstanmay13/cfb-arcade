@@ -79,9 +79,11 @@ the `cfb_*` tables, append-only on `arcade_results`):
 | read (aggregates) | `arcade_daily_stats(game, puzzle)` RPC                                | runtime, stats sheet          |
 
 The pipeline that fills the `cfb_*` tables, the schema migrations, and the
-service-role key all live in the private platform repo. If a bake warns that
-something isn't served yet, that's a platform-side push to run — nothing in
-this repo can (or should) fix it.
+service-role key all live in the private platform repo — as do the canonical
+warehouse (`cfb.db`) and its Cloudflare R2 backups, which this repo **never
+touches** (R2 is warehouse durability, not a serving store). Supabase is the
+only tie. If a bake warns that something isn't served yet, that's a platform-side
+push to run — nothing in this repo can (or should) fix it.
 
 ## Guess the Season (arcade cabinet #2)
 

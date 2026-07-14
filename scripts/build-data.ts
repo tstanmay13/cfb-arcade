@@ -1,22 +1,26 @@
 // Build-time data bake for The 16-0 Draft (design doc §4.5, ADR-0010/0011).
 //
 // Sources, in order of authority:
-//   1. Supabase serving layer (cfb_player_ratings / cfb_player_season_stats /
-//      cfb_teams / cfb_rosters) — the REAL modern ("2020s") era. Read-only via
-//      the anon key (RLS-protected, safe to embed).
+//   1. The local warehouse (the platform repo's cfb.db, read directly via
+//      node:sqlite — ADR-0025) — the REAL modern ("2020s") era: the same
+//      is_current slice of player_ratings / player_season_stats / teams /
+//      rosters that the old Supabase serving layer carried.
 //   2. scripts/content/*.json — hand/LLM-authored historical eras + coaches,
 //      OVR-calibrated against the real modern scale (§4.5 rubric).
 //
-// Supabase-only by design: the bake has NO warehouse dependency, so it runs
-// from a clean clone of the arcade with zero secrets (the anon key is public).
-// Anything missing from the serving layer is a push problem, warned loudly —
-// never silently backfilled from a local file.
+// Owner-only by design (ADR-0025): baking needs the warehouse next to this
+// repo (restore it with `cfb restore` in the platform repo, or point
+// CFB_DB_PATH at a cfb.db). Collaborators build against the committed
+// public/data.json — Supabase is runtime stats only (ADR-0019) and no longer
+// serves game data to this bake. Anything missing from the warehouse is an
+// ingest/ratings problem, warned loudly — never silently backfilled.
 //
-// Output: game/public/data.json — the static file the game loads on boot.
-// The running game NEVER touches Supabase for game data (design pillar #4).
+// Output: public/data.json — the static file the game loads on boot.
+// The running game NEVER touches a database for game data (design pillar #4).
 //
 // Run: npm run build:data   (Node >= 24, zero deps)
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
@@ -65,12 +69,21 @@ const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s"
 // next bake.
 const EXCLUDED_DECADES = new Set<Decade>(["1980s", "1990s", "2000s"]);
 
-// Anon (publishable) key — safe to embed by design; RLS allows read-only.
-const SUPABASE_URL =
-  process.env.CFB_SUPABASE_URL ?? "https://owwjabhinvwoaarjbmgm.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.CFB_SUPABASE_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93d2phYmhpbnZ3b2FhcmpibWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMjcxNjgsImV4cCI6MjA5ODYwMzE2OH0.sIQ5UlK9aOl60CUL7cqWH9NHiaDxgJMNIOkpo44tme8";
+// The warehouse lives in the sibling platform repo (same env var name the
+// platform itself uses, src/config.ts). Read-only: the bake never writes it.
+const CFB_DB_PATH =
+  process.env.CFB_DB_PATH ?? join(HERE, "..", "..", "cfb", "cfb.db");
+
+function openWarehouse(): DatabaseSync {
+  if (!existsSync(CFB_DB_PATH)) {
+    throw new Error(
+      `warehouse not found at ${CFB_DB_PATH} — restore it in the platform repo ` +
+        "(`node --no-warnings src/cli.ts restore`, needs the R2_* creds) or set " +
+        "CFB_DB_PATH to an existing cfb.db.",
+    );
+  }
+  return new DatabaseSync(CFB_DB_PATH, { readOnly: true });
+}
 
 // ---------------------------------------------------------------------------
 // Content files (authored historical eras + coaches + program config)
@@ -108,54 +121,13 @@ function loadContent(): ProgramContent[] {
     .map((f) => JSON.parse(readFileSync(join(CONTENT_DIR, f), "utf8")));
 }
 
-// ---------------------------------------------------------------------------
-// Supabase REST (PostgREST) paging reader
-// ---------------------------------------------------------------------------
-async function rest(pathAndQuery: string): Promise<Record<string, unknown>[]> {
-  const out: Record<string, unknown>[] = [];
-  const page = 1000;
-  for (let offset = 0; ; offset += page) {
-    const url = `${SUPABASE_URL}/rest/v1/${pathAndQuery}&limit=${page}&offset=${offset}`;
-    let rows: Record<string, unknown>[] | null = null;
-    for (let attempt = 0; attempt < 4; attempt++) {
-      try {
-        const resp = await fetch(url, {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          signal: AbortSignal.timeout(60_000),
-        });
-        if (!resp.ok) {
-          throw new Error(
-            `Supabase GET failed HTTP ${resp.status}: ${(await resp.text()).slice(0, 300)}`,
-          );
-        }
-        rows = (await resp.json()) as Record<string, unknown>[];
-        break;
-      } catch (err) {
-        if (attempt === 3) throw err;
-        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
-      }
-    }
-    out.push(...rows!);
-    if (rows!.length < page) return out;
-  }
-}
-
-// URL-encode each value so names with reserved chars (e.g. "Texas A&M") don't
-// break the PostgREST filter — the `&` would otherwise read as a query separator.
-const quoteList = (vals: string[]) =>
-  `(${vals.map((v) => `"${encodeURIComponent(v)}"`).join(",")})`;
-
-function chunk<T>(arr: T[], n: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-  return out;
-}
+// One "?" per value — every user-adjacent string (team names, athlete ids) is
+// bound, never spliced into the SQL.
+const placeholders = (n: number) =>
+  `(${Array.from({ length: n }, () => "?").join(",")})`;
 
 // ---------------------------------------------------------------------------
-// Modern slice from Supabase
+// Modern slice from the warehouse
 // ---------------------------------------------------------------------------
 interface TeamBranding {
   conference: string | null;
@@ -182,24 +154,29 @@ interface StatRow {
   stat: string;
 }
 
-async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
+function fetchModernPlayers(programs: ProgramContent[]): {
   players: Player[];
   conferences: Map<string, string>;
   branding: Map<string, TeamBranding>;
-}> {
+} {
   const names = programs.map((p) => p.cfbd_name);
   const byName = new Map(programs.map((p) => [p.cfbd_name, p]));
+  const db = openWarehouse();
 
-  // 1. Team branding / conference from the serving layer.
-  const teamRows = (await rest(
-    `cfb_teams?select=school,conference,mascot,color,alternate_color&season=eq.2025&school=in.${quoteList(names)}`,
-  )) as unknown as ({ school: string } & TeamBranding)[];
+  // 1. Team branding / conference — the same promoted columns push.ts served.
+  const teamRows = db
+    .prepare(
+      `SELECT school, conference, mascot, color, alternate_color
+         FROM teams
+        WHERE season = 2025 AND school IN ${placeholders(names.length)}`,
+    )
+    .all(...names) as unknown as ({ school: string } & TeamBranding)[];
   const branding = new Map(teamRows.map((r) => [r.school, r]));
   const missingBranding = names.filter((n) => !branding.get(n)?.color);
   if (missingBranding.length > 0) {
     console.warn(
-      `  WARN: no served colors for ${missingBranding.join(", ")} — falling back to ` +
-        `defaults. Fix from the platform side: \`cfb push --full --tables teams\`.`,
+      `  WARN: no 2025 colors for ${missingBranding.join(", ")} — falling back to ` +
+        `defaults. Fix from the platform side: \`cfb ingest --year 2025 --datasets teams\`.`,
     );
   }
   const conferences = new Map<string, string>();
@@ -207,20 +184,27 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
     if (b.conference) conferences.set(school, b.conference);
   }
 
-  // 2. Ratings for every real season, floor applied server-side.
-  const ratingRows = (await rest(
-    `cfb_player_ratings?select=athlete_id,player,team,position,pos_group,overall,season` +
-      `&team=in.${quoteList(names)}&season=in.(${MODERN_SEASONS.join(",")})` +
-      `&projected=is.false&is_current=is.true&overall=gte.${OVR_FLOOR}` +
-      `&pos_group=in.(QB,RB,WR,DL,LB,DB)&order=nkey.asc`,
-  )) as unknown as RatingRow[];
+  // 2. Ratings for every real season, floor applied in the query. Same slice
+  //    the serving layer carried: current, non-projected rows only.
+  const ratingRows = db
+    .prepare(
+      `SELECT athlete_id, player, team, position, pos_group, overall, season
+         FROM player_ratings
+        WHERE team IN ${placeholders(names.length)}
+          AND season IN (${MODERN_SEASONS.join(",")})
+          AND projected = 0 AND is_current = 1
+          AND overall >= ${OVR_FLOOR}
+          AND pos_group IN ('QB','RB','WR','DL','LB','DB')
+        ORDER BY nkey`,
+    )
+    .all(...names) as unknown as RatingRow[];
   const missingSeasons = MODERN_SEASONS.filter(
     (s) => !ratingRows.some((r) => r.season === s),
   );
   if (missingSeasons.length > 0) {
     console.warn(
-      `  note: no served ratings for seasons ${missingSeasons.join(",")} — those years ` +
-        `stay out of the pool until the platform ingests + pushes them.`,
+      `  note: no ratings for seasons ${missingSeasons.join(",")} — those years ` +
+        `stay out of the pool until the platform ingests + rates them.`,
     );
   }
 
@@ -254,38 +238,51 @@ async function fetchModernPlayers(programs: ProgramContent[]): Promise<{
     kept.push(...list.slice(0, TOP_N[pos]));
   }
 
-  // 3. Stat lines for each kept athlete's chosen season.
+  // 3. Stat lines for each kept athlete's chosen season. One bound query —
+  //    SQLite takes thousands of parameters, no URL-length chunking needed.
   const ids = kept.map((k) => k.athlete_id);
   const pivots = new Map<string, StatPivot>(); // athlete|season -> pivot
-  const addStatRows = (rows: StatRow[]) => {
-    for (const s of rows) {
-      const key = `${s.athlete_id}|${s.season}`;
-      const pivot = pivots.get(key) ?? {};
-      (pivot[s.category] ??= {})[s.stat_type] = Number(s.stat) || 0;
-      pivots.set(key, pivot);
-    }
-  };
-  for (const idChunk of chunk(ids, 120)) {
-    addStatRows(
-      (await rest(
-        `cfb_player_season_stats?select=athlete_id,season,category,stat_type,stat` +
-          `&athlete_id=in.${quoteList(idChunk)}&season=in.(${MODERN_SEASONS.join(",")})` +
-          `&category=in.(passing,rushing,receiving,defensive,interceptions)&is_current=is.true&order=nkey.asc`,
-      )) as unknown as StatRow[],
-    );
+  const statRows =
+    ids.length === 0
+      ? []
+      : (db
+          .prepare(
+            `SELECT athlete_id, season, category, stat_type, stat
+               FROM player_season_stats
+              WHERE athlete_id IN ${placeholders(ids.length)}
+                AND season IN (${MODERN_SEASONS.join(",")})
+                AND category IN ('passing','rushing','receiving','defensive','interceptions')
+                AND is_current = 1
+              ORDER BY nkey`,
+          )
+          .all(...ids) as unknown as StatRow[]);
+  for (const s of statRows) {
+    const key = `${s.athlete_id}|${s.season}`;
+    const pivot = pivots.get(key) ?? {};
+    (pivot[s.category] ??= {})[s.stat_type] = Number(s.stat) || 0;
+    pivots.set(key, pivot);
   }
 
-  // 4. Jerseys from served rosters (cosmetic — empty string when not served).
+  // 4. Jerseys from rosters (cosmetic — empty string when absent). Ordered by
+  //    season so an athlete's latest jersey wins; nkey breaks same-season ties
+  //    deterministically.
   const jerseys = new Map<string, string>();
-  for (const idChunk of chunk(ids, 200)) {
-    const rows = (await rest(
-      `cfb_rosters?select=athlete_id,season,jersey&athlete_id=in.${quoteList(idChunk)}&jersey=not.is.null&order=season.asc`,
-    )) as unknown as { athlete_id: string; season: number; jersey: string | null }[];
-    for (const r of rows) if (r.jersey != null) jerseys.set(r.athlete_id, String(r.jersey));
-  }
+  const jerseyRows =
+    ids.length === 0
+      ? []
+      : (db
+          .prepare(
+            `SELECT athlete_id, jersey
+               FROM rosters
+              WHERE athlete_id IN ${placeholders(ids.length)} AND jersey IS NOT NULL
+              ORDER BY season, nkey`,
+          )
+          .all(...ids) as unknown as { athlete_id: string; jersey: string | number }[]);
+  for (const r of jerseyRows) jerseys.set(r.athlete_id, String(r.jersey));
   if (jerseys.size === 0) {
-    console.warn("  WARN: no served jerseys — run `cfb push --full --tables rosters` from the platform.");
+    console.warn("  WARN: no jerseys in the warehouse — run `cfb ingest --datasets rosters` from the platform.");
   }
+  db.close();
 
   // 5. Assemble Player objects (decade = decade of the athlete's best season).
   const players: Player[] = [];
@@ -404,12 +401,12 @@ function validate(data: GameData): string[] {
   return problems;
 }
 
-async function main(): Promise<void> {
+function main(): void {
   console.log("Baking data.json …");
   const programs = loadContent();
   console.log(`  programs: ${programs.length}`);
 
-  const { players: modern, conferences, branding } = await fetchModernPlayers(programs);
+  const { players: modern, conferences, branding } = fetchModernPlayers(programs);
   console.log(`  modern (real) players: ${modern.length}`);
 
   const authored = contentPlayers(programs);
@@ -508,4 +505,4 @@ async function main(): Promise<void> {
   console.log(`  wrote ${OUT_PATH} (${(JSON.stringify(data).length / 1024).toFixed(0)} KB)`);
 }
 
-await main();
+main();

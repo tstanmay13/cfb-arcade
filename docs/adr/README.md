@@ -30,6 +30,7 @@ understand the *why* without needing platform access.
 | [0022](0022-draft-board-pool-ordering.md) | Draft pool ordering: sink unplaceable rows, sort only on player-visible keys | Accepted |
 | [0023](0023-cfb-gm-dynasty-cabinet.md) | CFB-GM dynasty sim incubates as cabinet #3 | Accepted |
 | [0024](0024-16-0-team-expansion.md) | The 16-0 Draft expands to 68 P4 teams with talent-weighted spins | Accepted |
+| [0025](0025-bake-reads-warehouse.md) | The data.json bake reads the warehouse directly; Supabase heads toward stats-only | Accepted |
 
 ## Historical arcade decisions (in the platform repo, owner-side)
 

@@ -14,9 +14,12 @@ union mapped to URL paths (`/` draft · `/guess` · `/gm`; SPA rewrite in
 `vercel.json`). **Do not entangle a new cabinet with the draft's
 `runState`/reducer** (`src/state/store.tsx`) — that's the shipped game.
 
-The data pipeline lives in a separate, private platform repo; the ONLY seam
-between the two is Supabase (see README "The Supabase seam"). Never add a
-credential beyond the public anon key to this repo.
+The data pipeline lives in a separate, private platform repo. Two seams,
+heading toward one (ADR-0025, README "The data-platform seams"): the
+`data.json` bake reads the platform's **local warehouse** (`cfb.db` via
+`node:sqlite`, owner-side, no credentials); Supabase carries the runtime
+stats flow plus the not-yet-ported seasons/gm bakes, anon key only. Never add
+a credential beyond the public anon key to this repo.
 
 ## Ground rules
 
@@ -45,7 +48,7 @@ credential beyond the public anon key to this repo.
   expansion (ADR-0024): the original 18 are fully authored (historical rosters +
   coaches, the human-readable source of truth, §4.5); the ~50 expansion teams are
   stubs — authored coaches only (CFBD has none, ADR-0014/0015), with branding +
-  modern rosters merged from Supabase at bake (`players: []`).
+  modern rosters merged from the warehouse at bake (`players: []`, ADR-0025).
 - **Guess the Season** (cabinet #2): `src/engine/guessSeason.ts` (pure logic +
   `.test.ts`), `src/components/GuessSeason.tsx` (screen, rendered *outside*
   `GameProvider`; takes `teams` as a prop, lazy-fetches its own JSON via
@@ -78,8 +81,9 @@ credential beyond the public anon key to this repo.
 - `npm run dev` — localhost dev server.
 - `npm test` — vitest unit tests (engines + bake helpers). Run after touching
   `src/engine/` or `scripts/`.
-- `npm run build:data` — re-bake `public/data.json` (Supabase-only via the
-  public anon key; no warehouse dependency, works from a clean clone).
+- `npm run build:data` — re-bake `public/data.json` (owner-side, ADR-0025:
+  reads the platform repo's `cfb.db` directly — sibling checkout by default,
+  `CFB_DB_PATH` to override. Collaborators use the committed `data.json`).
 - `npm run build:seasons` — re-bake `public/seasons.json` for Guess the Season
   (Supabase-only; ADR-0017).
 - `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM (Supabase-only;

@@ -1,0 +1,35 @@
+{
+  "school_id": "ucla",
+  "cfbd_name": "UCLA",
+  "name": "UCLA",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Jim Mora",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 46,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 62
+      }
+    },
+    {
+      "name": "Chip Kelly",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 28,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 81
+      }
+    }
+  ],
+  "players": []
+}

@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import { mulberry32 } from "./rng.ts";
 import {
   allPlayerSlotsFilled,
+  cellSpinWeight,
   eligibleOpenSlots,
   emptyPlayerSlots,
   eraRespin,
   expandedFallbackSpin,
   isDuplicate,
   isPoolUsable,
+  MARQUEE_BUMP,
   playerCells,
   spin,
   spinCoach,
@@ -57,7 +59,9 @@ describe("playerCells (§5.3)", () => {
 });
 
 describe("spin weighting (§5.3)", () => {
-  it("weights powerhouse cells ~3x over standard cells", () => {
+  it("favors higher-talent cells over weaker ones (gentle curve)", () => {
+    // dynasty 2020s (ovr 90) vs modern 2020s (ovr 82): talent-weighted, the
+    // richer pool lands ~2x (gentle MIN..MAX = 1.5..3.0), not the old flat 3x.
     const rng = mulberry32(42);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 8000; i++) {
@@ -65,8 +69,19 @@ describe("spin weighting (§5.3)", () => {
       counts[s.teamId] = (counts[s.teamId] ?? 0) + 1;
     }
     const ratio = counts.dynasty / counts.modern;
-    expect(ratio).toBeGreaterThan(2.5);
-    expect(ratio).toBeLessThan(3.5);
+    expect(ratio).toBeGreaterThan(1.6);
+    expect(ratio).toBeLessThan(2.6);
+  });
+
+  it("applies the marquee brand bump on top of talent", () => {
+    // Two identical-talent cells; only one team is marquee → ~MARQUEE_BUMP more.
+    const cells = [
+      { teamId: "alabama", players: fullCell("alabama", "2020s", { ovr: 85 }) },
+      { teamId: "modern", players: fullCell("modern", "2020s", { ovr: 85 }) },
+    ];
+    const wMarquee = cellSpinWeight(cells[0], cells);
+    const wPlain = cellSpinWeight(cells[1], cells);
+    expect(wMarquee / wPlain).toBeCloseTo(MARQUEE_BUMP, 5);
   });
 
   it("is deterministic for a fixed seed", () => {

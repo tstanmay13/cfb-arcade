@@ -1,0 +1,35 @@
+{
+  "school_id": "cincinnati",
+  "cfbd_name": "Cincinnati",
+  "name": "Cincinnati",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Butch Jones",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 24,
+        "stat_2": 0,
+        "stat_3": 2,
+        "stat_4": 60,
+        "stat_5": 84
+      }
+    },
+    {
+      "name": "Luke Fickell",
+      "decade": "2020s",
+      "coach_tier": "Elite",
+      "stats": {
+        "stat_1": 31,
+        "stat_2": 0,
+        "stat_3": 2,
+        "stat_4": 66.7,
+        "stat_5": 75
+      }
+    }
+  ],
+  "players": []
+}

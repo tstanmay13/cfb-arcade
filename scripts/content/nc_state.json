@@ -1,0 +1,35 @@
+{
+  "school_id": "nc_state",
+  "cfbd_name": "NC State",
+  "name": "NC State",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Dave Doeren",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 47,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 108
+      }
+    },
+    {
+      "name": "Dave Doeren",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 40,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 108
+      }
+    }
+  ],
+  "players": []
+}

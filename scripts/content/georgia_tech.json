@@ -1,0 +1,35 @@
+{
+  "school_id": "georgia_tech",
+  "cfbd_name": "Georgia Tech",
+  "name": "Georgia Tech",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Paul Johnson",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 63,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 189
+      }
+    },
+    {
+      "name": "Brent Key",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 18,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 18
+      }
+    }
+  ],
+  "players": []
+}

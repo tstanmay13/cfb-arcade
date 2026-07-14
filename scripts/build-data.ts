@@ -143,8 +143,10 @@ async function rest(pathAndQuery: string): Promise<Record<string, unknown>[]> {
   }
 }
 
+// URL-encode each value so names with reserved chars (e.g. "Texas A&M") don't
+// break the PostgREST filter — the `&` would otherwise read as a query separator.
 const quoteList = (vals: string[]) =>
-  `(${vals.map((v) => `"${v}"`).join(",")})`;
+  `(${vals.map((v) => `"${encodeURIComponent(v)}"`).join(",")})`;
 
 function chunk<T>(arr: T[], n: number): T[][] {
   const out: T[][] = [];

@@ -1,0 +1,35 @@
+{
+  "school_id": "texas_tech",
+  "cfbd_name": "Texas Tech",
+  "name": "Texas Tech",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Kliff Kingsbury",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 35,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 35
+      }
+    },
+    {
+      "name": "Joey McGuire",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 23,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 23
+      }
+    }
+  ],
+  "players": []
+}

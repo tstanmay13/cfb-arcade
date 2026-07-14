@@ -1,0 +1,35 @@
+{
+  "school_id": "kansas_state",
+  "cfbd_name": "Kansas State",
+  "name": "Kansas State",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Bill Snyder",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 73,
+        "stat_2": 0,
+        "stat_3": 1,
+        "stat_4": 55,
+        "stat_5": 215
+      }
+    },
+    {
+      "name": "Chris Klieman",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 40,
+        "stat_2": 0,
+        "stat_3": 1,
+        "stat_4": 60,
+        "stat_5": 114
+      }
+    }
+  ],
+  "players": []
+}

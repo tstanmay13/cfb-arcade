@@ -1,0 +1,35 @@
+{
+  "school_id": "louisville",
+  "cfbd_name": "Louisville",
+  "name": "Louisville",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Bobby Petrino",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 36,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 119
+      }
+    },
+    {
+      "name": "Jeff Brohm",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 19,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 60,
+        "stat_5": 85
+      }
+    }
+  ],
+  "players": []
+}

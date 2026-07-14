@@ -1,8 +1,10 @@
 // Bake public/gm-data.json for the CFB-GM dynasty cabinet (ADR-0023): the real
 // 2026 preseason universe — 68 P4 programs with projected rosters/ratings, G5 +
 // FCS shell opponents with Elo strengths from real 2025 results, and the real
-// 2026 regular-season schedule. Supabase-only via the public anon key; no
-// warehouse dependency (works from a clean clone).
+// 2026 regular-season schedule. Reads the warehouse (cfb.db) directly via
+// node:sqlite (ADR-0025) — owner-side; collaborators use the committed
+// gm-data.json. Deterministic: every order-sensitive read is ORDER BY nkey,
+// so the same warehouse always bakes the same universe.
 //
 // Run: npm run build:gm
 import { writeFileSync } from "node:fs";
@@ -10,6 +12,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { GmData, GmPlayerSeed, GmSchedGame, GmTeam, PosGroup } from "../src/gm/engine/types.ts";
 import { ELO_BASE, ELO_FCS, eloDelta, eloPreseason } from "../src/gm/engine/elo.ts";
+import { openWarehouse } from "./warehouse.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT_PATH = join(HERE, "..", "public", "gm-data.json");
@@ -23,37 +26,6 @@ const POS_MINIMUMS: [PosGroup, number][] = [
   ["QB", 3], ["RB", 4], ["WR", 6], ["TE", 3], ["OL", 10],
   ["DL", 8], ["LB", 6], ["CB", 5], ["S", 4], ["K", 1], ["P", 1],
 ];
-
-const SUPABASE_URL =
-  process.env.CFB_SUPABASE_URL ?? "https://owwjabhinvwoaarjbmgm.supabase.co";
-const SUPABASE_ANON_KEY =
-  process.env.CFB_SUPABASE_ANON_KEY ??
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im93d2phYmhpbnZ3b2FhcmpibWdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMjcxNjgsImV4cCI6MjA5ODYwMzE2OH0.sIQ5UlK9aOl60CUL7cqWH9NHiaDxgJMNIOkpo44tme8";
-
-async function rest(pathAndQuery: string): Promise<Record<string, unknown>[]> {
-  const out: Record<string, unknown>[] = [];
-  const page = 1000;
-  for (let offset = 0; ; offset += page) {
-    const url = `${SUPABASE_URL}/rest/v1/${pathAndQuery}&limit=${page}&offset=${offset}`;
-    let rows: Record<string, unknown>[] | null = null;
-    for (let attempt = 0; attempt < 4; attempt++) {
-      try {
-        const resp = await fetch(url, {
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
-          signal: AbortSignal.timeout(60_000),
-        });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
-        rows = (await resp.json()) as Record<string, unknown>[];
-        break;
-      } catch (err) {
-        if (attempt === 3) throw err;
-        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
-      }
-    }
-    out.push(...rows!);
-    if (rows!.length < page) return out;
-  }
-}
 
 /** Granular CFBD position → engine group. Returns null for unusable (LS). */
 function toGroup(position: string, posGroup: string, athIndex: number): PosGroup | null {
@@ -79,32 +51,56 @@ interface RatingRow { athlete_id: string; player: string; team: string; position
 interface RosterRow { athlete_id: string; class_year: number | null }
 interface GameRow { season: number; week: number; home_team: string; away_team: string; home_points: number | null; away_points: number | null }
 
-async function main(): Promise<void> {
+function main(): void {
   console.log("Baking gm-data.json …");
+  const db = openWarehouse();
 
-  const teamRows = (await rest(
-    `cfb_teams?select=school,conference,mascot,color,alternate_color&season=eq.${SEASON}&is_current=is.true`,
-  )) as unknown as TeamRow[];
+  const teamRows = db
+    .prepare(
+      `SELECT school, conference, mascot, color, alternate_color
+         FROM teams WHERE season = ${SEASON} AND is_current = 1 ORDER BY nkey`,
+    )
+    .all() as unknown as TeamRow[];
 
-  const ratingRows = (await rest(
-    `cfb_player_ratings?select=athlete_id,player,team,position,pos_group,overall&season=eq.${SEASON}&is_current=is.true`,
-  )) as unknown as RatingRow[];
+  // Projected 2026 rows included by design (they ARE the preseason ratings).
+  // ORDER BY nkey pins the WR/CB/LB rotation for position-less ATH players.
+  const ratingRows = db
+    .prepare(
+      `SELECT athlete_id, player, team, position, pos_group, overall
+         FROM player_ratings WHERE season = ${SEASON} AND is_current = 1 ORDER BY nkey`,
+    )
+    .all() as unknown as RatingRow[];
 
-  const rosterRows = (await rest(
-    `cfb_rosters?select=athlete_id,class_year&season=eq.${SEASON - 1}&is_current=is.true`,
-  )) as unknown as RosterRow[];
+  const rosterRows = db
+    .prepare(
+      `SELECT athlete_id, class_year
+         FROM rosters WHERE season = ${SEASON - 1} AND is_current = 1 ORDER BY nkey`,
+    )
+    .all() as unknown as RosterRow[];
 
-  const sched26 = (await rest(
-    `cfb_games?select=season,week,home_team,away_team,home_points,away_points&season=eq.${SEASON}&season_type=eq.regular`,
-  )) as unknown as GameRow[];
+  // ORDER BY nkey pins FCS-shell team ids (created in encounter order).
+  const sched26 = db
+    .prepare(
+      `SELECT season, week, home_team, away_team, home_points, away_points
+         FROM games WHERE season = ${SEASON} AND season_type = 'regular' ORDER BY nkey`,
+    )
+    .all() as unknown as GameRow[];
 
-  const games25 = (await rest(
-    `cfb_games?select=season,week,home_team,away_team,home_points,away_points&season=eq.${SEASON - 1}&completed=is.true&order=week.asc`,
-  )) as unknown as GameRow[];
+  // Elo replay is order-sensitive: week ascending, nkey breaking ties.
+  const games25 = db
+    .prepare(
+      `SELECT season, week, home_team, away_team, home_points, away_points
+         FROM games WHERE season = ${SEASON - 1} AND completed = 1 ORDER BY week, nkey`,
+    )
+    .all() as unknown as GameRow[];
 
-  const histGames = (await rest(
-    `cfb_games?select=home_team,away_team&season=gte.2010&season=lte.${SEASON - 1}&completed=is.true`,
-  )) as unknown as { home_team: string; away_team: string }[];
+  const histGames = db
+    .prepare(
+      `SELECT home_team, away_team
+         FROM games WHERE season >= 2010 AND season <= ${SEASON - 1} AND completed = 1`,
+    )
+    .all() as unknown as { home_team: string; away_team: string }[];
+  db.close();
 
   // --- Elo from real 2025 results (FCS opponents fixed, never updated) ------
   const elo = new Map<string, number>(teamRows.map((t) => [t.school, ELO_BASE]));
@@ -166,7 +162,8 @@ async function main(): Promise<void> {
   }
   const rivals = new Map<number, Set<number>>();
   for (const [tid, partners] of topPartner) {
-    partners.sort((x, y) => y[1] - x[1]);
+    // id-ascending tie-break: equal-history partners pick deterministically.
+    partners.sort((x, y) => y[1] - x[1] || x[0] - y[0]);
     for (const [other] of partners.slice(0, 2)) {
       if (!rivals.has(tid)) rivals.set(tid, new Set());
       if (!rivals.has(other)) rivals.set(other, new Set());
@@ -251,4 +248,4 @@ async function main(): Promise<void> {
   console.log(`  wrote ${OUT_PATH} (${kb} KB)`);
 }
 
-await main();
+main();

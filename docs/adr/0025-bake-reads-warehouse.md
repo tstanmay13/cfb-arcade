@@ -36,9 +36,11 @@ aggregate RPC), not game data.
 3. The bake keeps **zero credentials**: a local SQLite file needs none. The
    anon key disappears from `build-data.ts`; the app's only Supabase touch
    remains the runtime stats seam (`src/data/stats.ts`, ADR-0019) — untouched.
-4. **Phase boundary**: `build:seasons` and `build:gm` still read the Supabase
-   serving layer. Porting them the same way (and then retiring the game-data
-   `cfb_*` reads entirely) is the follow-up phase; this ADR sets the pattern.
+4. **All three bakes** follow the pattern (`build:seasons` and `build:gm` were
+   ported the same day via the shared `scripts/warehouse.ts`), so the arcade
+   has **zero** game-data reads from Supabase. The `cfb_*` serving tables and
+   `cfb push` are now consumer-less on the arcade side — retiring them is a
+   platform-side decision (they cost nothing while dormant).
 
 ## Consequences
 
@@ -54,3 +56,13 @@ aggregate RPC), not game data.
 - One behavioral nicety: jersey selection gains a deterministic same-season
   tiebreak (`ORDER BY season, nkey`) that PostgREST's unordered pages never
   guaranteed (no diff on current data).
+- The seasons/gm ports made those bakes deterministic too (every
+  order-sensitive read is `ORDER BY nkey`; the rivalry tie-break got a stable
+  secondary key). Re-baking surfaced two artifacts of the old nondeterminism,
+  both verified harmless: `seasons.json` grew 268 → 1,008 entries (it was
+  stale — never re-baked after the ADR-0024 68-team expansion; the file now
+  matches the shipped 68-program universe, which reshuffles the date-seeded
+  daily sequence), and `gm-data.json` drifted only in Elo tie-order (±4 max,
+  zero prestige-tier changes), equal-history rivalry picks, and WR/CB/LB
+  rotation for position-less ATH recruits — same 196 teams, 6,169 players,
+  478 games. The GM calibration harness passes on the new bake.

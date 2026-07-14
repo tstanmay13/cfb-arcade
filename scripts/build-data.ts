@@ -19,8 +19,7 @@
 // The running game NEVER touches a database for game data (design pillar #4).
 //
 // Run: npm run build:data   (Node >= 24, zero deps)
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
@@ -46,6 +45,7 @@ import {
   statBlockFor,
   type StatPivot,
 } from "./lib.ts";
+import { openWarehouse, placeholders } from "./warehouse.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CONTENT_DIR = join(HERE, "content");
@@ -69,21 +69,6 @@ const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s"
 // next bake.
 const EXCLUDED_DECADES = new Set<Decade>(["1980s", "1990s", "2000s"]);
 
-// The warehouse lives in the sibling platform repo (same env var name the
-// platform itself uses, src/config.ts). Read-only: the bake never writes it.
-const CFB_DB_PATH =
-  process.env.CFB_DB_PATH ?? join(HERE, "..", "..", "cfb", "cfb.db");
-
-function openWarehouse(): DatabaseSync {
-  if (!existsSync(CFB_DB_PATH)) {
-    throw new Error(
-      `warehouse not found at ${CFB_DB_PATH} — restore it in the platform repo ` +
-        "(`node --no-warnings src/cli.ts restore`, needs the R2_* creds) or set " +
-        "CFB_DB_PATH to an existing cfb.db.",
-    );
-  }
-  return new DatabaseSync(CFB_DB_PATH, { readOnly: true });
-}
 
 // ---------------------------------------------------------------------------
 // Content files (authored historical eras + coaches + program config)
@@ -120,11 +105,6 @@ function loadContent(): ProgramContent[] {
     .sort()
     .map((f) => JSON.parse(readFileSync(join(CONTENT_DIR, f), "utf8")));
 }
-
-// One "?" per value — every user-adjacent string (team names, athlete ids) is
-// bound, never spliced into the SQL.
-const placeholders = (n: number) =>
-  `(${Array.from({ length: n }, () => "?").join(",")})`;
 
 // ---------------------------------------------------------------------------
 // Modern slice from the warehouse

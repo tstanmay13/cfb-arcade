@@ -14,12 +14,12 @@ union mapped to URL paths (`/` draft · `/guess` · `/gm`; SPA rewrite in
 `vercel.json`). **Do not entangle a new cabinet with the draft's
 `runState`/reducer** (`src/state/store.tsx`) — that's the shipped game.
 
-The data pipeline lives in a separate, private platform repo. Two seams,
-heading toward one (ADR-0025, README "The data-platform seams"): the
-`data.json` bake reads the platform's **local warehouse** (`cfb.db` via
-`node:sqlite`, owner-side, no credentials); Supabase carries the runtime
-stats flow plus the not-yet-ported seasons/gm bakes, anon key only. Never add
-a credential beyond the public anon key to this repo.
+The data pipeline lives in a separate, private platform repo. Two seams, each
+with one job (ADR-0025, README "The data-platform seams"): ALL bakes read the
+platform's **local warehouse** (`cfb.db` via `node:sqlite` — see
+`scripts/warehouse.ts`; owner-side, no credentials), and Supabase is **runtime
+stats only** (ADR-0019, anon key). Never add a credential beyond the public
+anon key to this repo.
 
 ## Ground rules
 
@@ -72,7 +72,7 @@ a credential beyond the public anon key to this repo.
   `recruitingPanel.tsx`/`WatchGame.tsx` (screens; lazy chunk so the dailies
   never pay for it), `scripts/build-gm.ts` → `public/gm-data.json` (real
   2026 P4 universe: projected rosters + Elo from real 2025 results + real
-  rivalries from 2010-25 matchup history; Supabase-only, anon key). All game
+  rivalries from 2010-25 matchup history; warehouse-direct, ADR-0025). All game
   "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
   live in `docs/CFB_GM_DESIGN.md` implementation-notes sections.
 
@@ -85,9 +85,9 @@ a credential beyond the public anon key to this repo.
   reads the platform repo's `cfb.db` directly — sibling checkout by default,
   `CFB_DB_PATH` to override. Collaborators use the committed `data.json`).
 - `npm run build:seasons` — re-bake `public/seasons.json` for Guess the Season
-  (Supabase-only; ADR-0017).
-- `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM (Supabase-only;
-  ADR-0023).
+  (warehouse-direct like all bakes, ADR-0025/0017).
+- `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM
+  (warehouse-direct, ADR-0025/0023).
 - `npm run bench:gm -- run|report` — CFB-GM policy benchmark (headless
   30-year dynasties under scripted profiles). Baselines + method live in
   `docs/benchmarks/`; re-run and diff after ANY GM tuning change.

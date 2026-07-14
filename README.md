@@ -51,9 +51,12 @@ npm run build:data   # reads Supabase (anon key), writes public/data.json
   2010–2015 defensive stats can't rate (Cam Newton, Joey Bosa…), plus all
   coaches (CFBD has no coach data).
 
-Current coverage: **18 programs, 36 team/era cells, ~1,000 players** — expand
-by adding `scripts/content/*.json` program files and re-baking; both real
-eras come along automatically.
+Current coverage: **68 programs, 136 team/era cells, 3,624 players, 123 coaches**
+(all Power-conference teams — SEC/Big Ten/Big 12/ACC + Notre Dame, ADR-0024). The
+18 original blue-bloods are fully hand-authored in `scripts/content/*.json`; the
+~50 expansion programs are identity + coach stubs whose modern rosters and branding
+are pulled from Supabase at bake. Expand by adding another `scripts/content/*.json`
+file (full or stub) and re-baking; both real eras come along automatically.
 
 The running game never touches a database or API for game data — design
 pillar #4. The one deliberate exception is **global stats** (ADR-0019): on

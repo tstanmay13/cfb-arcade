@@ -41,8 +41,11 @@ credential beyond the public anon key to this repo.
   everything unit-tested with vitest (`npm test`).
 - `src/` React components consume engines via the runState reducer.
 - `scripts/build-data.ts` — bakes `public/data.json` (see ADR-0010/0011).
-  `scripts/content/*.json` — authored historical rosters/coaches, one file per
-  program; the human-readable source of truth (§4.5).
+  `scripts/content/*.json` — one file per program, **hybrid** since the 68 P4
+  expansion (ADR-0024): the original 18 are fully authored (historical rosters +
+  coaches, the human-readable source of truth, §4.5); the ~50 expansion teams are
+  stubs — authored coaches only (CFBD has none, ADR-0014/0015), with branding +
+  modern rosters merged from Supabase at bake (`players: []`).
 - **Guess the Season** (cabinet #2): `src/engine/guessSeason.ts` (pure logic +
   `.test.ts`), `src/components/GuessSeason.tsx` (screen, rendered *outside*
   `GameProvider`; takes `teams` as a prop, lazy-fetches its own JSON via
@@ -94,8 +97,13 @@ credential beyond the public anon key to this repo.
   Both slots resolve to `STAT_LABELS.WR`.
 - Historical content: keep players era-correct (a 2009 Heisman is the 2000s
   decade, not the 2010s) and never author a kicker/TE/OL into a board position.
-- Decade powerhouse flags live per-program in `scripts/content/*.json`
-  (`powerhouse_eras`), not in code.
+- Spin landing weight is **talent-driven and lives IN code** (§5.3,
+  `src/engine/spin.ts`, ADR-0024): a cell's top-3-avg-OVR percentile on a gentle
+  `[MIN_CELL_WEIGHT=1.5, MAX_CELL_WEIGHT=3.0]` curve, a `MARQUEE_BUMP=1.25` for the
+  hand-curated `MARQUEE_TEAMS`, and `COACH_TIER_WEIGHT` for coach spins — all
+  runtime-tweakable constants (retune = one-line edit, no data re-bake;
+  `cellSpinWeight` is exported for tuning/tests). `powerhouse_eras` in
+  `scripts/content/*.json` now only gates 80s/90s era authenticity, not weight.
 - **ADRs share one global sequence across both repos** (see `docs/adr/`).
   Historical 0001–0021 stay in the private platform repo (owner-side); this
   repo owns **0022 onward** and is where new arcade decisions go. Numbers mean

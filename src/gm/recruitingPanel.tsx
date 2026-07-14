@@ -1,21 +1,30 @@
 // The recruiting board (v1.1): RAP economy, scouting reveals, deal-breaker
 // locks, live interest race. Mutations go through engine/recruiting.ts and
-// the shell's onMutate (autosave + re-render).
+// the shell's onMutate (autosave + re-render). Presentation is the V0 system.
 import { useMemo, useState } from "react";
 import type { DynastyState, PosGroup, Recruit } from "./engine/types.ts";
 import {
-  dealBreakerLock, hasHomeGame, shownOvr, teamNeeds, userAction, userPoints,
-  type RapAction,
+  COMMIT_THRESHOLD, dealBreakerLock, hasHomeGame, RAP_ACTIONS, shownOvr, teamNeeds,
+  userAction, userPoints, WEEKLY_RAP, type RapAction,
 } from "./engine/recruiting.ts";
 import { STAR_POINTS } from "./engine/recruits.ts";
 import { DevBadge } from "./panels.tsx";
+import { Card, Meter, Pill, SectionLabel, StatusText, TeamBadge, TeamName } from "./ui.tsx";
 
-const card = "rounded-md border-2 border-paper-edge bg-white/60 p-4";
-const th = "px-2 py-1 text-left font-display text-[10px] tracking-widest opacity-60";
-const td = "px-2 py-1";
+const th = "px-2 py-1.5 text-left font-display text-[10px] tracking-widest text-ink/50";
+const td = "px-2 py-1.5";
 
 const POS_FILTERS: (PosGroup | "ALL")[] = ["ALL", "QB", "RB", "WR", "TE", "OL", "DL", "LB", "CB", "S", "K", "P"];
 type ViewFilter = "board" | "targets" | "commits";
+type SortKey = "stars" | "ovr" | "pos" | "interest" | "mine";
+
+// The four outreach actions, written out — read what each does before spending.
+const OUTREACH: { key: RapAction; label: string; blurb: string }[] = [
+  { key: "dm", label: "DM", blurb: `+${RAP_ACTIONS.dm.pts} interest` },
+  { key: "coach", label: "Position coach", blurb: `+${RAP_ACTIONS.coach.pts} interest` },
+  { key: "hc", label: "HC in-home", blurb: `+${RAP_ACTIONS.hc.pts}, once each` },
+  { key: "visit", label: "Official visit", blurb: `+${RAP_ACTIONS.visit.pts}, needs a home game` },
+];
 
 export default function RecruitingPanel({
   state,
@@ -27,7 +36,9 @@ export default function RecruitingPanel({
   const [pos, setPos] = useState<PosGroup | "ALL">("ALL");
   const [minStars, setMinStars] = useState(2);
   const [view, setView] = useState<ViewFilter>("board");
+  const [sort, setSort] = useState<SortKey>("stars");
   const [flash, setFlash] = useState<string | null>(null);
+  const [hidden, setHidden] = useState<Set<number>>(new Set());
 
   const closed = state.phase !== "regular";
   const myCommits = useMemo(
@@ -37,13 +48,20 @@ export default function RecruitingPanel({
   const classPts = myCommits.reduce((a, r) => a + (STAR_POINTS[r.stars] ?? 0), 0);
 
   const rows = useMemo(() => {
-    let list = state.recruits;
+    let list = state.recruits.filter((r) => !hidden.has(r.id));
     if (view === "targets") list = list.filter((r) => userPoints(r, state.userTid) > 0 && r.committed === null);
     if (view === "commits") list = list.filter((r) => r.committed === state.userTid);
     if (pos !== "ALL") list = list.filter((r) => r.g === pos);
     list = list.filter((r) => r.stars >= minStars);
-    return list.slice(0, 150);
-  }, [state, pos, minStars, view]);
+    const cmp: Record<SortKey, (a: Recruit, b: Recruit) => number> = {
+      stars: (a, b) => b.stars - a.stars || b.ovr - a.ovr,
+      ovr: (a, b) => b.ovr - a.ovr,
+      pos: (a, b) => a.g.localeCompare(b.g) || b.ovr - a.ovr,
+      interest: (a, b) => (b.leads[0]?.p ?? 0) - (a.leads[0]?.p ?? 0),
+      mine: (a, b) => userPoints(b, state.userTid) - userPoints(a, state.userTid),
+    };
+    return [...list].sort(cmp[sort]).slice(0, 150);
+  }, [state, pos, minStars, view, sort, hidden]);
 
   const act = (rid: number, a: RapAction) => {
     const err = userAction(state, rid, a);
@@ -55,25 +73,58 @@ export default function RecruitingPanel({
     }
   };
 
+  const sortableTh = (key: SortKey, label: string, extra = "") => (
+    <th className={`${th} ${extra} cursor-pointer select-none hover:text-ink`} onClick={() => setSort(key)}>
+      {label}{sort === key ? " ▾" : ""}
+    </th>
+  );
+
   return (
-    <div className={card}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-display text-xs tracking-[0.25em] opacity-60">
-          RECRUITING BOARD{closed ? " · CLOSED (SIGNING DAY PASSED)" : ""}
-        </h3>
-        <div className="flex items-center gap-3 text-sm">
-          <span data-tour="rap">
-            RAP: <span className="font-display">{state.rapLeft}</span>/600
-          </span>
-          <span>
-            Commits: <span className="font-display">{myCommits.length}</span> ({classPts.toFixed(1)} pts)
-          </span>
-          {!closed && hasHomeGame(state) && (
-            <span className="rounded bg-green-800/10 px-2 py-0.5 text-xs text-green-900">
-              🏟 Home game this week — visits available
+    <Card
+      title={`RECRUITING BOARD${closed ? " · CLOSED (SIGNING DAY PASSED)" : ""}`}
+      right={
+        <span className="text-sm">
+          Commits <span className="font-display">{myCommits.length}</span>
+          <span className="text-ink/55"> ({classPts.toFixed(1)} pts)</span>
+        </span>
+      }
+    >
+      {/* Prominent weekly stamina meter (V4.6) */}
+      <div className="flex flex-wrap items-center gap-4" data-tour="rap">
+        <div className="min-w-[220px] flex-1">
+          <div className="flex items-baseline justify-between">
+            <SectionLabel>WEEKLY STAMINA · RAP</SectionLabel>
+            <span className="font-display text-sm">
+              {state.rapLeft}<span className="text-ink/45"> / {WEEKLY_RAP}</span>
             </span>
-          )}
+          </div>
+          <Meter
+            value={state.rapLeft}
+            max={WEEKLY_RAP}
+            color={state.rapLeft < 100 ? "var(--neg)" : "var(--accent)"}
+            className="mt-1"
+            height={10}
+          />
+          <p className="mt-1 text-[10px] text-ink/50">Resets every week — spend it or lose it.</p>
         </div>
+        {!closed && hasHomeGame(state) && (
+          <Pill tone="pos">🏟 Home game this week — visits available</Pill>
+        )}
+      </div>
+
+      {/* Action legend — every action written out (V4.2) */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-line bg-surface-sunken/40 px-3 py-2 text-[11px] text-ink/70">
+        <span className="font-display tracking-widest text-ink/50">SPEND</span>
+        {OUTREACH.map((o) => (
+          <span key={o.key}>
+            <span className="font-bold">{o.label}</span>{" "}
+            <span className="text-ink/50">{o.blurb} · {RAP_ACTIONS[o.key].cost} RAP</span>
+          </span>
+        ))}
+        <span className="flex items-center gap-1">
+          <span className="rounded border border-accent/60 px-1 font-bold text-accent">🔍 SCOUT</span>
+          <span className="text-ink/50">reveals true OVR, then dev + 💎/⚠️</span>
+        </span>
       </div>
 
       <NeedsStrip state={state} />
@@ -84,7 +135,7 @@ export default function RecruitingPanel({
             key={v}
             type="button"
             onClick={() => setView(v)}
-            className={`rounded-full border px-2 py-0.5 font-display tracking-widest ${view === v ? "border-ink bg-ink text-paper" : "border-paper-edge"}`}
+            className={`rounded-full border px-2.5 py-0.5 font-display tracking-widest ${view === v ? "border-ink bg-ink text-paper" : "border-line hover:border-ink/40"}`}
           >
             {v.toUpperCase()}
           </button>
@@ -92,7 +143,7 @@ export default function RecruitingPanel({
         <select
           value={pos}
           onChange={(e) => setPos(e.target.value as PosGroup | "ALL")}
-          className="rounded border border-paper-edge bg-white/70 px-1 py-0.5"
+          className="rounded border border-line bg-surface-raised px-1 py-0.5"
         >
           {POS_FILTERS.map((p) => (
             <option key={p} value={p}>{p}</option>
@@ -101,40 +152,58 @@ export default function RecruitingPanel({
         <select
           value={minStars}
           onChange={(e) => setMinStars(Number(e.target.value))}
-          className="rounded border border-paper-edge bg-white/70 px-1 py-0.5"
+          className="rounded border border-line bg-surface-raised px-1 py-0.5"
         >
           {[2, 3, 4, 5].map((s) => (
             <option key={s} value={s}>{s}★+</option>
           ))}
         </select>
-        {flash && <span className="rounded bg-red-800/10 px-2 py-0.5 text-red-900">{flash}</span>}
+        {hidden.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setHidden(new Set())}
+            className="rounded-full border border-line px-2.5 py-0.5 font-display tracking-widest hover:border-ink/40"
+          >
+            RESTORE {hidden.size} REMOVED
+          </button>
+        )}
+        {flash && <StatusText tone="neg" className="rounded bg-neg-soft px-2 py-0.5">{flash}</StatusText>}
       </div>
 
       <div className="mt-2 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-paper-edge">
-              <th className={th}>★</th>
+            <tr className="border-b border-line bg-surface-sunken/50">
+              {sortableTh("stars", "★")}
               <th className={th}>NAME</th>
-              <th className={th}>POS</th>
-              <th className={th}>OVR</th>
+              {sortableTh("pos", "POS")}
+              {sortableTh("ovr", "OVR")}
               <th className={`${th} hidden sm:table-cell`}>DEV</th>
-              <th className={th}>STATUS</th>
-              <th className={`${th} hidden sm:table-cell`}>MY PTS</th>
+              {sortableTh("interest", "LEADER / INTEREST")}
+              {sortableTh("mine", "MY PTS", "hidden sm:table-cell")}
               <th className={th} data-tour="recruit-actions">ACTIONS</th>
+              <th className={th}></th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <RecruitRow key={r.id} state={state} r={r} closed={closed} act={act} />
+              <RecruitRow
+                key={r.id}
+                state={state}
+                r={r}
+                closed={closed}
+                act={act}
+                onRemove={() => setHidden((h) => new Set(h).add(r.id))}
+              />
             ))}
           </tbody>
         </table>
         {rows.length === 150 && (
-          <p className="mt-1 text-xs opacity-60">Showing top 150 — narrow with the filters.</p>
+          <p className="mt-1 text-xs text-ink/55">Showing top 150 — narrow with the filters.</p>
         )}
+        <p className="mt-1 text-[10px] text-ink/40">Distance &amp; NIL-ask columns arrive with the mechanical update.</p>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -156,16 +225,16 @@ function NeedsStrip({ state }: { state: DynastyState }) {
   if (!groups.length) return null;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-      <span className="font-display tracking-widest opacity-60">NEEDS</span>
+      <span className="font-display tracking-widest text-ink/50">NEEDS</span>
       {groups.map(([g, n]) => (
         <span
           key={g}
-          className={`rounded border px-1.5 py-0.5 ${n > (commits.get(g) ?? 0) ? "border-red-800/40 bg-red-800/5" : "border-paper-edge bg-white/50"}`}
+          className={`rounded border px-1.5 py-0.5 ${n > (commits.get(g) ?? 0) ? "border-neg/40 bg-neg-soft/50" : "border-line bg-surface-sunken/50"}`}
           title={`${leaving.get(g) ?? 0} seniors leaving · ${commits.get(g) ?? 0} committed`}
         >
           <span className="font-display">{g}</span> {n > 0 ? `need ${n}` : "ok"}
-          {(leaving.get(g) ?? 0) > 0 && <span className="opacity-60"> · −{leaving.get(g)}SR</span>}
-          {(commits.get(g) ?? 0) > 0 && <span className="text-green-900"> · +{commits.get(g)}✓</span>}
+          {(leaving.get(g) ?? 0) > 0 && <span className="text-ink/55"> · −{leaving.get(g)}SR</span>}
+          {(commits.get(g) ?? 0) > 0 && <StatusText tone="pos"> · +{commits.get(g)}✓</StatusText>}
         </span>
       ))}
     </div>
@@ -177,28 +246,38 @@ function RecruitRow({
   r,
   closed,
   act,
+  onRemove,
 }: {
   state: DynastyState;
   r: Recruit;
   closed: boolean;
   act: (rid: number, a: RapAction) => void;
+  onRemove: () => void;
 }) {
   const lock = dealBreakerLock(state, r, state.userTid);
   const mine = userPoints(r, state.userTid);
   const leader = r.leads[0];
+  const leaderPct = leader ? Math.min(100, (leader.p / COMMIT_THRESHOLD) * 100) : 0;
+
   const status =
     r.committed !== null ? (
-      <span className={r.committed === state.userTid ? "font-bold text-green-900" : "opacity-70"}>
-        ✓ {state.teams[r.committed].school}
-      </span>
+      // Commit destination badge in the school's colors (V3.2 pattern).
+      <TeamBadge team={state.teams[r.committed]} prefix="✓" />
     ) : lock ? (
-      <span className="text-red-900/80">🔒 {lock}</span>
+      <StatusText tone="neg">🔒 {lock}</StatusText>
     ) : leader ? (
-      <span className="text-xs">
-        {state.teams[leader.t].school} leads ({Math.round(leader.p)})
-      </span>
+      <div className="min-w-[150px]">
+        <div className="flex items-baseline justify-between gap-2">
+          {/* Bold, team-colored leader (V4.3) */}
+          <span>
+            <TeamName team={state.teams[leader.t]} lead /> <span className="text-ink/50 text-xs">leads</span>
+          </span>
+          <span className="text-[10px] text-ink/50">{Math.round(leader.p)}</span>
+        </div>
+        <Meter value={leaderPct} max={100} color="var(--accent)" height={5} className="mt-0.5" />
+      </div>
     ) : (
-      <span className="opacity-40">open</span>
+      <span className="text-ink/40">open</span>
     );
 
   const btn = (a: RapAction, label: string, disabled: boolean, title: string) => (
@@ -208,7 +287,7 @@ function RecruitRow({
       disabled={disabled}
       title={title}
       onClick={() => act(r.id, a)}
-      className="rounded border border-paper-edge px-1.5 py-0.5 text-[10px] font-bold transition hover:border-ink/50 disabled:opacity-25"
+      className="rounded border border-line px-1.5 py-0.5 text-[10px] font-bold transition hover:border-ink/50 hover:bg-accent-soft disabled:opacity-25"
     >
       {label}
     </button>
@@ -216,10 +295,13 @@ function RecruitRow({
 
   const done = closed || r.committed !== null;
   const lockActions = !!lock || done;
+  // Progressive scouting: one clearly-separated Scout button.
+  const nextScout: RapAction | null = r.scouted === 0 ? "s1" : r.scouted === 1 ? "s2" : null;
+  const scoutCost = nextScout ? RAP_ACTIONS[nextScout].cost : 0;
 
   return (
-    <tr className="border-b border-paper-edge/50">
-      <td className={`${td} whitespace-nowrap`}>{"★".repeat(r.stars)}</td>
+    <tr className="border-b border-line/50 align-top">
+      <td className={`${td} whitespace-nowrap text-gold`}>{"★".repeat(r.stars)}</td>
       <td className={`${td} font-bold`}>{r.name}</td>
       <td className={`${td} font-display`}>{r.g}</td>
       <td className={`${td} font-mono`}>{shownOvr(r)}</td>
@@ -231,25 +313,53 @@ function RecruitRow({
             {r.gb === -1 ? <span title="Bust risk — plays below the badge">⚠️</span> : null}
           </span>
         ) : (
-          <span className="opacity-30">?</span>
+          <span className="text-ink/30">?</span>
         )}
       </td>
       <td className={td}>{status}</td>
       <td className={`${td} hidden font-mono sm:table-cell`}>{Math.round(mine) || "—"}</td>
-      <td className={`${td} whitespace-nowrap`}>
-        <span className="flex gap-1">
-          {btn("dm", "DM 10", lockActions || state.rapLeft < 10, "+15 interest")}
-          {btn("coach", "PC 25", lockActions || state.rapLeft < 25, "+40 interest")}
-          {btn("hc", "HC 75", lockActions || r.hcUsed || state.rapLeft < 75, "+130, once per recruit")}
-          {btn(
-            "visit",
-            "VIS 150",
-            lockActions || state.rapLeft < 150 || !hasHomeGame(state) || state.pendingVisits.includes(r.id),
-            "+300, needs a home game; +50 if you win it",
-          )}
-          {btn("s1", "S1 30", closed || r.scouted >= 1 || state.rapLeft < 30, "Reveal tighter OVR band")}
-          {btn("s2", "S2 60", closed || r.scouted !== 1 || state.rapLeft < 60, "Reveal dev tier + gem/bust")}
-        </span>
+      <td className={td}>
+        <div className="flex flex-col gap-1.5">
+          {/* Outreach group — labeled, not icon-only (V4.2) */}
+          <div className="flex flex-wrap gap-1">
+            {btn("dm", `DM ${RAP_ACTIONS.dm.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.dm.cost, "+15 interest")}
+            {btn("coach", `Coach ${RAP_ACTIONS.coach.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.coach.cost, "+40 interest")}
+            {btn("hc", `HC ${RAP_ACTIONS.hc.cost}`, lockActions || r.hcUsed || state.rapLeft < RAP_ACTIONS.hc.cost, "+130, once per recruit")}
+            {btn(
+              "visit",
+              `Visit ${RAP_ACTIONS.visit.cost}`,
+              lockActions || state.rapLeft < RAP_ACTIONS.visit.cost || !hasHomeGame(state) || state.pendingVisits.includes(r.id),
+              "+300, needs a home game; +50 if you win it",
+            )}
+          </div>
+          {/* Scout — visually distinct + set apart (V4.1) */}
+          <div className="border-t border-line/50 pt-1.5">
+            {nextScout ? (
+              <button
+                type="button"
+                disabled={closed || state.rapLeft < scoutCost}
+                title={r.scouted === 0 ? "Reveal a tighter OVR band" : "Reveal dev tier + gem/bust"}
+                onClick={() => act(r.id, nextScout)}
+                className="rounded-md border border-accent/70 bg-accent-soft px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent transition hover:bg-accent hover:text-white disabled:opacity-30"
+              >
+                🔍 SCOUT {r.scouted === 0 ? "I" : "II"} · {scoutCost}
+              </button>
+            ) : (
+              <span className="text-[10px] text-ink/40">fully scouted</span>
+            )}
+          </div>
+        </div>
+      </td>
+      <td className={td}>
+        {/* Remove-from-board (V4.4) */}
+        <button
+          type="button"
+          title="Remove from board"
+          onClick={onRemove}
+          className="rounded-full border border-line px-1.5 text-[11px] leading-none text-ink/45 transition hover:border-neg/50 hover:text-neg"
+        >
+          ✕
+        </button>
       </td>
     </tr>
   );

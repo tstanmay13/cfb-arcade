@@ -14,7 +14,7 @@ import { buildSeasonRecap } from "./engine/recap.ts";
 import { archiveFor, type ArchiveRow } from "./db.ts";
 import { getTeamColors } from "./theme.ts";
 import {
-  Card, Delta, Meter, Pill, SectionLabel, StatusText, TeamName,
+  Card, cardCls, Delta, Meter, Pill, SectionLabel, StatusText, TeamMark, TeamName,
 } from "./ui.tsx";
 
 const th = "px-2 py-1.5 text-left font-display text-[10px] tracking-widest text-ink/50";
@@ -49,84 +49,64 @@ export function Dashboard({ state }: { state: DynastyState }) {
   const next = games.find((g) => !g.result);
   const played = games.filter((g) => g.result);
   const last = played[played.length - 1] ?? null;
+  const lastWeek = last ? last.game.week : null;
   const [showBox, setShowBox] = useState(false);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
-      <NextGameCard state={state} next={next?.game ?? null} />
+    <div className="space-y-3">
+      {/* The week's headline: the matchup is the hero (V1 hierarchy). */}
+      <MatchupHero state={state} next={next?.game ?? null} />
 
-      <Card title="LAST RESULT" tour="last-result">
-        {last?.result ? (
-          <LastResult state={state} r={last.result} onBox={() => setShowBox(true)} />
-        ) : (
-          <p className="text-sm text-ink/60">No games in the books yet — sim a week.</p>
-        )}
-        {showBox && last?.result && (
-          <BoxModal state={state} result={last.result} onClose={() => setShowBox(false)} />
-        )}
-      </Card>
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Card
+          title={lastWeek != null ? `LAST RESULT · WEEK ${lastWeek}` : "LAST RESULT"}
+          tour="last-result"
+          className="lg:col-span-2"
+        >
+          {last?.result ? (
+            <LastResult state={state} r={last.result} onBox={() => setShowBox(true)} />
+          ) : (
+            <p className="text-sm text-ink/60">No games in the books yet — sim a week.</p>
+          )}
+          {showBox && last?.result && (
+            <BoxModal state={state} result={last.result} onClose={() => setShowBox(false)} />
+          )}
+        </Card>
 
-      <Card title="RANKINGS · TOP 10">
-        <ol className="space-y-1 text-sm">
-          {state.poll.slice(0, 10).map((e, i) => (
-            <li key={e.tid} className="flex items-baseline gap-2">
-              <span className="w-5 text-right font-display text-ink/45">{i + 1}</span>
-              <TeamRef state={state} tid={e.tid} />
-              <span className="text-xs text-ink/50">
-                {state.teams[e.tid].rec.w}-{state.teams[e.tid].rec.l}
-              </span>
-              <span className="ml-auto text-xs">
-                <Delta prev={e.prev} rank={i + 1} />
-              </span>
-            </li>
-          ))}
-        </ol>
-      </Card>
+        <MandatesCard state={state} />
 
-      <Card title={`BOOSTER MANDATES · ${BOOSTER_LABELS[state.teams[state.userTid].boosterType]}`} tour="mandates">
-        <ul className="space-y-1.5 text-sm">
-          {state.mandates.map((m, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span>{m.met === null ? "⏳" : m.met ? "✅" : "❌"}</span>
-              <span>{m.text}</span>
-            </li>
-          ))}
-          {state.mandates.length === 0 && <li className="text-xs text-ink/55">The board is quiet.</li>}
-        </ul>
-        <p className="mt-3 border-t border-line/70 pt-2 text-[10px] text-ink/55">
-          Hit every mandate: +25% NIL next cycle. Miss them all: −20% and a locker-room hit.
-        </p>
-      </Card>
-
-      <Card title="YOUR STAFF" tour="staff">
-        <ul className="space-y-1.5 text-sm">
-          {(["HC", "OC", "DC"] as const).map((role) => {
-            const c = staffOf(state, state.userTid)[role];
-            return (
-              <li key={role} className="flex items-baseline gap-2">
-                <span className="w-8 font-display text-ink/60">{role}</span>
-                {c ? (
-                  <>
-                    <span className="font-bold">{c.name}</span>
-                    <span className="text-xs text-ink/55">
-                      {c.rating} · {ARCHETYPE_LABELS[c.archetype]} · {c.w}-{c.l}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-ink/40">vacant</span>
-                )}
+        <Card title="RANKINGS · TOP 10" className="lg:col-span-2" bodyClassName="px-4 py-2">
+          <ol className="text-sm">
+            {state.poll.slice(0, 10).map((e, i) => (
+              <li
+                key={e.tid}
+                className={`flex items-center gap-2 rounded px-1 py-1 ${i > 0 ? "border-t border-line/40" : ""}`}
+                style={
+                  e.tid === state.userTid
+                    ? {
+                        boxShadow: `inset 3px 0 0 ${getTeamColors(state.teams[e.tid]).primary}`,
+                        background: `color-mix(in srgb, ${getTeamColors(state.teams[e.tid]).primary} 7%, transparent)`,
+                      }
+                    : undefined
+                }
+              >
+                <span className="w-5 text-right font-display text-ink/45">{i + 1}</span>
+                <TeamName team={state.teams[e.tid]} lead={e.tid === state.userTid} />
+                <span className="text-xs text-ink/50">
+                  {state.teams[e.tid].rec.w}-{state.teams[e.tid].rec.l}
+                </span>
+                <span className="ml-auto text-xs">
+                  <Delta prev={e.prev} rank={i + 1} />
+                </span>
               </li>
-            );
-          })}
-        </ul>
-        <p className="mt-3 border-t border-line/70 pt-2 text-[10px] text-ink/55">
-          Recruiters boost interest · Tacticians boost execution · Developers boost camp gains.
-        </p>
-      </Card>
+            ))}
+          </ol>
+        </Card>
 
-      <InjuryReport state={state} />
+        <ProgramRail state={state} />
+      </div>
 
-      <Card title="#CFB_PULSE" tour="news" className="lg:col-span-2">
+      <Card title="#CFB_PULSE" tour="news">
         <ul className="space-y-1.5 text-sm">
           {state.news.slice(0, 12).map((n, i) => (
             <li key={i} className="flex gap-2">
@@ -143,7 +123,12 @@ export function Dashboard({ state }: { state: DynastyState }) {
   );
 }
 
-function NextGameCard({ state, next }: { state: DynastyState; next: DynastyState["schedule"][number] | null }) {
+/**
+ * The full-width matchup hero (V1): both programs' marks and colors, the
+ * week, and the stakes — one glance answers "who's next."
+ */
+function MatchupHero({ state, next }: { state: DynastyState; next: DynastyState["schedule"][number] | null }) {
+  const user = state.teams[state.userTid];
   if (!next) {
     return (
       <Card title="NEXT GAME" tour="next-game">
@@ -156,42 +141,57 @@ function NextGameCard({ state, next }: { state: DynastyState; next: DynastyState
   const home = next.home === state.userTid;
   const oppTid = home ? next.away : next.home;
   const opp = state.teams[oppTid];
-  const rival = (state.teams[state.userTid].rivals ?? []).includes(oppTid);
-  return (
-    <Card
-      title="NEXT GAME"
-      tour="next-game"
-      right={<span className="font-display text-[11px] text-ink/55">WEEK {next.week}</span>}
-      accent={rival ? "var(--accent)" : undefined}
-    >
-      <div className="flex items-baseline gap-2">
-        <span className="font-display text-sm text-ink/55">{home ? "vs" : "at"}</span>
-        <span className="font-display text-2xl leading-none">
-          <TeamRef state={state} tid={oppTid} />
-        </span>
-        {rival && <Pill tone="accent">RIVALRY</Pill>}
-      </div>
-      {next.name && <p className="mt-1 text-sm text-ink/70">{next.name}</p>}
+  const rival = (user.rivals ?? []).includes(oppTid);
+  const uc = getTeamColors(user);
+  const oc = getTeamColors(opp);
+  const userRank = rankOf(state, state.userTid);
+  const oppRank = rankOf(state, oppTid);
 
-      {/* Opponent snapshot slot — record/rank/prestige today; key players & */}
-      {/* play-style land here from the mechanical PR. */}
-      <div className="mt-3 rounded-lg border border-line/70 bg-surface-sunken/60 p-3">
-        <SectionLabel>SCOUTING REPORT</SectionLabel>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-          <span>
-            <span className="text-ink/55">Record </span>
-            <span className="font-bold">{opp.rec.w}-{opp.rec.l}</span>
-          </span>
-          <span>
-            <span className="text-ink/55">Conf </span>
-            <span className="font-bold">{opp.rec.cw}-{opp.rec.cl}</span>
-          </span>
-          <span className="text-gold">{"★".repeat(opp.prestige)}</span>
-          {rankOf(state, oppTid) > 0 && <Pill tone="neu">AP #{rankOf(state, oppTid)}</Pill>}
-        </div>
-        <p className="mt-2 text-[11px] text-ink/45">Key players &amp; play style — coming with scouting.</p>
+  const side = (team: typeof user, colors: typeof uc, rank: number, away: boolean) => (
+    <div className={`flex min-w-0 items-center gap-3 ${away ? "sm:flex-row-reverse sm:text-right" : ""}`}>
+      <TeamMark team={team} size="xl" />
+      <div className="min-w-0">
+        <p className="truncate font-display text-xl leading-tight" style={{ color: colors.ink }}>
+          {rank > 0 && <span className="mr-1 opacity-60">#{rank}</span>}
+          {team.school}
+        </p>
+        <p className="mt-0.5 text-xs text-ink/65">
+          {team.rec.w}-{team.rec.l} · {team.rec.cw}-{team.rec.cl} conf ·{" "}
+          <span className="text-gold">{"★".repeat(team.prestige)}</span>
+        </p>
       </div>
-    </Card>
+    </div>
+  );
+
+  return (
+    <section
+      data-tour="next-game"
+      className={`${cardCls} overflow-hidden`}
+      style={{
+        borderLeft: `6px solid ${uc.primary}`,
+        borderRight: `6px solid ${oc.primary}`,
+        backgroundImage: `linear-gradient(100deg, ${uc.primary}12, transparent 38%, transparent 62%, ${oc.primary}12)`,
+      }}
+    >
+      <div className="grid items-center gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_1fr]">
+        {side(user, uc, userRank, false)}
+        <div className="text-center">
+          <p className="font-display text-[10px] tracking-[0.3em] text-ink/50">WEEK {next.week}</p>
+          <p className="my-0.5 font-display text-3xl leading-none">{home ? "VS" : "AT"}</p>
+          <div className="flex flex-wrap items-center justify-center gap-1">
+            {rival && <Pill tone="accent">RIVALRY</Pill>}
+            {next.conf && <Pill tone="neu">CONF</Pill>}
+          </div>
+          {next.name && <p className="mt-1 text-[11px] text-ink/60">{next.name}</p>}
+        </div>
+        {side(opp, oc, oppRank, true)}
+      </div>
+      {/* Opponent snapshot slot — key players & play style land here from the
+          mechanical scouting PR. */}
+      <p className="border-t border-line/60 px-5 py-1.5 text-[11px] text-ink/45">
+        Scouting report: key players &amp; play style — coming with scouting.
+      </p>
+    </section>
   );
 }
 
@@ -202,8 +202,9 @@ function LastResult({ state, r, onBox }: { state: DynastyState; r: GameResult; o
   const oppTid = userHome ? r.away : r.home;
   const win = us > them;
   return (
-    <div>
-      <div className="flex items-center gap-3">
+    // Keyed on the game so a fresh result re-runs the reveal (V1 moment).
+    <div key={r.gid} className="gm-reveal">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div
           className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg font-display text-2xl"
           style={{
@@ -213,16 +214,17 @@ function LastResult({ state, r, onBox }: { state: DynastyState; r: GameResult; o
         >
           {win ? "W" : "L"}
         </div>
-        <div>
-          <p className="font-display text-2xl leading-none">
-            <StatusText tone={win ? "pos" : "neg"}>{us}–{them}</StatusText>
-          </p>
-          <p className="mt-0.5 text-sm text-ink/70">
-            {userHome ? "vs" : "at"} <TeamRef state={state} tid={oppTid} />
-            {r.ot > 0 ? ` (${r.ot}OT)` : ""}
-            {r.name ? ` · ${r.name}` : ""}
-          </p>
-        </div>
+        {/* Scoreboard-scale numerals — the one number this card exists for. */}
+        <p className="font-display text-5xl leading-none tracking-tight">
+          <StatusText tone={win ? "pos" : "neg"}>{us}</StatusText>
+          <span className="text-ink/35">–</span>
+          <span className="text-ink/75">{them}</span>
+        </p>
+        <p className="text-sm text-ink/70">
+          {userHome ? "vs" : "at"} <TeamRef state={state} tid={oppTid} />
+          {r.ot > 0 ? ` (${r.ot}OT)` : ""}
+          {r.name ? ` · ${r.name}` : ""}
+        </p>
       </div>
       {/* Star-player-of-the-game stat line (mechanical PR fills richer data). */}
       {r.star && (
@@ -245,28 +247,141 @@ function LastResult({ state, r, onBox }: { state: DynastyState; r: GameResult; o
   );
 }
 
-function InjuryReport({ state }: { state: DynastyState }) {
-  const hurt = state.teams[state.userTid].roster
+/** Booster mandates as a live checklist — progress, not just prose (V1). */
+function MandatesCard({ state }: { state: DynastyState }) {
+  const team = state.teams[state.userTid];
+  return (
+    <Card
+      title={`BOOSTER MANDATES · ${BOOSTER_LABELS[team.boosterType]}`}
+      tour="mandates"
+      bodyClassName="p-0"
+    >
+      <ul>
+        {state.mandates.map((m, i) => (
+          <MandateRow key={i} state={state} m={m} first={i === 0} />
+        ))}
+        {state.mandates.length === 0 && <li className="px-4 py-3 text-xs text-ink/55">The board is quiet.</li>}
+      </ul>
+      <p className="border-t border-line/70 px-4 py-2 text-[10px] text-ink/55">
+        Hit every mandate: +25% NIL next cycle. Miss them all: −20% and a locker-room hit.
+      </p>
+    </Card>
+  );
+}
+
+function MandateRow({ state, m, first }: { state: DynastyState; m: DynastyState["mandates"][number]; first: boolean }) {
+  const team = state.teams[state.userTid];
+  let status: React.ReactNode;
+  let bar: React.ReactNode = null;
+
+  if (m.met !== null) {
+    status = m.met ? <Pill tone="pos">✓ MET</Pill> : <Pill tone="neg">✗ MISSED</Pill>;
+  } else if (m.kind === "wins") {
+    status = (
+      <span className={`text-xs font-bold ${team.rec.w >= m.target ? "text-pos" : "text-ink/60"}`}>
+        {team.rec.w} of {m.target}
+      </span>
+    );
+  } else if (m.kind === "beat-rival") {
+    const g = state.schedule.find(
+      (x) =>
+        (x.home === state.userTid && x.away === m.target) ||
+        (x.away === state.userTid && x.home === m.target),
+    );
+    const res = g ? state.results.find((r) => r.gid === g.id) : undefined;
+    if (res) {
+      const won = (res.home === state.userTid ? res.hs : res.as) > (res.home === state.userTid ? res.as : res.hs);
+      status = won ? <Pill tone="pos">✓ BEAT THEM</Pill> : <Pill tone="neg">✗ LOST IT</Pill>;
+    } else {
+      status = <Pill tone="neu">WEEK {g?.week ?? "—"}</Pill>;
+    }
+  } else {
+    status = <Pill tone="neu">⏳ {m.kind === "cfp" ? "SELECTION DAY" : "SIGNING DAY"}</Pill>;
+  }
+
+  if (m.kind === "wins") {
+    bar = (
+      <Meter
+        value={team.rec.w}
+        max={m.target}
+        color={team.rec.w >= m.target ? "var(--pos)" : "var(--accent)"}
+        height={7}
+        className="mt-1.5"
+      />
+    );
+  }
+
+  return (
+    <li className={`px-4 py-2.5 ${first ? "" : "border-t border-line/60"}`}>
+      <div className="flex items-baseline justify-between gap-2 text-sm">
+        <span className="font-bold">{m.text}</span>
+        {status}
+      </div>
+      {bar}
+    </li>
+  );
+}
+
+/** Staff, injuries, and NIL compressed into one quiet rail (V1 hierarchy). */
+function ProgramRail({ state }: { state: DynastyState }) {
+  const team = state.teams[state.userTid];
+  const hurt = team.roster
     .map((pid) => state.players[pid])
     .filter((p) => p.inj > 0)
     .sort((a, b) => b.inj - a.inj);
+  const paid = team.roster.map((pid) => state.players[pid]).filter((p) => p && p.nil > 0);
   return (
-    <Card title={`INJURY REPORT · ${hurt.length} OUT`} className="lg:col-span-2">
-      {hurt.length === 0 ? (
-        <p className="text-sm text-ink/60">Clean bill of health.</p>
-      ) : (
-        <ul className="flex flex-wrap gap-x-6 gap-y-1.5 text-sm">
-          {hurt.map((p) => (
-            <li key={p.id} className="flex items-baseline gap-1.5">
-              <span className="font-display text-ink/60">{p.pos}</span>
-              <span className="font-bold">{p.name}</span>
-              <StatusText tone="neg" className="text-xs">
-                {p.inj >= 15 ? "out for season" : `${p.inj} wk${p.inj > 1 ? "s" : ""}`}
-              </StatusText>
-            </li>
-          ))}
+    <Card title="PROGRAM" tour="staff" bodyClassName="p-0">
+      <div className="px-4 py-2.5">
+        <SectionLabel>STAFF</SectionLabel>
+        <ul className="mt-1 space-y-1 text-sm">
+          {(["HC", "OC", "DC"] as const).map((role) => {
+            const c = staffOf(state, state.userTid)[role];
+            return (
+              <li key={role} className="flex items-baseline gap-2">
+                <span className="w-7 font-display text-xs text-ink/60">{role}</span>
+                {c ? (
+                  <>
+                    <span className="font-bold">{c.name}</span>
+                    <span className="text-xs text-ink/55">{c.rating} · {ARCHETYPE_LABELS[c.archetype]}</span>
+                  </>
+                ) : (
+                  <span className="text-ink/40">vacant</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
-      )}
+        <p className="mt-1.5 text-[10px] text-ink/45">
+          Recruiters boost interest · Tacticians boost execution · Developers boost camp gains.
+        </p>
+      </div>
+      <div className="border-t border-line/60 px-4 py-2.5">
+        <SectionLabel>INJURY REPORT · {hurt.length} OUT</SectionLabel>
+        {hurt.length === 0 ? (
+          <p className="mt-1 text-sm text-ink/60">Clean bill of health.</p>
+        ) : (
+          <ul className="mt-1 space-y-0.5 text-sm">
+            {hurt.slice(0, 5).map((p) => (
+              <li key={p.id} className="flex items-baseline gap-1.5">
+                <span className="font-display text-xs text-ink/60">{p.pos}</span>
+                <span className="font-bold">{p.name}</span>
+                <StatusText tone="neg" className="text-xs">
+                  {p.inj >= 15 ? "out for season" : `${p.inj} wk${p.inj > 1 ? "s" : ""}`}
+                </StatusText>
+              </li>
+            ))}
+            {hurt.length > 5 && <li className="text-xs text-ink/45">+{hurt.length - 5} more on the Roster tab</li>}
+          </ul>
+        )}
+      </div>
+      <div className="border-t border-line/60 px-4 py-2.5">
+        <SectionLabel>NIL</SectionLabel>
+        <p className="mt-1 text-sm">
+          <span className="font-display">{fmtMoney(team.nilBudget)}</span>
+          <span className="text-xs text-ink/55"> pool · {paid.length} players on deals</span>
+        </p>
+      </div>
     </Card>
   );
 }
@@ -690,6 +805,7 @@ export function SchedulePanel({ state }: { state: DynastyState }) {
   const [boxFor, setBoxFor] = useState<GameResult | null>(null);
   const games = userGames(state);
   const rivals = new Set(state.teams[state.userTid].rivals ?? []);
+  const nextId = state.phase === "regular" ? games.find((g) => !g.result)?.game.id : undefined;
   return (
     <Card
       title={`${state.season} SCHEDULE · ${school(state, state.userTid)}`}
@@ -714,11 +830,18 @@ export function SchedulePanel({ state }: { state: DynastyState }) {
               const them = result ? (home ? result.as : result.hs) : null;
               const rival = rivals.has(opp);
               const win = us != null && them != null && us > them;
+              const isNext = game.id === nextId;
               return (
                 <tr
                   key={game.id}
                   className="border-b border-line/50"
-                  style={rival ? { boxShadow: "inset 3px 0 0 var(--accent)" } : undefined}
+                  style={
+                    isNext
+                      ? { boxShadow: "inset 3px 0 0 var(--gold)", background: "color-mix(in srgb, var(--gold) 8%, transparent)" }
+                      : rival
+                        ? { boxShadow: "inset 3px 0 0 var(--accent)" }
+                        : undefined
+                  }
                 >
                   <td className={`${td} font-display text-ink/60`}>{game.week}</td>
                   <td className={td}>
@@ -730,11 +853,14 @@ export function SchedulePanel({ state }: { state: DynastyState }) {
                       {game.conf && <Pill tone="neu">CONF</Pill>}
                     </span>
                   </td>
-                  <td className={td}>
+                  <td className={`${td} whitespace-nowrap`}>
                     {result ? (
-                      <StatusText tone={win ? "pos" : "neg"} className="font-display">
-                        {win ? "W" : "L"} {us}-{them}{result.ot > 0 ? ` (${result.ot}OT)` : ""}
+                      // Outcome-colored scoreboard numerals (V1 hierarchy).
+                      <StatusText tone={win ? "pos" : "neg"} className="font-display text-base">
+                        {win ? "W" : "L"} {us}–{them}{result.ot > 0 ? ` (${result.ot}OT)` : ""}
                       </StatusText>
+                    ) : isNext ? (
+                      <span className="font-display text-[10px] tracking-[0.2em] text-gold">NEXT UP</span>
                     ) : (
                       <span className="text-ink/35">—</span>
                     )}
@@ -845,7 +971,18 @@ export function StandingsPanel({ state }: { state: DynastyState }) {
               </thead>
               <tbody>
                 {confStandings(state.teams, conf).map((t) => (
-                  <tr key={t.id} className="border-b border-line/50">
+                  <tr
+                    key={t.id}
+                    className="border-b border-line/50"
+                    style={
+                      t.id === state.userTid
+                        ? {
+                            boxShadow: `inset 3px 0 0 ${getTeamColors(t).primary}`,
+                            background: `color-mix(in srgb, ${getTeamColors(t).primary} 7%, transparent)`,
+                          }
+                        : undefined
+                    }
+                  >
                     <td className={td}><TeamRef state={state} tid={t.id} /></td>
                     <td className={td}>{t.rec.cw}-{t.rec.cl}</td>
                     <td className={td}>{t.rec.w}-{t.rec.l}</td>
@@ -878,10 +1015,22 @@ function Top25Card({ state }: { state: DynastyState }) {
   const rest = rows.slice(12);
   const rankRow = ({ e, rank }: { e: DynastyState["poll"][number]; rank: number }) => {
     const t = state.teams[e.tid];
+    const self = e.tid === state.userTid;
     return (
-      <li key={e.tid} className="flex items-baseline gap-2 break-inside-avoid py-0.5">
+      <li
+        key={e.tid}
+        className="flex items-center gap-2 break-inside-avoid rounded px-1 py-0.5"
+        style={
+          self
+            ? {
+                boxShadow: `inset 3px 0 0 ${getTeamColors(t).primary}`,
+                background: `color-mix(in srgb, ${getTeamColors(t).primary} 7%, transparent)`,
+              }
+            : undefined
+        }
+      >
         <span className="w-6 text-right font-display text-ink/45">{rank}</span>
-        <TeamRef state={state} tid={e.tid} />
+        <TeamName team={t} lead={self} />
         <span className="text-xs text-ink/50">{t.rec.w}-{t.rec.l}</span>
         <span className="ml-auto text-xs"><Delta prev={e.prev} rank={rank} /></span>
       </li>
@@ -1102,7 +1251,7 @@ function BracketMatch({
       >
         <span className="flex items-center gap-1 truncate">
           {seeds && <span className="text-ink/40">{seeds[idx]}</span>}
-          <TeamName team={t} lead={isW || isChamp} />
+          <TeamName team={t} lead={isW || isChamp} markSize="xs" />
           {isChamp && <span>🏆</span>}
         </span>
         {sc != null && <span className={`font-display tabular-nums ${isW ? "text-pos" : "text-ink/45"}`}>{sc}</span>}
@@ -1116,7 +1265,7 @@ function BracketMatch({
           <div className="flex items-center justify-between px-2 py-1.5 text-xs">
             <span className="flex items-center gap-1">
               {seeds && <span className="text-ink/40">{seeds[0]}</span>}
-              {tids[0] != null ? <TeamName team={state.teams[tids[0]]} /> : "TBD"}
+              {tids[0] != null ? <TeamName team={state.teams[tids[0]]} markSize="xs" /> : "TBD"}
             </span>
             <span className="text-[9px] uppercase tracking-widest text-ink/40">bye</span>
           </div>

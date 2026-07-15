@@ -39,6 +39,8 @@ export default function RecruitingPanel({
   const [sort, setSort] = useState<SortKey>("stars");
   const [flash, setFlash] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
+  // One open action tray at a time — rows stay quiet until you're working one (V1).
+  const [sel, setSel] = useState<number | null>(null);
 
   const closed = state.phase !== "regular";
   const myCommits = useMemo(
@@ -182,7 +184,6 @@ export default function RecruitingPanel({
               {sortableTh("interest", "LEADER / INTEREST")}
               {sortableTh("mine", "MY PTS", "hidden sm:table-cell")}
               <th className={th} data-tour="recruit-actions">ACTIONS</th>
-              <th className={th}></th>
             </tr>
           </thead>
           <tbody>
@@ -193,6 +194,8 @@ export default function RecruitingPanel({
                 r={r}
                 closed={closed}
                 act={act}
+                sel={sel === r.id}
+                onSel={() => setSel(sel === r.id ? null : r.id)}
                 onRemove={() => setHidden((h) => new Set(h).add(r.id))}
               />
             ))}
@@ -246,12 +249,16 @@ function RecruitRow({
   r,
   closed,
   act,
+  sel,
+  onSel,
   onRemove,
 }: {
   state: DynastyState;
   r: Recruit;
   closed: boolean;
   act: (rid: number, a: RapAction) => void;
+  sel: boolean;
+  onSel: () => void;
   onRemove: () => void;
 }) {
   const lock = dealBreakerLock(state, r, state.userTid);
@@ -268,7 +275,7 @@ function RecruitRow({
     ) : leader ? (
       <div className="min-w-[150px]">
         <div className="flex items-baseline justify-between gap-2">
-          {/* Bold, team-colored leader (V4.3) */}
+          {/* Leader carries its mark; the name stays ink (V1). */}
           <span>
             <TeamName team={state.teams[leader.t]} lead /> <span className="text-ink/50 text-xs">leads</span>
           </span>
@@ -286,8 +293,11 @@ function RecruitRow({
       type="button"
       disabled={disabled}
       title={title}
-      onClick={() => act(r.id, a)}
-      className="rounded border border-line px-1.5 py-0.5 text-[10px] font-bold transition hover:border-ink/50 hover:bg-accent-soft disabled:opacity-25"
+      onClick={(e) => {
+        e.stopPropagation();
+        act(r.id, a);
+      }}
+      className="rounded border border-line px-2 py-1 text-[10px] font-bold transition hover:border-ink/50 hover:bg-accent-soft disabled:opacity-25"
     >
       {label}
     </button>
@@ -298,69 +308,91 @@ function RecruitRow({
   // Progressive scouting: one clearly-separated Scout button.
   const nextScout: RapAction | null = r.scouted === 0 ? "s1" : r.scouted === 1 ? "s2" : null;
   const scoutCost = nextScout ? RAP_ACTIONS[nextScout].cost : 0;
+  const selStyle = { boxShadow: "inset 3px 0 0 var(--accent)", background: "color-mix(in srgb, var(--accent) 5%, transparent)" };
 
   return (
-    <tr className="border-b border-line/50 align-top">
-      <td className={`${td} whitespace-nowrap text-gold`}>{"★".repeat(r.stars)}</td>
-      <td className={`${td} font-bold`}>{r.name}</td>
-      <td className={`${td} font-display`}>{r.g}</td>
-      <td className={`${td} font-mono`}>{shownOvr(r)}</td>
-      <td className={`${td} hidden sm:table-cell`}>
-        {r.scouted >= 2 ? (
-          <span className="flex items-center gap-1">
-            <DevBadge tier={r.devTier} />
-            {r.gb === 1 ? <span title="Gem — plays above the badge">💎</span> : null}
-            {r.gb === -1 ? <span title="Bust risk — plays below the badge">⚠️</span> : null}
+    <>
+      {/* Quiet row — the full action tray opens only on the row you're working. */}
+      <tr
+        className={`cursor-pointer align-middle ${sel ? "" : "border-b border-line/50"} transition hover:bg-accent-soft/30`}
+        style={sel ? selStyle : undefined}
+        onClick={onSel}
+      >
+        <td className={`${td} whitespace-nowrap text-gold`}>{"★".repeat(r.stars)}</td>
+        <td className={`${td} font-bold`}>{r.name}</td>
+        <td className={`${td} font-display`}>{r.g}</td>
+        <td className={`${td} font-mono ${r.scouted > 0 ? "font-bold text-accent" : ""}`}>{shownOvr(r)}</td>
+        <td className={`${td} hidden sm:table-cell`}>
+          {r.scouted >= 2 ? (
+            <span className="flex items-center gap-1">
+              <DevBadge tier={r.devTier} />
+              {r.gb === 1 ? <span title="Gem — plays above the badge">💎</span> : null}
+              {r.gb === -1 ? <span title="Bust risk — plays below the badge">⚠️</span> : null}
+            </span>
+          ) : (
+            <span className="text-ink/30">?</span>
+          )}
+        </td>
+        <td className={td}>{status}</td>
+        <td className={`${td} hidden font-mono sm:table-cell`}>{Math.round(mine) || "—"}</td>
+        <td className={`${td} whitespace-nowrap`}>
+          <span className={`font-display text-[10px] tracking-widest ${sel ? "text-accent" : "text-ink/45"}`}>
+            {done ? "—" : sel ? "▾ CLOSE" : "▸ RECRUIT"}
           </span>
-        ) : (
-          <span className="text-ink/30">?</span>
-        )}
-      </td>
-      <td className={td}>{status}</td>
-      <td className={`${td} hidden font-mono sm:table-cell`}>{Math.round(mine) || "—"}</td>
-      <td className={td}>
-        <div className="flex flex-col gap-1.5">
-          {/* Outreach group — labeled, not icon-only (V4.2) */}
-          <div className="flex flex-wrap gap-1">
-            {btn("dm", `DM ${RAP_ACTIONS.dm.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.dm.cost, "+15 interest")}
-            {btn("coach", `Coach ${RAP_ACTIONS.coach.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.coach.cost, "+40 interest")}
-            {btn("hc", `HC ${RAP_ACTIONS.hc.cost}`, lockActions || r.hcUsed || state.rapLeft < RAP_ACTIONS.hc.cost, "+130, once per recruit")}
-            {btn(
-              "visit",
-              `Visit ${RAP_ACTIONS.visit.cost}`,
-              lockActions || state.rapLeft < RAP_ACTIONS.visit.cost || !hasHomeGame(state) || state.pendingVisits.includes(r.id),
-              "+300, needs a home game; +50 if you win it",
-            )}
-          </div>
-          {/* Scout — visually distinct + set apart (V4.1) */}
-          <div className="border-t border-line/50 pt-1.5">
-            {nextScout ? (
+        </td>
+      </tr>
+      {sel && (
+        <tr className="border-b border-line/50" style={selStyle}>
+          <td colSpan={8} className="px-3 pb-2.5 pt-0.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!done && (
+                <>
+                  {btn("dm", `✉ DM · ${RAP_ACTIONS.dm.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.dm.cost, "+15 interest")}
+                  {btn("coach", `POSITION COACH · ${RAP_ACTIONS.coach.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.coach.cost, "+40 interest")}
+                  {btn("hc", `HC IN-HOME · ${RAP_ACTIONS.hc.cost}`, lockActions || r.hcUsed || state.rapLeft < RAP_ACTIONS.hc.cost, "+130, once per recruit")}
+                  {btn(
+                    "visit",
+                    `OFFICIAL VISIT · ${RAP_ACTIONS.visit.cost}`,
+                    lockActions || state.rapLeft < RAP_ACTIONS.visit.cost || !hasHomeGame(state) || state.pendingVisits.includes(r.id),
+                    "+300, needs a home game; +50 if you win it",
+                  )}
+                  <span className="mx-1 h-4 w-px bg-line" />
+                </>
+              )}
+              {/* Scout — visually distinct + set apart (V4.1) */}
+              {nextScout ? (
+                <button
+                  type="button"
+                  disabled={closed || state.rapLeft < scoutCost}
+                  title={r.scouted === 0 ? "Reveal a tighter OVR band" : "Reveal dev tier + gem/bust"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    act(r.id, nextScout);
+                  }}
+                  className="rounded-md border border-accent/70 bg-accent-soft px-2 py-1 text-[10px] font-bold tracking-wide text-accent transition hover:bg-accent hover:text-white disabled:opacity-30"
+                >
+                  🔍 SCOUT {r.scouted === 0 ? "I" : "II"} · {scoutCost}
+                </button>
+              ) : (
+                <span className="text-[10px] text-ink/40">fully scouted</span>
+              )}
+              {/* Remove-from-board (V4.4) */}
               <button
                 type="button"
-                disabled={closed || state.rapLeft < scoutCost}
-                title={r.scouted === 0 ? "Reveal a tighter OVR band" : "Reveal dev tier + gem/bust"}
-                onClick={() => act(r.id, nextScout)}
-                className="rounded-md border border-accent/70 bg-accent-soft px-2 py-0.5 text-[10px] font-bold tracking-wide text-accent transition hover:bg-accent hover:text-white disabled:opacity-30"
+                title="Remove from board"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove();
+                }}
+                className="ml-auto rounded-full border border-line px-2 py-0.5 text-[10px] text-ink/45 transition hover:border-neg/50 hover:text-neg"
               >
-                🔍 SCOUT {r.scouted === 0 ? "I" : "II"} · {scoutCost}
+                ✕ REMOVE
               </button>
-            ) : (
-              <span className="text-[10px] text-ink/40">fully scouted</span>
-            )}
-          </div>
-        </div>
-      </td>
-      <td className={td}>
-        {/* Remove-from-board (V4.4) */}
-        <button
-          type="button"
-          title="Remove from board"
-          onClick={onRemove}
-          className="rounded-full border border-line px-1.5 text-[11px] leading-none text-ink/45 transition hover:border-neg/50 hover:text-neg"
-        >
-          ✕
-        </button>
-      </td>
-    </tr>
+              <span className="text-[10px] text-ink/50">RAP left {state.rapLeft}</span>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

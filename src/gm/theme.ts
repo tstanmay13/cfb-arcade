@@ -89,6 +89,46 @@ function bestTextOn(bg: Rgb): string {
 const paperRgb = parseHex(PAPER)!;
 
 /**
+ * Two-letter monogram for a TeamMark badge (V1 identity pass). Multi-word
+ * schools take their initials ("Ohio State" → OS); leading acronyms keep
+ * themselves ("NC State" → NC); one-word acronyms take their first pair
+ * ("UCLA" → UC); everything else is a single letter ("Georgia" → G).
+ */
+export function monogram(school: string): string {
+  const words = school.trim().split(/\s+/);
+  if (words.length >= 2) {
+    if (/^[A-Z]{2,3}$/.test(words[0])) return words[0].slice(0, 2);
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  const w = words[0] ?? "?";
+  if (/^[A-Z]{2,}$/.test(w)) return w.slice(0, 2);
+  return w[0].toUpperCase();
+}
+
+export interface MarkColors {
+  bg: string;
+  fg: string;
+  ring: string;
+}
+
+/**
+ * Colors for a TeamMark: primary fill, letters in the secondary when it reads
+ * on the primary (Iowa gold-on-black), otherwise the safe onPrimary text, and
+ * a ring that separates the badge from any surface it sits on.
+ */
+export function getMarkColors(team: GmTeam | null | undefined): MarkColors {
+  const c = getTeamColors(team);
+  const primary = parseHex(c.primary) ?? parseHex(FALLBACK_PRIMARY)!;
+  const secondary = parseHex(c.secondary);
+  const secondaryReads = secondary != null && contrast(secondary, primary) >= 3;
+  return {
+    bg: c.primary,
+    fg: secondaryReads ? c.secondary : c.onPrimary,
+    ring: secondary != null && contrast(secondary, primary) >= 1.6 ? c.secondary : "rgba(255,255,255,0.85)",
+  };
+}
+
+/**
  * Brand palette for a team, contrast-corrected for our cream surfaces.
  * Always returns valid colors — color-less shells get the neutral fallback.
  * Accepts a team (from state.teams[tid]) or null/undefined.

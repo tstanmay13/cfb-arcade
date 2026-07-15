@@ -323,6 +323,46 @@ in-cabinet **How to Play** tab documenting every tab and mechanic. GM global
 stats (ADR-0019 pattern) were deliberately skipped: the arcade_results table
 is guess-shaped; a GM variant needs one owner-side migration + RPC first.
 
+## Visual system implementation notes (V0 shipped 2026-07-13, V1 2026-07-14)
+
+Two presentation-only passes over the cabinet; no engine, data-model, or
+save-format changes. The engine tests + policy benchmark are unaffected by
+either (calibration gate re-run on V1: 122/122).
+
+- **V0 — design system**: surface/line/shadow tokens + a positive/neutral/
+  negative status ramp (`index.css`); `getTeamColors()` contrast-corrects
+  every program's baked brand colors for the cream paper (`theme.ts`);
+  `Card`/`Meter`/`TeamName`/`Pill`/`Delta` primitives (`ui.tsx`); distinct
+  titled cards on every tab; football-field depth chart; connected CFP
+  bracket tree.
+- **V1 — identity / hierarchy / moment** (the "what's missing" pass; the
+  design-direction board lives in the 2026-07-14 session artifact):
+  - *Identity*: `TeamMark` — a generated monogram badge (primary fill,
+    secondary ring, Graduate letters; `monogram()` + `getMarkColors()` in
+    `theme.ts`, contrast-safe, no licensed marks) in five sizes. `TeamName`
+    now renders mark + **ink** name — school colors live in the mark so team
+    lists never read as rainbow hyperlink text. Threaded through the shell
+    header, dashboard, rankings, standings (self-row gets a team-color rail),
+    schedule, CFP bracket, portal, recruiting leaders, and team pick.
+  - *Hierarchy*: the dashboard leads with a full-width **matchup hero** (both
+    marks, records, conf/rivalry stakes, a 7% two-team color wash — the one
+    place the paper takes saturated color); the last result renders at
+    scoreboard scale (Graduate numerals + W/L chip); mandates became a live
+    checklist (wins progress bar, rival-game week/result, selection/signing-
+    day chips off the structured `Mandate.kind`); staff/injuries/NIL
+    compressed into one PROGRAM rail; schedule scores are outcome-colored
+    Graduate numerals with a gold NEXT UP row. The recruiting board's
+    per-row button wall collapsed to quiet rows with one open action tray
+    (▸ RECRUIT), scouted OVRs read accent.
+  - *Moment*: `gm-reveal` (result lands on the dashboard), `gm-slide-in`
+    (newest drive enters the broadcast log), meter fills; all disabled under
+    `prefers-reduced-motion`. Watch mode got a broadcast scoreboard —
+    team-color slabs with inverse marks, center clock block, possession dot,
+    and a drive log railed by the offense's color with TD/FG/turnover chips
+    (pure re-skin of the steppable `GameSim`; same stream).
+  - Labeled mechanical-PR slots kept: hero scouting line, portal interest
+    race, droppers.
+
 ## Open items (deferred, non-blocking)
 
 - Cabinet display name ("CFB-GM" is a working title; arcade names are

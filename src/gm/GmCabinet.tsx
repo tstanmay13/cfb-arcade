@@ -12,6 +12,7 @@ import {
 } from "./db.ts";
 import GmShell from "./GmShell.tsx";
 import { getTeamColors } from "./theme.ts";
+import { TeamMark } from "./ui.tsx";
 
 type Stage =
   | { k: "slots" }
@@ -251,12 +252,15 @@ function TeamPick({
                   key={t.id}
                   type="button"
                   onClick={() => onPick(t.id, difficulty)}
-                  className="rounded-md border-2 border-paper-edge bg-white/50 px-2 py-2 text-left transition hover:border-ink/60 hover:shadow"
+                  className="flex items-center gap-2 rounded-md border-2 border-paper-edge bg-white/50 px-2 py-2 text-left transition hover:border-ink/60 hover:shadow"
                   style={{ borderLeftWidth: 8, borderLeftColor: getTeamColors(t).primary }}
                 >
-                  <span className="block truncate font-display text-sm">{t.school}</span>
-                  <span className="block text-[10px] uppercase tracking-wide opacity-60">
-                    {"★".repeat(t.prestige)} · Elo {t.elo}
+                  <TeamMark team={t} size="m" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-display text-sm">{t.school}</span>
+                    <span className="block text-[10px] uppercase tracking-wide opacity-60">
+                      {"★".repeat(t.prestige)} · Elo {t.elo}
+                    </span>
                   </span>
                 </button>
               ))}

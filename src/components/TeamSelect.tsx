@@ -1,9 +1,12 @@
 // TEAM_SELECT (§2): pick a favorite program (theme injection) + game mode,
-// with the §9 trophy room below the fold.
-import { useState } from "react";
+// with the §9 trophy room below the fold. The picker groups the 68 P4 programs
+// into the four Power-4 conference tabs + an Others bucket, keeps launch/mode
+// controls above the list, and auto-selects the player's last-played team.
+import { useEffect, useMemo, useState } from "react";
 import type { Team } from "../data/types.ts";
+import { CONFERENCE_ORDER, conferenceOf, type ConferenceKey } from "../data/conferences.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
-import { loadTrophyRoom, type RunSummary } from "../state/storage.ts";
+import { loadLastTeam, loadTrophyRoom, saveLastTeam, type RunSummary } from "../state/storage.ts";
 import TeamMark from "./TeamMark.tsx";
 
 const OUTCOME_LABELS: Record<string, string> = {
@@ -15,13 +18,17 @@ const OUTCOME_LABELS: Record<string, string> = {
 };
 
 function RunRow({ run }: { run: RunSummary }) {
-  const borderClass =
-    run.outcome === "natty" ? "trophy-gold" :
+  // Tiered honors (§9): dynasty is rarest — gold fill + a notable border; a
+  // national title is a gold fill; a semifinal is silver; a quarterfinal bronze.
+  const filled = run.dynasty || run.outcome === "natty";
+  const tierClass =
+    run.dynasty ? "trophy-dynasty" :
+    run.outcome === "natty" ? "trophy-gold-fill" :
     run.outcome === "semis" ? "trophy-silver" :
     run.outcome === "major" ? "trophy-bronze" : "";
 
   return (
-    <div className={`flex items-center gap-3 rounded-lg bg-white/60 px-3 py-2 ${borderClass}`}>
+    <div className={`flex items-center gap-3 rounded-lg px-3 py-2 ${filled ? "" : "bg-white/60"} ${tierClass}`}>
       <span className="font-display text-lg font-bold">{run.record}</span>
       <div className="flex flex-wrap gap-1.5">
         {run.outcome && OUTCOME_LABELS[run.outcome] && (
@@ -36,7 +43,7 @@ function RunRow({ run }: { run: RunSummary }) {
           </span>
         )}
         {run.dynasty && (
-          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white">DYNASTY</span>
+          <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">★ DYNASTY</span>
         )}
       </div>
       <span className="ml-auto text-xs opacity-50">{run.favorite_team} · {run.mode}</span>
@@ -78,16 +85,52 @@ export default function TeamSelect({
 }) {
   const { data } = useGame();
   const { startRun } = useGameActions();
-  const [team, setTeam] = useState<Team | null>(null);
-  const [mode, setMode] = useState<Mode>("Classic");
+
+  // Restore the last-played team + mode so the player can fire off another run
+  // without re-picking. Read once on mount.
+  const [remembered] = useState(loadLastTeam);
+  const rememberedTeam = useMemo(
+    () => (remembered ? data.teams.find((t) => t.school_id === remembered.schoolId) ?? null : null),
+    [remembered, data.teams],
+  );
+
+  const [team, setTeam] = useState<Team | null>(rememberedTeam);
+  const [mode, setMode] = useState<Mode>(remembered?.mode ?? "Classic");
+  // True while the current selection is the auto-restored team (untouched).
+  const [autoSelected, setAutoSelected] = useState(rememberedTeam != null);
+  const [activeConf, setActiveConf] = useState<ConferenceKey>(
+    rememberedTeam ? conferenceOf(rememberedTeam.school_id) : "SEC",
+  );
+
+  // Apply the restored team's theme on first paint.
+  useEffect(() => {
+    if (rememberedTeam) applyTeamTheme(rememberedTeam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const teamsByConf = useMemo(() => {
+    const groups: Record<ConferenceKey, Team[]> = {
+      SEC: [], "Big Ten": [], ACC: [], "Big 12": [], Others: [],
+    };
+    for (const t of data.teams) groups[conferenceOf(t.school_id)].push(t);
+    for (const key of CONFERENCE_ORDER) groups[key].sort((a, b) => a.name.localeCompare(b.name));
+    return groups;
+  }, [data.teams]);
 
   const choose = (t: Team) => {
     setTeam(t);
+    setAutoSelected(false);
     applyTeamTheme(t); // live preview
   };
 
+  const launch = () => {
+    if (!team) return;
+    saveLastTeam(team.school_id, mode);
+    startRun(team, mode);
+  };
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-8 p-6">
+    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-8 p-6 py-10">
       <header className="text-center">
         <p className="font-display text-sm tracking-[0.35em] text-team">SPIN · DRAFT · RUN THE TABLE</p>
         <h1 className="mt-2 font-display text-5xl leading-tight sm:text-6xl">THE 16-0 DRAFT</h1>
@@ -118,10 +161,79 @@ export default function TeamSelect({
         </div>
       </header>
 
+      {/* Launch bar — the main mode's controls. Set off from the arcade/GM
+          links above by a divider rule (no heavy card), mode + START kept above
+          the team list so a returning player can go straight into another run. */}
+      <section aria-label="Launch" className="w-full border-t-2 border-paper-edge pt-6">
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          {team && (
+            <div className="flex min-w-0 items-center gap-3 sm:mr-auto">
+              <TeamMark school={team.name} primary={team.mainHex} secondary={team.accentHex} size="l" />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate font-display text-lg">{team.name}</span>
+                  {autoSelected && (
+                    <span className="rounded-full bg-team px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-team-accent">
+                      ↩ Last played
+                    </span>
+                  )}
+                </div>
+                {autoSelected && (
+                  <span className="text-xs opacity-60">Auto-selected — pick another below to change</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            {(["Classic", "Scout"] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                aria-pressed={mode === m}
+                title={m === "Classic" ? "Stat lines visible on every pick." : "Stats hidden — draft on name recognition alone."}
+                className={`rounded-full border-2 px-4 py-2 font-display text-xs tracking-widest transition
+                  ${mode === m ? "border-ink bg-ink text-paper" : "border-paper-edge hover:border-ink/40"}`}
+              >
+                {m.toUpperCase()}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            disabled={!team}
+            onClick={launch}
+            className="rounded-lg bg-team px-8 py-3 font-display text-lg tracking-[0.2em] text-team-accent shadow-lg transition enabled:hover:scale-105 disabled:opacity-40"
+          >
+            START
+          </button>
+        </div>
+      </section>
+
+      {/* Conference tabs — four Power-4 leagues + Others (independents). */}
       <section aria-label="Pick your program" className="w-full">
         <h2 className="mb-3 text-center font-display text-lg tracking-widest">PICK YOUR PROGRAM</h2>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {data.teams.map((t) => (
+        <div role="tablist" aria-label="Conference" className="mb-3 flex flex-wrap justify-center gap-2">
+          {CONFERENCE_ORDER.map((conf) => (
+            <button
+              key={conf}
+              type="button"
+              role="tab"
+              aria-selected={activeConf === conf}
+              onClick={() => setActiveConf(conf)}
+              className={`rounded-full border-2 px-4 py-1.5 font-display text-xs tracking-widest transition
+                ${activeConf === conf ? "border-ink bg-ink text-paper" : "border-paper-edge bg-white/50 hover:border-ink/40"}`}
+            >
+              {conf.toUpperCase()}
+              <span className="ml-1.5 opacity-60">{teamsByConf[conf].length}</span>
+            </button>
+          ))}
+        </div>
+
+        <div role="tabpanel" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {teamsByConf[activeConf].map((t) => (
             <button
               key={t.school_id}
               type="button"
@@ -140,35 +252,6 @@ export default function TeamSelect({
           ))}
         </div>
       </section>
-
-      <section aria-label="Game mode" className="flex items-center gap-3">
-        {(["Classic", "Scout"] as Mode[]).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={`rounded-full border-2 px-5 py-2 font-display text-sm tracking-widest transition
-              ${mode === m ? "border-ink bg-ink text-paper" : "border-paper-edge hover:border-ink/40"}`}
-          >
-            {m.toUpperCase()}
-          </button>
-        ))}
-        <p className="max-w-[16rem] text-xs opacity-70">
-          {mode === "Classic"
-            ? "Stat lines visible on every pick."
-            : "Stats hidden — draft on name recognition alone."}
-        </p>
-      </section>
-
-      <button
-        type="button"
-        disabled={!team}
-        onClick={() => team && startRun(team, mode)}
-        className="rounded-lg bg-team px-10 py-4 font-display text-xl tracking-[0.2em] text-team-accent shadow-lg transition enabled:hover:scale-105 disabled:opacity-40"
-      >
-        START THE DRAFT
-      </button>
 
       <TrophyRoom />
     </main>

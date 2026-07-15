@@ -41,6 +41,39 @@ export function loadTrophyRoom(): TrophyRoom {
   return { recent_runs: [], top_builds: [] };
 }
 
+// Last-played team (§2 QoL): remember the program + mode the player last ran so
+// the picker can auto-select it, letting them fire off another run without
+// re-choosing every time. Same fail-silent localStorage discipline.
+const LAST_TEAM_KEY = "the-16-0-draft:last_team";
+
+export interface LastTeam {
+  schoolId: string;
+  mode: Mode;
+}
+
+export function loadLastTeam(): LastTeam | null {
+  try {
+    const raw = localStorage.getItem(LAST_TEAM_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as LastTeam;
+      if (typeof parsed.schoolId === "string" && parsed.schoolId) {
+        return { schoolId: parsed.schoolId, mode: parsed.mode === "Scout" ? "Scout" : "Classic" };
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+export function saveLastTeam(schoolId: string, mode: Mode): void {
+  try {
+    localStorage.setItem(LAST_TEAM_KEY, JSON.stringify({ schoolId, mode }));
+  } catch {
+    // storage unavailable — non-fatal
+  }
+}
+
 export function recordRun(
   resolved: Resolved,
   favoriteTeam: string,

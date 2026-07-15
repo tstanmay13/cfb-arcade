@@ -158,6 +158,7 @@ export default function DraftBoard() {
   const { state, data, dispatch } = useGame();
   const {
     doSpin,
+    doKeepTeam,
     doTeamRespin,
     doEraRespin,
     doFallbackSpin,
@@ -173,6 +174,17 @@ export default function DraftBoard() {
   const filled = Object.values(state.slots).filter(Boolean).length;
   const needSpin = !coachPhase && state.currentSpin === null;
   const outOfRespins = state.respins.team <= 0 && state.respins.era <= 0;
+
+  // Keep-team token (§5.2): lock your next spin to this pick's {team, era} cell.
+  // Needs at least two open player slots left (this pick + the locked next one).
+  const openPlayerSlots = PLAYER_SLOTS.filter((s) => !state.slots[s]).length;
+  const keepTeamName = cellTeam?.name;
+  const stickyTeam = state.stickyCell
+    ? data.teams.find((t) => t.school_id === state.stickyCell!.teamId)
+    : null;
+  const canKeepTeam =
+    !coachPhase && !needSpin && !revealing && openPlayerSlots > 1 &&
+    (state.keepArmed || state.respins.keepTeam > 0);
 
   // Split the spin's roster into who you can still draft vs. who's blocked
   // (position already filled, or a duplicate of someone rostered), then sort
@@ -211,6 +223,17 @@ export default function DraftBoard() {
         </div>
       </header>
 
+      {/* Keep-team armed banner — your next spin will stay on this program. */}
+      {state.keepArmed && !revealing && (
+        <div className="border-b border-paper-edge bg-team/10 px-4 py-1.5 text-center text-[11px] tracking-wide">
+          <span className="font-display tracking-wider">KEEP TEAM ON</span> — draft anyone here, then your
+          next spin stays on <strong>{cell?.era} {keepTeamName}</strong>.{" "}
+          <button type="button" className="underline opacity-70" onClick={doKeepTeam}>
+            cancel
+          </button>
+        </div>
+      )}
+
       {/* Pool */}
       <div className="min-h-0 flex-1 overflow-y-auto">
         {revealing ? (
@@ -220,7 +243,11 @@ export default function DraftBoard() {
         ) : needSpin ? (
           <div className="flex flex-col gap-3 p-3">
             <p className="pt-2 text-center font-display tracking-widest opacity-70">
-              {filled === 0 ? "SPIN TO OPEN THE DRAFT" : "PICK LOCKED IN — SPIN AGAIN"}
+              {filled === 0
+                ? "SPIN TO OPEN THE DRAFT"
+                : stickyTeam && state.stickyCell
+                  ? `STAYING WITH ${state.stickyCell.era} ${stickyTeam.name.toUpperCase()} — SPIN AGAIN`
+                  : "PICK LOCKED IN — SPIN AGAIN"}
             </p>
             {/* Between spins the pane recaps the board so far instead of
                 sitting empty — identity marks make it scannable. */}
@@ -377,6 +404,17 @@ export default function DraftBoard() {
           className="flex-1 rounded-lg bg-team px-4 py-3 font-display text-lg tracking-[0.25em] text-team-accent shadow transition enabled:hover:brightness-110 disabled:opacity-35"
         >
           SPIN
+        </button>
+        <button
+          type="button"
+          disabled={!canKeepTeam}
+          aria-pressed={state.keepArmed}
+          onClick={doKeepTeam}
+          className={`rounded-lg border-2 px-3 py-3 font-display text-xs tracking-wider transition disabled:opacity-35
+            ${state.keepArmed ? "border-team bg-team text-team-accent shadow" : "border-ink/70 enabled:hover:bg-ink/5"}`}
+          title="Draft here, then lock your next spin to the same team + era (×2 per run)"
+        >
+          KEEP ⇢ ×{state.respins.keepTeam}
         </button>
         <button
           type="button"

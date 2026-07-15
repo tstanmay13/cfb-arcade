@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from "react";
-import type { Coach, GameData, Player, SlotId, Team } from "../data/types.ts";
+import type { Coach, Decade, GameData, Player, SlotId, Team } from "../data/types.ts";
 import { mulberry32, newSeed, type Rng } from "../engine/rng.ts";
 import { resolveSeason, type Resolved } from "../engine/resolve.ts";
 import { recordRun } from "./storage.ts";
@@ -45,11 +45,17 @@ export interface RunState {
   mode: Mode;
   slots: PlayerSlots;
   hc: Coach | null;
-  respins: { team: number; era: number };
+  respins: { team: number; era: number; keepTeam: number };
   currentSpin: SpinResult | null;
   currentCoachSpin: CoachSpinResult | null;
   /** Player tapped on the board, awaiting a slot choice (null = none). */
   pendingPick: Player | null;
+  /** "Keep team" armed on the current spin: the pick you place will lock your
+      next spin to that same team + era cell (§5.2 keep-team token). */
+  keepArmed: boolean;
+  /** Set at placement while keepArmed — the next spin is forced onto this exact
+      {team, era} cell so you draft another player from the same roster. */
+  stickyCell: { teamId: string; era: Decade } | null;
   seed: number;
   /** Bumps every spin so the ticker animation can re-key. */
   spinCounter: number;
@@ -63,10 +69,12 @@ export const initialRunState: RunState = {
   mode: "Classic",
   slots: emptyPlayerSlots(),
   hc: null,
-  respins: { team: 2, era: 2 },
+  respins: { team: 2, era: 2, keepTeam: 2 },
   currentSpin: null,
   currentCoachSpin: null,
   pendingPick: null,
+  keepArmed: false,
+  stickyCell: null,
   seed: 0,
   spinCounter: 0,
   resolved: null,
@@ -75,6 +83,8 @@ export const initialRunState: RunState = {
 export type Action =
   | { type: "START_RUN"; team: Team; mode: Mode; seed: number }
   | { type: "SPIN_RESULT"; spin: SpinResult; cost?: "team" | "era" | null }
+  | { type: "ARM_KEEP_TEAM" }
+  | { type: "DISARM_KEEP_TEAM" }
   | { type: "PICK"; player: Player }
   | { type: "CANCEL_PICK" }
   | { type: "PLACE"; player: Player; slot: Exclude<SlotId, "HC"> }
@@ -101,7 +111,29 @@ export function reducer(state: RunState, action: Action): RunState {
         respins,
         currentSpin: action.spin,
         pendingPick: null,
+        // A fresh spin consumes any pending same-cell lock. keepArmed survives a
+        // re-spin of the CURRENT spin (you're still deciding this pick), but a
+        // real next spin is what stickyCell points at, so it's cleared here.
+        stickyCell: null,
         spinCounter: state.spinCounter + 1,
+      };
+    }
+    case "ARM_KEEP_TEAM": {
+      // Spend a keep-team token to lock the NEXT spin to this pick's team.
+      if (state.respins.keepTeam <= 0 || state.keepArmed) return state;
+      return {
+        ...state,
+        keepArmed: true,
+        respins: { ...state.respins, keepTeam: state.respins.keepTeam - 1 },
+      };
+    }
+    case "DISARM_KEEP_TEAM": {
+      // Toggle off before placing → refund the token.
+      if (!state.keepArmed) return state;
+      return {
+        ...state,
+        keepArmed: false,
+        respins: { ...state.respins, keepTeam: state.respins.keepTeam + 1 },
       };
     }
     case "PICK":
@@ -109,7 +141,9 @@ export function reducer(state: RunState, action: Action): RunState {
     case "CANCEL_PICK":
       return { ...state, pendingPick: null };
     case "PLACE": {
-      // One pick per spin (§0 decision 1): placement consumes the pool.
+      // One pick per spin (§0 decision 1): placement consumes the pool. If a
+      // keep-team token was armed, lock the next spin to this pick's exact
+      // {team, era} cell so you draft another player off the same roster.
       const slots = { ...state.slots, [action.slot]: action.player };
       const done = allPlayerSlotsFilled(slots);
       return {
@@ -117,6 +151,11 @@ export function reducer(state: RunState, action: Action): RunState {
         slots,
         pendingPick: null,
         currentSpin: null,
+        keepArmed: false,
+        stickyCell:
+          state.keepArmed && !done
+            ? { teamId: action.player.school_id, era: action.player.decade }
+            : null,
         phase: done ? "COACH_SPIN" : state.phase,
       };
     }
@@ -201,8 +240,24 @@ export function useGameActions() {
   const doSpin = () => {
     // Fresh spin between picks is free only via the §5.6 dead-pool path; the
     // primary flow is: spin once, pick, spin again. A new SPIN after placing
-    // costs nothing (it's the next of the 8 draft spins).
+    // costs nothing (it's the next of the 8 draft spins). If a keep-team token
+    // locked the next spin to a {team, era} cell, honor it (§5.2).
+    if (state.stickyCell) {
+      dispatch({
+        type: "SPIN_RESULT",
+        spin: spin(data, runRng, { teamId: state.stickyCell.teamId, decade: state.stickyCell.era }),
+      });
+      return;
+    }
     dispatch({ type: "SPIN_RESULT", spin: spin(data, runRng, { exclude: state.currentSpin }) });
+  };
+
+  /** Keep-team token (§5.2): arm/disarm locking your NEXT spin to the same
+      {team, era} cell as the pick you're about to place. Two uses per run;
+      toggling off refunds. */
+  const doKeepTeam = () => {
+    if (state.phase === "COACH_SPIN" || !state.currentSpin) return;
+    dispatch({ type: state.keepArmed ? "DISARM_KEEP_TEAM" : "ARM_KEEP_TEAM" });
   };
 
   const doTeamRespin = () => {
@@ -265,6 +320,7 @@ export function useGameActions() {
   return {
     startRun,
     doSpin,
+    doKeepTeam,
     doTeamRespin,
     doEraRespin,
     doFallbackSpin,

@@ -121,6 +121,17 @@ describe("re-spins (§5.2)", () => {
     const current = { teamId: "modern", era: "2020s" as const, pool: modern20s };
     expect(eraRespin(data, mulberry32(5), current)).toBeNull();
   });
+
+  it("keep-team spin (team + era lock) always lands on the exact cell", () => {
+    // Powers the keep-team token: the next spin is forced onto one {team, era}
+    // cell so you draft another player off the same roster.
+    const rng = mulberry32(13);
+    for (let i = 0; i < 80; i++) {
+      const s = spin(data, rng, { teamId: "dynasty", decade: "2020s" });
+      expect(s.teamId).toBe("dynasty");
+      expect(s.era).toBe("2020s");
+    }
+  });
 });
 
 describe("eligibility + duplicates (§5.4)", () => {

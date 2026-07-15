@@ -31,6 +31,7 @@ understand the *why* without needing platform access.
 | [0023](0023-cfb-gm-dynasty-cabinet.md) | CFB-GM dynasty sim incubates as cabinet #3 | Accepted |
 | [0024](0024-16-0-team-expansion.md) | The 16-0 Draft expands to 68 P4 teams with talent-weighted spins | Accepted |
 | [0025](0025-bake-reads-warehouse.md) | The data.json bake reads the warehouse directly; Supabase heads toward stats-only | Accepted |
+| [0026](0026-outcome-odds-ramp.md) | 16-0 odds ramp + varied records: no mid-range cliffs, loss counts drawn per outcome (ten live records) — 16-0 stays rare (skilled ~8%, oracle ~12%, random ~5%) | Accepted |
 
 ## Historical arcade decisions (in the platform repo, owner-side)
 

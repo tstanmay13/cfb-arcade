@@ -32,11 +32,18 @@ describe("gameGrid (§10 text share)", () => {
   });
 
   it("marks every loss with 🟥 and postseason wins with 🟨", () => {
-    // semis: 14-1, the single loss is the semifinal (a postseason game).
-    const grid = gameGrid(generateSchedule("semis", mulberry32(1), OPPONENTS));
-    expect([...grid].filter((c) => c === "🟥").length).toBe(1);
-    expect(grid.startsWith("🟩".repeat(12))).toBe(true); // 12 REG wins
-    expect(grid).toContain("🟨"); // CCG/QF wins before the exit
+    // semis always exits at the SF; the record varies (ADR-0026), so pin the
+    // invariants: one red per loss, the exit is the last square, regular
+    // season squares are never gold.
+    for (let seed = 0; seed < 8; seed++) {
+      const sched = generateSchedule("semis", mulberry32(seed), OPPONENTS);
+      const grid = [...gameGrid(sched)];
+      const losses = sched.filter((g) => g.result === "LOSS").length;
+      expect(grid.filter((c) => c === "🟥").length).toBe(losses);
+      expect(grid.at(-1)).toBe("🟥"); // the SF exit
+      expect(grid).toContain("🟨"); // CCG/QF wins before the exit
+      expect(grid.slice(0, 12)).not.toContain("🟨");
+    }
   });
 
   it("a losing season is regular-season squares only (no 🟨)", () => {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Team } from "../data/types.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
 import { loadTrophyRoom, type RunSummary } from "../state/storage.ts";
+import TeamMark from "./TeamMark.tsx";
 
 const OUTCOME_LABELS: Record<string, string> = {
   natty: "National Champions",
@@ -126,12 +127,15 @@ export default function TeamSelect({
               type="button"
               onClick={() => choose(t)}
               aria-pressed={team?.school_id === t.school_id}
-              className={`rounded-md border-2 bg-white/50 px-2 py-3 text-center transition
+              className={`flex items-center gap-2 rounded-md border-2 bg-white/50 px-2 py-2 text-left transition
                 ${team?.school_id === t.school_id ? "border-ink shadow-md" : "border-paper-edge hover:border-ink/40"}`}
               style={{ borderLeftWidth: 8, borderLeftColor: t.mainHex }}
             >
-              <span className="font-display text-sm">{t.name}</span>
-              <span className="block text-[10px] uppercase tracking-wide opacity-60">{t.mascot}</span>
+              <TeamMark school={t.name} primary={t.mainHex} secondary={t.accentHex} size="m" />
+              <span className="min-w-0">
+                <span className="block truncate font-display text-sm">{t.name}</span>
+                <span className="block truncate text-[10px] uppercase tracking-wide opacity-60">{t.mascot}</span>
+              </span>
             </button>
           ))}
         </div>

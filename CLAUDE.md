@@ -71,9 +71,11 @@ anon key to this repo.
   never import it), `src/gm/GmCabinet.tsx`/`GmShell.tsx`/`panels.tsx`/
   `recruitingPanel.tsx`/`WatchGame.tsx` (screens; lazy chunk so the dailies
   never pay for it), `src/gm/ui.tsx` + `theme.ts` (the GM design system:
-  Card/Meter/Pill/Delta primitives, `getTeamColors()` contrast correction,
-  and the `TeamMark` monogram badge — school colors live in the mark and
-  `TeamName` text stays ink; screens never hardcode a brand hex),
+  Card/Meter/Pill/Delta primitives + `getTeamColors()` contrast correction;
+  the `TeamMark` monogram badge itself is ARCADE-SHARED at
+  `src/components/TeamMark.tsx` and used by all three cabinets — school
+  colors live in the mark, team-name text stays ink, and screens never
+  hardcode a brand hex),
   `scripts/build-gm.ts` → `public/gm-data.json` (real
   2026 P4 universe: projected rosters + Elo from real 2025 results + real
   rivalries from 2010-25 matchup history; warehouse-direct, ADR-0025). All game

@@ -8,6 +8,7 @@ import type { Team } from "../data/types.ts";
 import { loadSeasons } from "../data/loadSeasons.ts";
 import { recordResult } from "../data/stats.ts";
 import GuessStatsModal from "./GuessStatsModal.tsx";
+import TeamMark from "./TeamMark.tsx";
 import {
   buildGuessShareText,
   CLOSE_YEARS,
@@ -291,7 +292,7 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
       {/* Guesses */}
       <section aria-label="Your guesses" className="mt-4 w-full space-y-1.5">
         {guesses.map((g, i) => (
-          <GuessRowView key={i} row={g} />
+          <GuessRowView key={i} row={g} team={teamById.get(g.school_id) ?? null} />
         ))}
         {!over &&
           Array.from({ length: MAX_GUESSES - guesses.length }).map((_, i) => (
@@ -310,12 +311,12 @@ export default function GuessSeason({ teams, onBack }: { teams: Team[]; onBack: 
                 type="button"
                 onClick={() => setSelTeam(t.school_id)}
                 aria-pressed={selTeam === t.school_id}
-                className={`rounded-md border-2 bg-white/60 px-1.5 py-2 text-center font-display text-xs transition ${
+                className={`flex items-center gap-1.5 rounded-md border-2 bg-white/60 px-1.5 py-1.5 text-left font-display text-xs transition ${
                   selTeam === t.school_id ? "border-ink shadow" : "border-paper-edge hover:border-ink/40"
                 }`}
-                style={{ borderLeftWidth: 6, borderLeftColor: t.mainHex }}
               >
-                {t.name}
+                <TeamMark school={t.name} primary={t.mainHex} secondary={t.accentHex} size="s" />
+                <span className="min-w-0 truncate">{t.name}</span>
               </button>
             ))}
           </div>
@@ -446,7 +447,7 @@ function Shell({
   );
 }
 
-function GuessRowView({ row }: { row: GuessRow }) {
+function GuessRowView({ row, team }: { row: GuessRow; team: Team | null }) {
   const { teamHit, yearDiff } = row.fb;
   const yearClose = yearDiff !== 0 && Math.abs(yearDiff) <= CLOSE_YEARS;
   const arrow = yearDiff === 0 ? "" : yearDiff > 0 ? "▲" : "▼";
@@ -461,6 +462,7 @@ function GuessRowView({ row }: { row: GuessRow }) {
       className="chip-in flex items-center gap-2.5 rounded-md border border-paper-edge bg-white/50 px-3 py-2"
     >
       <span aria-hidden className={`h-4 w-4 shrink-0 rounded-sm ${teamHit ? "bg-emerald-600" : "bg-ink/20"}`} />
+      <TeamMark school={row.teamName} primary={team?.mainHex ?? null} secondary={team?.accentHex ?? null} size="s" />
       <span className="flex-1 truncate text-sm">{row.teamName}</span>
       <span className="text-sm tabular-nums">{row.season}</span>
       <span
@@ -469,7 +471,7 @@ function GuessRowView({ row }: { row: GuessRow }) {
           yearDiff === 0 ? "bg-emerald-600" : yearClose ? "bg-amber-400" : "bg-ink/20"
         }`}
       />
-      <span aria-hidden className="w-4 text-center text-xs opacity-70">
+      <span aria-hidden className="w-4 text-center text-sm font-bold text-ink/80">
         {arrow}
       </span>
     </div>

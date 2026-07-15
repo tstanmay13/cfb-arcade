@@ -4,9 +4,10 @@
 // result is already in state before it plays.
 import { useEffect, useRef, useState } from "react";
 import type { Coach, GamePosition, Player } from "../data/types.ts";
-import { STAT_LABELS, COACH_STAT_LABELS } from "../data/types.ts";
+import { STAT_LABELS, COACH_STAT_LABELS, PLAYER_SLOTS } from "../data/types.ts";
 import { eligibleOpenSlots } from "../engine/spin.ts";
 import { useGame, useGameActions } from "../state/store.tsx";
+import TeamMark from "./TeamMark.tsx";
 
 const POS_ORDER: GamePosition[] = ["QB", "RB", "WR", "DL", "LB", "CB", "S"];
 
@@ -217,10 +218,46 @@ export default function DraftBoard() {
             <Ticker />
           </div>
         ) : needSpin ? (
-          <div className="flex h-40 flex-col items-center justify-center gap-2 p-3 text-center">
-            <p className="font-display tracking-widest opacity-70">
+          <div className="flex flex-col gap-3 p-3">
+            <p className="pt-2 text-center font-display tracking-widest opacity-70">
               {filled === 0 ? "SPIN TO OPEN THE DRAFT" : "PICK LOCKED IN — SPIN AGAIN"}
             </p>
+            {/* Between spins the pane recaps the board so far instead of
+                sitting empty — identity marks make it scannable. */}
+            {filled > 0 && (
+              <div className="rounded-lg border border-paper-edge bg-white/50 p-3">
+                <div className="mb-2 flex items-baseline justify-between">
+                  <span className="font-display text-[10px] tracking-[0.25em] opacity-60">
+                    YOUR BOARD SO FAR
+                  </span>
+                  <span className="font-display text-xs opacity-70">{filled} / 8 drafted</span>
+                </div>
+                <ul className="space-y-1.5">
+                  {PLAYER_SLOTS.map((slot) => {
+                    const p = state.slots[slot];
+                    if (!p) return null;
+                    const team = data.teams.find((t) => t.school_id === p.school_id);
+                    return (
+                      <li key={slot} className="flex items-center gap-2 text-sm">
+                        <span className="w-9 font-display text-[10px] tracking-widest opacity-55">
+                          {slot}
+                        </span>
+                        <TeamMark
+                          school={p.school}
+                          primary={team?.mainHex ?? null}
+                          secondary={team?.accentHex ?? null}
+                          size="s"
+                        />
+                        <span className="truncate font-bold">{p.name}</span>
+                        <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide opacity-50">
+                          {p.decade}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         ) : coachPhase && state.currentCoachSpin ? (
           <ul className="space-y-2 p-3">

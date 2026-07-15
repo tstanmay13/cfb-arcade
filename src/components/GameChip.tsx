@@ -1,5 +1,23 @@
 // Shared game display components for SeasonScreen and ResultsScreen
 import type { ScheduledGame } from "../engine/sim.ts";
+import { useGame } from "../state/store.tsx";
+import TeamMark from "./TeamMark.tsx";
+
+/** Opponent identity mark for a chip — inverse (light) so it reads on the
+    solid win/loss fill; unknown opponents (buy games) get the neutral badge. */
+function OpponentMark({ opponent }: { opponent: string }) {
+  const { data } = useGame();
+  const team = data.teams.find((t) => t.name === opponent) ?? null;
+  return (
+    <TeamMark
+      school={opponent}
+      primary={team?.mainHex ?? null}
+      secondary={team?.accentHex ?? null}
+      size="xs"
+      inverse
+    />
+  );
+}
 
 const PHASE_LABELS: Record<string, string> = {
   CCG: "Conf Champ",
@@ -27,8 +45,9 @@ export function RegularGameChip({
       <span className="text-xs font-bold">
         {isWin ? "W" : "L"} {game.score}
       </span>
-      <span className="max-w-[5rem] truncate text-[10px] opacity-80">
-        vs {game.opponent}
+      <span className="flex max-w-[6rem] items-center gap-1 text-[10px] opacity-90">
+        <OpponentMark opponent={game.opponent} />
+        <span className="truncate">{game.opponent}</span>
       </span>
     </li>
   );
@@ -57,8 +76,8 @@ export function PlayoffGameChip({
       <span className="font-display text-lg font-bold">
         {isWin ? "WIN" : "LOSS"}
       </span>
-      <span className="text-sm">
-        {game.score} vs {game.opponent}
+      <span className="flex items-center gap-1.5 text-sm">
+        {game.score} vs <OpponentMark opponent={game.opponent} /> {game.opponent}
       </span>
     </div>
   );

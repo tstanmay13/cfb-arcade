@@ -1,10 +1,11 @@
-// CFB-GM shared presentational primitives (V0). Every dynasty module is built
-// from these so the whole cabinet reads as one system: a titled Card surface,
-// section labels, a status ramp, meters, and team-colored school names.
+// CFB-GM shared presentational primitives (V0 + V1 identity pass). Every
+// dynasty module is built from these so the whole cabinet reads as one system:
+// a titled Card surface, section labels, a status ramp, meters, and the
+// TeamMark identity badge that gives every program a face.
 // No engine logic here — pure presentation over data the panels already hold.
 import type { ReactNode } from "react";
 import type { GmTeam } from "./engine/types.ts";
-import { getTeamColors } from "./theme.ts";
+import { getMarkColors, getTeamColors, monogram } from "./theme.ts";
 
 /** Raw card class for the rare case a bespoke layout can't use <Card>. */
 export const cardCls =
@@ -123,27 +124,86 @@ export function Meter({
   );
 }
 
+export type MarkSize = "xs" | "s" | "m" | "l" | "xl";
+
+const MARK_SIZE: Record<MarkSize, { box: string; font: string; ring: number }> = {
+  xs: { box: "h-4 w-4", font: "text-[7px]", ring: 1 },
+  s: { box: "h-5 w-5", font: "text-[8px]", ring: 1.5 },
+  m: { box: "h-8 w-8", font: "text-[11px]", ring: 2 },
+  l: { box: "h-10 w-10", font: "text-sm", ring: 2.5 },
+  xl: { box: "h-16 w-16", font: "text-2xl", ring: 3.5 },
+};
+
 /**
- * A school name rendered in its own program color. Bold when it's the leader /
- * user's team — this is the reusable "leader" emphasis (V0.4). `rank` prefixes
- * an AP number when present.
+ * TeamMark (V1 identity pass): the generated monogram badge that gives every
+ * program a visual body — primary fill, secondary ring, Graduate letters.
+ * `inverse` flips to a light badge for placement ON a primary-colored slab
+ * (the broadcast scoreboard). Decorative next to a written name.
+ */
+export function TeamMark({
+  team,
+  size = "m",
+  inverse = false,
+  className = "",
+}: {
+  team: GmTeam | null | undefined;
+  size?: MarkSize;
+  inverse?: boolean;
+  className?: string;
+}) {
+  const s = MARK_SIZE[size];
+  const mk = getMarkColors(team);
+  const c = getTeamColors(team);
+  const bg = inverse ? "#fffdf6" : mk.bg;
+  const fg = inverse ? c.primary : mk.fg;
+  const ring = inverse ? c.primary : mk.ring;
+  return (
+    <span
+      aria-hidden
+      title={team?.school}
+      className={`inline-flex shrink-0 select-none items-center justify-center rounded-full font-display leading-none ${s.box} ${s.font} ${className}`}
+      style={{
+        background: bg,
+        color: fg,
+        boxShadow: `inset 0 0 0 ${s.ring}px ${ring}, 0 1px 2px rgba(27, 42, 65, 0.25)`,
+      }}
+    >
+      {monogram(team?.school ?? "?")}
+    </span>
+  );
+}
+
+/**
+ * A school name with its TeamMark. Color lives in the mark; the name stays
+ * ink so lists of teams never read as rainbow text (V1). Bold when it's the
+ * leader / user's team. `rank` prefixes an AP number; `mark={false}` drops
+ * the badge for tight prose.
  */
 export function TeamName({
   team,
   rank,
   lead = false,
+  mark = true,
+  markSize = "s",
   className = "",
 }: {
   team: GmTeam;
   rank?: number;
   lead?: boolean;
+  mark?: boolean;
+  markSize?: MarkSize;
   className?: string;
 }) {
-  const c = getTeamColors(team);
   return (
-    <span className={className} style={{ color: c.ink, fontWeight: lead ? 700 : undefined }}>
-      {rank ? <span className="mr-0.5 tabular-nums opacity-60">#{rank}</span> : null}
-      {team.school}
+    <span
+      className={`inline-flex items-center gap-1.5 align-baseline ${className}`}
+      style={{ fontWeight: lead ? 700 : undefined }}
+    >
+      {mark && <TeamMark team={team} size={markSize} />}
+      <span className="min-w-0 truncate">
+        {rank ? <span className="mr-0.5 tabular-nums opacity-60">#{rank}</span> : null}
+        {team.school}
+      </span>
     </span>
   );
 }

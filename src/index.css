@@ -200,6 +200,36 @@ body {
   transition: width 0.4s ease;
 }
 
+/* ------------------------------------------------------------------ */
+/* CFB-GM moment layer (V1): sim results arrive as an event, not a    */
+/* repaint. One orchestrated effect per action; reduced motion off.   */
+/* ------------------------------------------------------------------ */
+
+/* Scoreboard-scale result landing on the dashboard after a sim */
+@keyframes gm-reveal {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.gm-reveal {
+  animation: gm-reveal 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+/* Newest drive sliding into the broadcast log */
+@keyframes gm-slide-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: none; }
+}
+.gm-slide-in {
+  animation: gm-slide-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gm-reveal,
+  .gm-slide-in {
+    animation: none;
+  }
+}
+
 /* CFP bracket connectors (V5). Each match is an equal-height flex slot with a
    centered card; byes fold into round 1 so it's a clean 8→4→2→1 halving tree.
    Every next-round match centers on the midpoint of its two feeders, so the

@@ -70,7 +70,11 @@ anon key to this repo.
   per slot + append-only departed archive persisted at rollover; engines
   never import it), `src/gm/GmCabinet.tsx`/`GmShell.tsx`/`panels.tsx`/
   `recruitingPanel.tsx`/`WatchGame.tsx` (screens; lazy chunk so the dailies
-  never pay for it), `scripts/build-gm.ts` → `public/gm-data.json` (real
+  never pay for it), `src/gm/ui.tsx` + `theme.ts` (the GM design system:
+  Card/Meter/Pill/Delta primitives, `getTeamColors()` contrast correction,
+  and the `TeamMark` monogram badge — school colors live in the mark and
+  `TeamName` text stays ink; screens never hardcode a brand hex),
+  `scripts/build-gm.ts` → `public/gm-data.json` (real
   2026 P4 universe: projected rosters + Elo from real 2025 results + real
   rivalries from 2010-25 matchup history; warehouse-direct, ADR-0025). All game
   "AI" is seeded policy code — zero LLM/network at runtime. Design deltas

@@ -19,6 +19,7 @@ import RecruitingPanel from "./recruitingPanel.tsx";
 import HelpPanel from "./helpPanel.tsx";
 import TourOverlay, { TOUR_STEPS } from "./tour.tsx";
 import { getTeamColors } from "./theme.ts";
+import { TeamMark } from "./ui.tsx";
 
 const TOUR_DONE_KEY = "cfbgm:tour-done";
 
@@ -147,7 +148,10 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
     <main className="mx-auto min-h-screen max-w-6xl p-4 sm:p-6">
       <header
         className="flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-card border border-line bg-surface-raised px-4 py-3 shadow-card"
-        style={{ borderLeft: `6px solid ${teamColors.primary}` }}
+        style={{
+          borderLeft: `6px solid ${teamColors.primary}`,
+          backgroundImage: `linear-gradient(90deg, ${teamColors.primary}14, transparent 45%)`,
+        }}
       >
         <div className="flex items-center gap-3">
           <button
@@ -157,7 +161,9 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
           >
             ← SAVES
           </button>
-          <div data-tour="header-team">
+          <div data-tour="header-team" className="flex items-center gap-2.5">
+            <TeamMark team={team} size="l" />
+            <div>
             <h1 className="font-display text-xl leading-none" style={{ color: teamColors.ink }}>
               {team.school}
             </h1>
@@ -166,6 +172,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
               {team.rec.w}-{team.rec.l} ({team.rec.cw}-{team.rec.cl} conf) · <span className="text-gold">{"★".repeat(team.prestige)}</span> ·{" "}
               {state.season} · Year {state.year} · NIL {fmtMoney(team.nilBudget)}
             </p>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

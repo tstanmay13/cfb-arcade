@@ -90,11 +90,11 @@ export default function FieldPane() {
   return (
     <section
       aria-label="Your team"
-      className="turf relative flex min-h-[300px] flex-col justify-between rounded-xl p-4 sm:min-h-[420px] sm:p-5 lg:min-h-0 lg:flex-1"
+      className="turf relative flex min-h-[140px] flex-col justify-between rounded-xl p-2 sm:min-h-[420px] sm:p-5 lg:min-h-0 lg:flex-1"
     >
       <div>
         <p className="text-center font-display text-xs tracking-[0.3em] text-chalk/80">OFFENSE</p>
-        <div className="yard-line my-3" />
+        <div className="yard-line my-1.5 sm:my-3" />
         <div className="flex justify-around">
           {OFFENSE.map((s) => (
             <SlotNode key={s} slot={s} teamsById={teamsById} />
@@ -103,8 +103,8 @@ export default function FieldPane() {
       </div>
 
       <div>
-        <p className="mt-4 text-center font-display text-xs tracking-[0.3em] text-chalk/80">DEFENSE</p>
-        <div className="yard-line my-3" />
+        <p className="mt-1 text-center font-display text-xs tracking-[0.3em] text-chalk/80 sm:mt-4">DEFENSE</p>
+        <div className="yard-line my-1.5 sm:my-3" />
         <div className="flex justify-around">
           {DEFENSE.map((s) => (
             <SlotNode key={s} slot={s} teamsById={teamsById} />
@@ -112,7 +112,7 @@ export default function FieldPane() {
         </div>
       </div>
 
-      <div className="mt-4 flex justify-center">
+      <div className="mt-1 flex justify-center sm:mt-4">
         <div
           className={`flex min-w-48 items-center justify-center gap-2 rounded-md border-2 px-4 py-2 font-display text-sm text-chalk
             ${coach ? "border-chalk/90 bg-black/25" : "border-dashed border-chalk/60"}

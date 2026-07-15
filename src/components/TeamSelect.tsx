@@ -232,7 +232,7 @@ export default function TeamSelect({
           ))}
         </div>
 
-        <div role="tabpanel" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div role="tabpanel" className="grid grid-cols-2 gap-2 md:grid-cols-3">
           {teamsByConf[activeConf].map((t) => (
             <button
               key={t.school_id}

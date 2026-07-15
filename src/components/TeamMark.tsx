@@ -99,6 +99,22 @@ export function markColors(primaryHex: string | null | undefined, secondaryHex: 
   };
 }
 
+/**
+ * A softened ("not too deep") team-color slab + the text color that reads on
+ * it. `lighten` mixes the primary toward white (0 = full color, 1 = white).
+ * For colored section headers that want real brand color without the weight of
+ * a full-saturation fill. Same brand-hex input as the team selector / TeamMark.
+ */
+export function softTeamFill(
+  primaryHex: string | null | undefined,
+  lighten = 0.22,
+): { bg: string; fg: string } {
+  const primary = parseHex(primaryHex) ?? parseHex(FALLBACK_PRIMARY)!;
+  const soft = mix(primary, WHITE, lighten);
+  const fg = contrast(WHITE, soft) >= contrast(INK, soft) ? "#ffffff" : toHex(INK);
+  return { bg: toHex(soft), fg };
+}
+
 export type MarkSize = "xs" | "s" | "m" | "l" | "xl";
 
 const MARK_SIZE: Record<MarkSize, { box: string; font: string; ring: number }> = {

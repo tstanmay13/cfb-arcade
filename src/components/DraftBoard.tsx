@@ -4,10 +4,10 @@
 // result is already in state before it plays.
 import { useEffect, useRef, useState } from "react";
 import type { Coach, GamePosition, Player } from "../data/types.ts";
-import { STAT_LABELS, COACH_STAT_LABELS, PLAYER_SLOTS } from "../data/types.ts";
+import { STAT_LABELS, COACH_STAT_LABELS, PLAYER_SLOTS, POS_SLOTS } from "../data/types.ts";
 import { eligibleOpenSlots } from "../engine/spin.ts";
 import { useGame, useGameActions } from "../state/store.tsx";
-import TeamMark from "./TeamMark.tsx";
+import TeamMark, { softTeamFill } from "./TeamMark.tsx";
 
 const POS_ORDER: GamePosition[] = ["QB", "RB", "WR", "DL", "LB", "CB", "S"];
 
@@ -167,10 +167,14 @@ export default function DraftBoard() {
   } = useGameActions();
   const revealing = useSpinReveal();
   const [sortBy, setSortBy] = useState<SortKey>("position");
+  const [posFilter, setPosFilter] = useState<GamePosition | "ALL">("ALL");
 
   const coachPhase = state.phase === "COACH_SPIN";
   const cell = coachPhase ? state.currentCoachSpin : state.currentSpin;
   const cellTeam = cell ? data.teams.find((t) => t.school_id === cell.teamId) : null;
+  // Stay neutral while the ticker is spinning so the header color doesn't
+  // reveal the landed team before the ticker does.
+  const masthead = cellTeam && !revealing ? softTeamFill(cellTeam.mainHex, 0.15) : null;
   const filled = Object.values(state.slots).filter(Boolean).length;
   const needSpin = !coachPhase && state.currentSpin === null;
   const outOfRespins = state.respins.team <= 0 && state.respins.era <= 0;
@@ -200,15 +204,32 @@ export default function DraftBoard() {
   available.sort(cmp);
   unavailable.sort(cmp);
 
+  // Position filter chips: only positions you still have an open slot for (a
+  // position whose slots are all filled drops off — you can't draft it anyway).
+  // Slots never un-fill mid-draft, so a stale filter just falls back to ALL.
+  const neededPositions = POS_ORDER.filter((pos) =>
+    POS_SLOTS[pos].some((slot) => state.slots[slot] === null),
+  );
+  const activeFilter =
+    posFilter !== "ALL" && neededPositions.includes(posFilter) ? posFilter : "ALL";
+  const matchesFilter = (p: Player) =>
+    activeFilter === "ALL" ||
+    p.primary_position === activeFilter ||
+    p.secondary_position === activeFilter;
+  const shownAvailable = available.filter(matchesFilter);
+  const shownUnavailable = unavailable.filter(matchesFilter);
+
   return (
     <section aria-label="Draft board" className="flex min-h-[420px] flex-col rounded-xl border border-paper-edge bg-paper/70 shadow-sm lg:h-full">
-      {/* Masthead: the landed cell */}
+      {/* Masthead: the landed cell — a solid, softened team-color slab with a
+          crisp white line underneath (auto-contrast text for legibility). */}
       <header
-        className="rounded-t-xl border-b-4 px-4 py-3"
-        style={{
-          borderColor: cellTeam?.mainHex ?? "var(--ink)",
-          background: `linear-gradient(90deg, ${cellTeam?.mainHex ?? "var(--ink)"}18, transparent 70%)`,
-        }}
+        className="rounded-t-xl border-b-4 border-white px-4 py-3 transition-colors"
+        style={
+          masthead
+            ? { background: masthead.bg, color: masthead.fg }
+            : { background: "var(--paper)", color: "var(--ink)" }
+        }
       >
         <div className="flex items-baseline justify-between">
           <div>
@@ -294,45 +315,71 @@ export default function DraftBoard() {
           </ul>
         ) : (
           <div>
-            {/* Sort + count bar — sticks to the top of the scrolling pool */}
-            <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 border-b border-paper-edge bg-paper/95 px-3 py-2 backdrop-blur">
-              <p className="text-[11px] uppercase tracking-[0.15em] opacity-60">
-                {available.length} available
-                {unavailable.length > 0 && (
-                  <span className="opacity-70"> · {unavailable.length} out</span>
-                )}
-              </p>
-              <div role="group" aria-label="Sort players" className="flex items-center gap-1.5">
-                <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">Sort</span>
-                <div className="flex overflow-hidden rounded-md border border-paper-edge font-display text-[10px] tracking-wider">
-                  {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+            {/* Sort + count bar and position filters — stick to the top of the pool */}
+            <div className="sticky top-0 z-10 border-b border-paper-edge bg-paper/95 px-3 py-2 backdrop-blur">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-[0.15em] opacity-60">
+                  {available.length} available
+                  {unavailable.length > 0 && (
+                    <span className="opacity-70"> · {unavailable.length} out</span>
+                  )}
+                </p>
+                <div role="group" aria-label="Sort players" className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">Sort</span>
+                  <div className="flex overflow-hidden rounded-md border border-paper-edge font-display text-[10px] tracking-wider">
+                    {(Object.keys(SORT_LABELS) as SortKey[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setSortBy(key)}
+                        aria-pressed={sortBy === key}
+                        className={`px-2.5 py-1 transition ${
+                          sortBy === key ? "bg-ink text-paper" : "bg-white/60 hover:bg-ink/5"
+                        }`}
+                      >
+                        {SORT_LABELS[key]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Position filter chips — only slots you still need to fill. */}
+              {neededPositions.length > 0 && (
+                <div
+                  role="group"
+                  aria-label="Filter by position"
+                  className="mt-2 flex flex-wrap gap-1.5 font-display text-xs tracking-wider"
+                >
+                  {(["ALL", ...neededPositions] as (GamePosition | "ALL")[]).map((pos) => (
                     <button
-                      key={key}
+                      key={pos}
                       type="button"
-                      onClick={() => setSortBy(key)}
-                      aria-pressed={sortBy === key}
-                      className={`px-2.5 py-1 transition ${
-                        sortBy === key ? "bg-ink text-paper" : "bg-white/60 hover:bg-ink/5"
+                      onClick={() => setPosFilter(pos)}
+                      aria-pressed={activeFilter === pos}
+                      className={`min-w-[3rem] rounded-md border px-3.5 py-2 text-center transition ${
+                        activeFilter === pos
+                          ? "border-ink bg-ink text-paper"
+                          : "border-paper-edge bg-white/60 hover:bg-ink/5"
                       }`}
                     >
-                      {SORT_LABELS[key]}
+                      {pos}
                     </button>
                   ))}
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="p-3">
-              {available.length > 0 && (
+              {shownAvailable.length > 0 && (
                 <ul className="space-y-2">
-                  {available.map((p) => (
+                  {shownAvailable.map((p) => (
                     <PlayerRow key={p.player_id} player={p} />
                   ))}
                 </ul>
               )}
-              {unavailable.length > 0 && (
+              {shownUnavailable.length > 0 && (
                 <>
-                  {available.length > 0 && (
+                  {shownAvailable.length > 0 && (
                     <div className="my-3 flex items-center gap-2" aria-hidden>
                       <span className="h-px flex-1 bg-paper-edge" />
                       <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">
@@ -342,11 +389,16 @@ export default function DraftBoard() {
                     </div>
                   )}
                   <ul className="space-y-2">
-                    {unavailable.map((p) => (
+                    {shownUnavailable.map((p) => (
                       <PlayerRow key={p.player_id} player={p} />
                     ))}
                   </ul>
                 </>
+              )}
+              {shownAvailable.length === 0 && shownUnavailable.length === 0 && (
+                <p className="py-6 text-center text-xs opacity-55">
+                  No {activeFilter === "ALL" ? "players" : `${activeFilter}s`} in this spin.
+                </p>
               )}
             </div>
           </div>

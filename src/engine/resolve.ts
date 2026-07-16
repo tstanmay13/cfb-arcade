@@ -15,8 +15,10 @@ import {
 import {
   fluffPlayerStats,
   processHeismanAward,
+  processPositionAwards,
   selectAllAmericans,
   type HeismanWinner,
+  type PositionAwardWinner,
 } from "./awards.ts";
 
 export interface Resolved {
@@ -31,6 +33,8 @@ export interface Resolved {
   /** player_id → season performance category (20% distribution). */
   playerPerformance: Record<string, PerformanceCategory>;
   heisman: HeismanWinner | null;
+  /** Position awards won this season (§7.2b), after the 2/3 cap. */
+  positionAwards: PositionAwardWinner[];
   /** player_ids of All-American selections (§7.3). */
   allAmericans: string[];
 }
@@ -70,6 +74,7 @@ export function resolveSeason(
   }
 
   const heisman = processHeismanAward(tier, slots, modifiers, rng);
+  const positionAwards = processPositionAwards(tier, slots, modifiers, heisman?.name ?? null, rng);
   const allAmericans = selectAllAmericans(slots, rng).map((p) => p.player_id);
 
   return {
@@ -82,6 +87,7 @@ export function resolveSeason(
     fluffedStats,
     playerPerformance,
     heisman,
+    positionAwards,
     allAmericans,
   };
 }

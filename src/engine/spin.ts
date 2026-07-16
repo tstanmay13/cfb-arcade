@@ -144,13 +144,14 @@ const notCell =
   (c: { teamId: string; era: Decade }): boolean =>
     !(c.teamId === teamId && c.era === era);
 
-/** Default spin (§5.1): any era unless a decade filter is passed. */
+/** Default spin (§5.1): any era unless a decade filter is passed. A teamId
+    filter locks the spin to one program (used by the "keep team" token, §5.2). */
 export function spin(
   data: GameData,
   rng: Rng,
-  opts: { decade?: Decade | null; exclude?: SpinResult | null } = {},
+  opts: { decade?: Decade | null; teamId?: string | null; exclude?: SpinResult | null } = {},
 ): SpinResult {
-  let cells = playerCells(data, { decade: opts.decade });
+  let cells = playerCells(data, { decade: opts.decade, teamId: opts.teamId });
   if (opts.exclude) {
     const filtered = cells.filter(notCell(opts.exclude.teamId, opts.exclude.era));
     if (filtered.length > 0) cells = filtered;

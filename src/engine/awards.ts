@@ -148,6 +148,103 @@ export function processHeismanAward(
 }
 
 // ---------------------------------------------------------------------------
+// §7.2b Position awards — Biletnikoff (WR), Butkus (LB), Jim Thorpe (CB/S),
+// Doak Walker (RB). Calculated like the Heisman's Hornung path (breakout-only,
+// no tier "standard path"): EVERY eligible player on the roster rolls for the
+// award on his own — a stat eruption gives a 35% chance, a lone green arrow 5%.
+// If both eligible players (the two WRs, or CB + S) win their rolls, the single
+// trophy goes to the higher-rated one. A team keeps at most 2 of these awards
+// (3 for a Tier-0 board); the Heisman is separate and does not count toward the
+// cap, but its winner's position award is kept first when trimming.
+// ---------------------------------------------------------------------------
+export type PositionAwardKey = "biletnikoff" | "butkus" | "thorpe" | "doakWalker";
+
+export const POSITION_AWARD_LABELS: Record<PositionAwardKey, string> = {
+  biletnikoff: "Biletnikoff",
+  butkus: "Butkus",
+  thorpe: "Jim Thorpe",
+  doakWalker: "Doak Walker",
+};
+
+/** Fixed order → deterministic rng consumption. */
+const POSITION_AWARD_ORDER: PositionAwardKey[] = ["biletnikoff", "butkus", "thorpe", "doakWalker"];
+
+/** Which board slots each award draws from. */
+const POSITION_AWARD_SLOTS: Record<PositionAwardKey, (keyof PlayerSlots)[]> = {
+  biletnikoff: ["WR1", "WR2"],
+  butkus: ["LB"],
+  thorpe: ["CB", "S"],
+  doakWalker: ["RB"],
+};
+
+export interface PositionAwardWinner {
+  award: PositionAwardKey;
+  playerId: string;
+  name: string;
+  position: string;
+}
+
+/** Win chance from a candidate's computedModifier (max fluff across 5 stats):
+    a significantly-better eruption (>=1.20) is 35%; a lone green arrow
+    (marginally better, 1.05–1.19) is 5%; a flat/worse line can't win. */
+export function positionAwardChance(computedModifier: number): number {
+  if (computedModifier >= 1.2) return 0.35;
+  if (computedModifier >= 1.05) return 0.05;
+  return 0;
+}
+
+export function processPositionAwards(
+  teamTier: string,
+  slots: PlayerSlots,
+  modifiers: Map<string, number>, // player_id -> computedModifier
+  heismanName: string | null,
+  rng: Rng,
+): PositionAwardWinner[] {
+  const raw: { award: PositionAwardKey; player: Player }[] = [];
+  for (const award of POSITION_AWARD_ORDER) {
+    // Every eligible player rolls independently on his own breakout. If more
+    // than one wins the single trophy, the higher-rated player takes it (bigger
+    // breakout as a further tiebreak).
+    let winner: { player: Player; mod: number } | null = null;
+    for (const slot of POSITION_AWARD_SLOTS[award]) {
+      const p = slots[slot];
+      if (!p) continue;
+      const mod = modifiers.get(p.player_id) ?? 0;
+      const chance = positionAwardChance(mod);
+      if (chance <= 0 || rng() > chance) continue; // didn't win his roll
+      if (
+        !winner ||
+        p.hidden_ovr > winner.player.hidden_ovr ||
+        (p.hidden_ovr === winner.player.hidden_ovr && mod > winner.mod)
+      ) {
+        winner = { player: p, mod };
+      }
+    }
+    if (winner) raw.push({ award, player: winner.player });
+  }
+
+  // Cap: 2 (soft) or 3 for a truly exceptional Tier-0 board. When more fire,
+  // protect the Heisman winner's award first, then keep the highest-OVR players.
+  const cap = teamTier === "Tier0" ? 3 : 2;
+  if (raw.length > cap) {
+    raw.sort((a, b) => {
+      const aH = a.player.name === heismanName ? 1 : 0;
+      const bH = b.player.name === heismanName ? 1 : 0;
+      if (aH !== bH) return bH - aH;
+      return b.player.hidden_ovr - a.player.hidden_ovr;
+    });
+    raw.length = cap;
+  }
+
+  return raw.map(({ award, player }) => ({
+    award,
+    playerId: player.player_id,
+    name: player.name,
+    position: player.primary_position,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // §7.3 All-American evaluation
 // ---------------------------------------------------------------------------
 export const ALL_AMERICAN_COEFF = 0.015; // §12 dial

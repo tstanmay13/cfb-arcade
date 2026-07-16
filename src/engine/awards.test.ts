@@ -4,7 +4,9 @@ import {
   allAmericanChance,
   calculateStatFluff,
   fluffPlayerStats,
+  positionAwardChance,
   processHeismanAward,
+  processPositionAwards,
   selectAllAmericans,
 } from "./awards.ts";
 import { resolveSeason } from "./resolve.ts";
@@ -100,6 +102,100 @@ describe("Heisman (§7.2)", () => {
       if (processHeismanAward("Tier7", slots, new Map(), rng)) wins++;
     }
     expect(wins / 6000).toBeCloseTo(0.05, 1);
+  });
+});
+
+describe("Position awards (§7.2b)", () => {
+  const allMods = (slots: PlayerSlots, mod: number) =>
+    new Map(Object.values(slots).filter((p): p is NonNullable<typeof p> => !!p).map((p) => [p.player_id, mod]));
+
+  it("chance bands: eruption 35%, lone green arrow 5%, flat line 0", () => {
+    expect(positionAwardChance(1.3)).toBe(0.35);
+    expect(positionAwardChance(1.2)).toBe(0.35);
+    expect(positionAwardChance(1.19)).toBe(0.05);
+    expect(positionAwardChance(1.05)).toBe(0.05);
+    expect(positionAwardChance(1.0)).toBe(0);
+    expect(positionAwardChance(0.7)).toBe(0);
+  });
+
+  it("a stat eruption at a position wins its award ~35% of the time", () => {
+    const slots = board(90);
+    const mods = new Map([[slots.WR1!.player_id, 1.3]]); // only the WR erupts
+    let wins = 0;
+    const rng = mulberry32(3);
+    for (let i = 0; i < 6000; i++) {
+      if (processPositionAwards("Tier1", slots, mods, null, rng).some((a) => a.award === "biletnikoff")) wins++;
+    }
+    expect(wins / 6000).toBeCloseTo(0.35, 1);
+  });
+
+  it("both eligible players roll independently (~57% combined, not one 35% roll)", () => {
+    const slots = board(90);
+    const mods = new Map([
+      [slots.WR1!.player_id, 1.3],
+      [slots.WR2!.player_id, 1.3],
+    ]);
+    let wins = 0;
+    const rng = mulberry32(17);
+    for (let i = 0; i < 8000; i++) {
+      if (processPositionAwards("Tier1", slots, mods, null, rng).some((a) => a.award === "biletnikoff")) wins++;
+    }
+    // 1 - 0.65^2 = 0.5775 — well above a single candidate's 35%.
+    expect(wins / 8000).toBeGreaterThan(0.5);
+    expect(wins / 8000).toBeLessThan(0.65);
+  });
+
+  it("a lone green arrow wins ~5% of the time", () => {
+    const slots = board(90);
+    const mods = new Map([[slots.LB!.player_id, 1.1]]);
+    let wins = 0;
+    const rng = mulberry32(9);
+    for (let i = 0; i < 8000; i++) {
+      if (processPositionAwards("Tier1", slots, mods, null, rng).some((a) => a.award === "butkus")) wins++;
+    }
+    expect(wins / 8000).toBeCloseTo(0.05, 1);
+  });
+
+  it("caps at 2 non-Heisman awards, 3 for a Tier-0 board", () => {
+    const slots = board(90);
+    const mods = allMods(slots, 1.3); // every position candidate erupts
+    let max1 = 0;
+    let max0 = 0;
+    const a = mulberry32(7);
+    const b = mulberry32(7);
+    for (let i = 0; i < 5000; i++) {
+      const t1 = processPositionAwards("Tier1", slots, mods, null, a);
+      const t0 = processPositionAwards("Tier0", slots, mods, null, b);
+      expect(t1.length).toBeLessThanOrEqual(2);
+      expect(t0.length).toBeLessThanOrEqual(3);
+      max1 = Math.max(max1, t1.length);
+      max0 = Math.max(max0, t0.length);
+    }
+    expect(max1).toBe(2); // the soft cap is reachable
+    expect(max0).toBe(3); // Tier-0 can reach three
+  });
+
+  it("keeps the Heisman winner's award over higher-OVR awards when trimming", () => {
+    const slots = board(90);
+    slots.RB!.hidden_ovr = 60; // Heisman winner, but LOWEST rated → dropped first by OVR
+    slots.WR1!.hidden_ovr = 99;
+    slots.LB!.hidden_ovr = 98;
+    slots.CB!.hidden_ovr = 97;
+    slots.S!.hidden_ovr = 96;
+    const mods = allMods(slots, 1.3);
+    const heismanName = slots.RB!.name;
+    let checked = 0;
+    for (let s = 1; s <= 4000 && checked < 25; s++) {
+      // Same seed, different cap: Tier0 keeps 3, Tier1 keeps 2. When Tier0 has 3
+      // and the RB is among them (it erupted), Tier1's two MUST still include it.
+      const t0 = processPositionAwards("Tier0", slots, mods, heismanName, mulberry32(s));
+      const t1 = processPositionAwards("Tier1", slots, mods, heismanName, mulberry32(s));
+      if (t0.length === 3 && t1.length === 2 && t0.some((x) => x.award === "doakWalker")) {
+        expect(t1.some((x) => x.award === "doakWalker")).toBe(true);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0); // we actually exercised the trim path
   });
 });
 

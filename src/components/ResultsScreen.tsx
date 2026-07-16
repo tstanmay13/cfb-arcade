@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { PerformanceCategory } from "../data/types.ts";
 import { PLAYER_SLOTS, STAT_LABELS } from "../data/types.ts";
+import { POSITION_AWARD_LABELS } from "../engine/awards.ts";
 import { buildShareText } from "../engine/share.ts";
 import { useGame } from "../state/store.tsx";
 import { RegularGameChip, PlayoffGameChip } from "./GameChip.tsx";
@@ -152,6 +153,12 @@ export default function ResultsScreen() {
           <span className="font-display text-xs tracking-wider opacity-60">ALL-AMERICANS </span>
           <strong>{r.allAmericans.length}</strong>
         </p>
+        {r.positionAwards.length > 0 && (
+          <p className="rounded-full border border-paper-edge bg-white/60 px-4 py-1.5">
+            <span className="font-display text-xs tracking-wider opacity-60">AWARDS </span>
+            <strong>{r.positionAwards.map((a) => POSITION_AWARD_LABELS[a.award]).join(" · ")}</strong>
+          </p>
+        )}
         <p className="rounded-full border border-paper-edge bg-white/60 px-4 py-1.5">
           <span className="font-display text-xs tracking-wider opacity-60">COACH </span>
           <strong>{state.hc?.display_short}</strong>
@@ -171,6 +178,7 @@ export default function ResultsScreen() {
             const labels = STAT_LABELS[p.primary_position];
             const values = [stats.stat_1, stats.stat_2, stats.stat_3, stats.stat_4, stats.stat_5];
             const isAA = r.allAmericans.includes(p.player_id);
+            const posAward = r.positionAwards.find((a) => a.playerId === p.player_id);
 
             return (
               <li key={slot} className="rounded-lg border border-paper-edge bg-white/60 px-3 py-2">
@@ -184,6 +192,11 @@ export default function ResultsScreen() {
                     {isAA && (
                       <span className="shrink-0 rounded bg-amber-500 px-1 py-0.5 font-display text-[8px] tracking-wider text-white">
                         ALL-AMERICAN
+                      </span>
+                    )}
+                    {posAward && (
+                      <span className="shrink-0 rounded bg-emerald-600 px-1 py-0.5 font-display text-[8px] tracking-wider text-white">
+                        {POSITION_AWARD_LABELS[posAward.award].toUpperCase()}
                       </span>
                     )}
                   </div>

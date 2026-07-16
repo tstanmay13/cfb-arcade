@@ -4,10 +4,11 @@
 // controls above the list, and auto-selects the player's last-played team.
 import { useEffect, useMemo, useState } from "react";
 import type { Team } from "../data/types.ts";
+import { STAT_LABELS } from "../data/types.ts";
 import { CONFERENCE_ORDER, conferenceOf, type ConferenceKey } from "../data/conferences.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
-import { loadLastTeam, loadTrophyRoom, saveLastTeam, type RunSummary } from "../state/storage.ts";
-import TeamMark from "./TeamMark.tsx";
+import { compareBuilds, loadLastTeam, loadTrophyRoom, saveLastTeam, type RunPlayer, type RunSummary } from "../state/storage.ts";
+import TeamMark, { softTeamFill } from "./TeamMark.tsx";
 
 const OUTCOME_LABELS: Record<string, string> = {
   natty: "National Champions",
@@ -17,7 +18,7 @@ const OUTCOME_LABELS: Record<string, string> = {
   loss: "",
 };
 
-function RunRow({ run }: { run: RunSummary }) {
+function RunRow({ run, onOpen }: { run: RunSummary; onOpen: (r: RunSummary) => void }) {
   // Tiered honors (§9): dynasty is rarest — gold fill + a notable border; a
   // national title is a gold fill; a semifinal is silver; a quarterfinal bronze.
   const filled = run.dynasty || run.outcome === "natty";
@@ -28,7 +29,12 @@ function RunRow({ run }: { run: RunSummary }) {
     run.outcome === "major" ? "trophy-bronze" : "";
 
   return (
-    <div className={`flex items-center gap-3 rounded-lg px-3 py-2 ${filled ? "" : "bg-white/60"} ${tierClass}`}>
+    <button
+      type="button"
+      onClick={() => onOpen(run)}
+      title="View this roster"
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:brightness-[0.97] ${filled ? "" : "bg-white/60"} ${tierClass}`}
+    >
       <span className="font-display text-lg font-bold">{run.record}</span>
       <div className="flex flex-wrap gap-1.5">
         {run.outcome && OUTCOME_LABELS[run.outcome] && (
@@ -42,36 +48,174 @@ function RunRow({ run }: { run: RunSummary }) {
             {run.allAmericansCount} All-American{run.allAmericansCount === 1 ? "" : "s"}
           </span>
         )}
+        {run.positionAwards?.map((a) => (
+          <span key={a.award} className="rounded bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">{a.award}</span>
+        ))}
         {run.dynasty && (
           <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">★ DYNASTY</span>
         )}
       </div>
-      <span className="ml-auto text-xs opacity-50">{run.favorite_team} · {run.mode}</span>
+      <span className="ml-auto shrink-0 text-xs opacity-50">{run.favorite_team} · {run.mode}</span>
+    </button>
+  );
+}
+
+function StatGrid({ player }: { player: RunPlayer }) {
+  const labels = STAT_LABELS[player.position];
+  return (
+    <dl className="mt-1 grid grid-cols-5 gap-1 text-[10px] leading-tight">
+      {labels.map((label, i) => (
+        <div key={label}>
+          <dt className="truncate uppercase tracking-wide opacity-50">{label}</dt>
+          <dd className="font-display text-xs">{player.stats[i]}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function RunDetailModal({ run, onClose }: { run: RunSummary; onClose: () => void }) {
+  const { data } = useGame();
+  const teamByName = useMemo(
+    () => new Map(data.teams.map((t) => [t.name, t] as const)),
+    [data.teams],
+  );
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const dateStr = new Date(run.timestamp).toLocaleDateString(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+  });
+  // Same softened team-color slab the draft masthead uses, keyed to this run's
+  // program, with a white line underneath.
+  const favTeam = teamByName.get(run.favorite_team);
+  const head = favTeam ? softTeamFill(favTeam.mainHex, 0.15) : null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Run details"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-paper-edge bg-paper shadow-2xl"
+      >
+        <div
+          className={`sticky top-0 flex items-center justify-between gap-3 border-b-4 border-white px-4 py-3 ${head ? "" : "bg-paper/95 backdrop-blur"}`}
+          style={head ? { background: head.bg, color: head.fg } : undefined}
+        >
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-display text-2xl font-bold">{run.record}</span>
+              {run.outcome && OUTCOME_LABELS[run.outcome] && (
+                <span className="rounded bg-black/15 px-2 py-0.5 text-xs">{OUTCOME_LABELS[run.outcome]}</span>
+              )}
+              {run.dynasty && (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">★ DYNASTY</span>
+              )}
+            </div>
+            <p className="mt-0.5 text-xs opacity-70">{run.favorite_team} · {run.mode} · {dateStr}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="rounded-md border border-current/30 px-2 py-1 font-display text-xs transition hover:bg-black/10"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-2 p-4">
+          {run.roster && run.roster.length > 0 ? (
+            <>
+              {run.roster.map((p) => {
+                const team = teamByName.get(p.school);
+                return (
+                  <div key={p.slot} className="rounded-lg border border-paper-edge bg-white/60 px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-9 shrink-0 font-display text-[10px] tracking-widest opacity-55">{p.slot}</span>
+                      <TeamMark school={p.school} primary={team?.mainHex ?? null} secondary={team?.accentHex ?? null} size="s" />
+                      <span className="truncate font-bold">{p.name}</span>
+                      <span className="shrink-0 rounded bg-ink/85 px-1.5 py-0.5 font-display text-[10px] tracking-wider text-paper">
+                        {p.position}
+                      </span>
+                      <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide opacity-50">
+                        {p.school} · {p.decade}
+                      </span>
+                    </div>
+                    {(p.heisman || p.allAmerican || p.positionAward) && (
+                      <div className="mt-1 flex flex-wrap gap-1.5 pl-11">
+                        {p.heisman && (
+                          <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">🏆 Heisman</span>
+                        )}
+                        {p.positionAward && (
+                          <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">{p.positionAward}</span>
+                        )}
+                        {p.allAmerican && (
+                          <span className="rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800">All-American</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="pl-11">
+                      <StatGrid player={p} />
+                    </div>
+                  </div>
+                );
+              })}
+              {run.coach && (
+                <div className="flex items-center gap-2 rounded-lg border border-paper-edge bg-white/60 px-3 py-2">
+                  <span className="w-9 shrink-0 font-display text-[10px] tracking-widest opacity-55">HC</span>
+                  <span className="truncate font-bold">{run.coach.name}</span>
+                  <span className="shrink-0 rounded bg-ink/85 px-1.5 py-0.5 font-display text-[10px] tracking-wider text-paper">
+                    {run.coach.tier.toUpperCase()}
+                  </span>
+                  <span className="ml-auto shrink-0 text-[10px] uppercase tracking-wide opacity-50">{run.coach.school}</span>
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="py-6 text-center text-sm opacity-60">
+              This run was saved before rosters were kept — no player detail available.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 function TrophyRoom() {
   const [room] = useState(loadTrophyRoom);
+  const [openRun, setOpenRun] = useState<RunSummary | null>(null);
   if (room.recent_runs.length === 0) return null;
 
   const recent = room.recent_runs.slice(0, 5);
-  const best = room.top_builds.slice(0, 5);
+  // Rank by achievement (playoff depth → honors), not raw roster power, and
+  // re-sort here so builds saved under the old power-only order display right.
+  const best = [...room.top_builds].sort(compareBuilds).slice(0, 5);
 
   return (
     <section aria-label="Trophy room" className="w-full space-y-4">
       <div className="rounded-xl border border-paper-edge bg-white/50 p-4">
         <h2 className="mb-3 font-display text-sm tracking-[0.25em] opacity-70">RECENT RUNS</h2>
         <div className="space-y-2">
-          {recent.map((r) => <RunRow key={r.timestamp} run={r} />)}
+          {recent.map((r) => <RunRow key={r.timestamp} run={r} onOpen={setOpenRun} />)}
         </div>
       </div>
       <div className="rounded-xl border border-paper-edge bg-white/50 p-4">
         <h2 className="mb-3 font-display text-sm tracking-[0.25em] opacity-70">BEST BUILDS</h2>
         <div className="space-y-2">
-          {best.map((r) => <RunRow key={r.timestamp} run={r} />)}
+          {best.map((r) => <RunRow key={r.timestamp} run={r} onOpen={setOpenRun} />)}
         </div>
       </div>
+      {openRun && <RunDetailModal run={openRun} onClose={() => setOpenRun(null)} />}
     </section>
   );
 }

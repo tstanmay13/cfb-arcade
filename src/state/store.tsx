@@ -313,7 +313,7 @@ export function useGameActions() {
 
   const placeCoach = (coach: Coach) => {
     const resolved = resolveSeason(state.slots, coach, data, runRng);
-    recordRun(resolved, state.favoriteTeam?.name ?? "—", state.mode); // §9
+    recordRun(resolved, state.favoriteTeam?.name ?? "—", state.mode, state.slots, coach); // §9
     dispatch({ type: "PLACE_COACH", coach, resolved });
   };
 

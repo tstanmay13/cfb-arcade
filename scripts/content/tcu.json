@@ -1,0 +1,35 @@
+{
+  "school_id": "tcu",
+  "cfbd_name": "TCU",
+  "name": "TCU",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Gary Patterson",
+      "decade": "2010s",
+      "coach_tier": "Elite",
+      "stats": {
+        "stat_1": 87,
+        "stat_2": 0,
+        "stat_3": 2,
+        "stat_4": 72,
+        "stat_5": 181
+      }
+    },
+    {
+      "name": "Sonny Dykes",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 27,
+        "stat_2": 0,
+        "stat_3": 1,
+        "stat_4": 60,
+        "stat_5": 103
+      }
+    }
+  ],
+  "players": []
+}

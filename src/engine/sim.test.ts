@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { mulberry32 } from "./rng.ts";
 import {
   generateSchedule,
+  outcomeOdds,
   pickLossIndices,
   powerScore,
   recordString,
   resolveOutcome,
   schedulePhase,
+  SIM_MATRIX,
   tierFor,
 } from "./sim.ts";
 import { emptyPlayerSlots, type PlayerSlots } from "./spin.ts";
@@ -44,8 +46,9 @@ describe("tierFor (§6.2)", () => {
     expect(tierFor(100)).toBe("Tier0");
     expect(tierFor(97)).toBe("Tier0"); // §12 pass raised the bar from 96
     expect(tierFor(96.9)).toBe("Tier1");
-    expect(tierFor(91)).toBe("Tier1");
+    expect(tierFor(91)).toBe("Tier1"); // the short-lived 89 floor was reverted by ADR-0026
     expect(tierFor(90.5)).toBe("Tier2");
+    expect(tierFor(85)).toBe("Tier2");
     expect(tierFor(78)).toBe("Tier3");
     expect(tierFor(77.9)).toBe("Tier4");
     expect(tierFor(60)).toBe("Tier5");
@@ -78,17 +81,69 @@ describe("resolveOutcome (§6.2)", () => {
     }
   });
 
-  it("Tier 1 outcome frequencies track the matrix (20/50/30)", () => {
+  it("a Team OVR 90 board wins sometimes — but 16-0 stays rare (ADR-0026)", () => {
+    const rng = mulberry32(90);
+    let natty = 0;
+    for (let i = 0; i < 6000; i++) {
+      const r = resolveOutcome(90, rng);
+      expect(r.tier).toBe("Tier2"); // labels back on the original §12 bounds
+      expect(r.isDynasty).toBe(false);
+      if (r.outcome === "natty") natty++;
+    }
+    expect(natty / 6000).toBeGreaterThan(0.07); // ramp pins 9% at the 90 anchor
+    expect(natty / 6000).toBeLessThan(0.11);
+  });
+
+  it("mid-ramp frequencies interpolate between anchors (power 92, ADR-0026)", () => {
+    // halfway between the 90 anchor (natty .09) and the 94 knee (natty .14)
     const rng = mulberry32(77);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 6000; i++) {
-      const r = resolveOutcome(93, rng);
+      const r = resolveOutcome(92, rng);
       counts[r.outcome] = (counts[r.outcome] ?? 0) + 1;
     }
-    expect(counts.natty / 6000).toBeCloseTo(0.2, 1);
-    expect(counts.semis / 6000).toBeCloseTo(0.5, 1);
-    expect(counts.major / 6000).toBeCloseTo(0.3, 1);
-    expect(counts.minor ?? 0).toBe(0);
+    expect(counts.natty / 6000).toBeCloseTo(0.115, 1);
+    expect(counts.semis / 6000).toBeCloseTo(0.33, 1);
+    expect(counts.minor / 6000).toBeGreaterThan(0.1); // deep boards still stumble
+  });
+});
+
+describe("outcomeOdds ramp (ADR-0026)", () => {
+  it("hits the anchors exactly, and SIM_MATRIX rows mirror the ramp at their min", () => {
+    expect(outcomeOdds(78)).toEqual({ natty: 0.05, semis: 0.25, major: 0.45, minor: 0.25, loss: 0 });
+    expect(outcomeOdds(85)).toEqual({ natty: 0.055, semis: 0.32, major: 0.4, minor: 0.225, loss: 0 });
+    expect(outcomeOdds(90).natty).toBeCloseTo(0.09, 10);
+    expect(outcomeOdds(94).natty).toBeCloseTo(0.14, 10);
+    // Tier1-3's informational rows must stay equal to outcomeOdds(min)
+    for (const tier of ["Tier1", "Tier2", "Tier3"] as const) {
+      const row = SIM_MATRIX[tier];
+      const odds = outcomeOdds(row.min);
+      for (const k of ["natty", "semis", "major", "minor", "loss"] as const) {
+        expect(odds[k]).toBeCloseTo(row[k], 4);
+      }
+    }
+  });
+
+  it("is a monotone distribution with no cliff below the Tier0 summit", () => {
+    let prev = outcomeOdds(78).natty;
+    for (let p = 78.1; p < 96.901; p += 0.1) {
+      const odds = outcomeOdds(p);
+      const sum = odds.natty + odds.semis + odds.major + odds.minor + odds.loss;
+      expect(sum).toBeCloseTo(1, 9);
+      expect(odds.natty).toBeGreaterThanOrEqual(prev - 1e-9);
+      // steepest leg is 94→97: (.25-.14)/3 ≈ 3.7% per +1.0 power
+      expect(odds.natty - prev).toBeLessThan(0.005);
+      prev = odds.natty;
+    }
+    // the summit snap at 97 is the one deliberate cliff: the Tier0 guarantee
+    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.2463, 3);
+    expect(outcomeOdds(97)).toEqual({ natty: 1, semis: 0, major: 0, minor: 0, loss: 0 });
+  });
+
+  it("keeps the stepped rows outside the ramp (Tier4-7 unchanged)", () => {
+    expect(outcomeOdds(77.9)).toEqual({ natty: 0.05, semis: 0.1, major: 0.45, minor: 0.35, loss: 0.05 });
+    expect(outcomeOdds(50)).toEqual({ natty: 0, semis: 0, major: 0, minor: 0.3, loss: 0.7 });
+    expect(outcomeOdds(10)).toEqual({ natty: 0, semis: 0, major: 0, minor: 0, loss: 1 });
   });
 });
 
@@ -104,42 +159,58 @@ describe("schedule generation (§6.3)", () => {
     expect(s.slice(0, 12).every((g) => g.phase === "REG")).toBe(true);
   });
 
-  it("semis: 15 games, 14-1, the single loss is the semifinal exit", () => {
-    for (let seed = 0; seed < 20; seed++) {
+  it("semis: 15 games, 14-1/13-2/12-3, always exits at the SF, never a QF loss", () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) {
       const s = generateSchedule("semis", mulberry32(seed), opponents);
       expect(s).toHaveLength(15);
-      expect(recordString(s)).toBe("14-1");
+      expect(["14-1", "13-2", "12-3"]).toContain(recordString(s));
       expect(s[14].result).toBe("LOSS");
       expect(s[14].phase).toBe("SF");
+      expect(s[13].result).toBe("WIN"); // bracket coherence: won the QF it advanced from
+      expect(s[0].result).toBe("WIN");
+      seen.add(recordString(s));
     }
+    expect(seen.size).toBeGreaterThan(1); // records actually vary (ADR-0026)
   });
 
-  it("major: 14 games, 12-2, one loss is the quarterfinal exit", () => {
-    for (let seed = 0; seed < 20; seed++) {
+  it("major: 14 games, 12-2/11-3/10-4, exits at the QF", () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) {
       const s = generateSchedule("major", mulberry32(seed), opponents);
       expect(s).toHaveLength(14);
-      expect(recordString(s)).toBe("12-2");
+      expect(["12-2", "11-3", "10-4"]).toContain(recordString(s));
       expect(s[13].result).toBe("LOSS");
       expect(s[13].phase).toBe("QF");
       expect(s[0].result).toBe("WIN"); // opener protected in mixed zone
+      seen.add(recordString(s));
     }
+    expect(seen.size).toBeGreaterThan(1);
   });
 
-  it("minor: 13 games, 9-4, losses only in the regular season (bowl won)", () => {
-    for (let seed = 0; seed < 20; seed++) {
+  it("minor: 13 games, 10-3/9-4/8-5, losses only in the regular season (bowl won)", () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) {
       const s = generateSchedule("minor", mulberry32(seed), opponents);
       expect(s).toHaveLength(13);
-      expect(recordString(s)).toBe("9-4");
+      expect(["10-3", "9-4", "8-5"]).toContain(recordString(s));
       expect(s[12].phase).toBe("BOWL");
       expect(s[12].result).toBe("WIN");
+      seen.add(recordString(s));
     }
+    expect(seen.size).toBeGreaterThan(1);
   });
 
-  it("loss: 12 games, 5-7, no postseason", () => {
-    const s = generateSchedule("loss", mulberry32(3), opponents);
-    expect(s).toHaveLength(12);
-    expect(recordString(s)).toBe("5-7");
-    expect(s.every((g) => g.phase === "REG")).toBe(true);
+  it("loss: 12 games, 6-6/5-7/4-8, no postseason", () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 60; seed++) {
+      const s = generateSchedule("loss", mulberry32(seed), opponents);
+      expect(s).toHaveLength(12);
+      expect(["6-6", "5-7", "4-8"]).toContain(recordString(s));
+      expect(s.every((g) => g.phase === "REG")).toBe(true);
+      seen.add(recordString(s));
+    }
+    expect(seen.size).toBeGreaterThan(1);
   });
 
   it("scores agree with results (win scores ahead, loss scores behind)", () => {

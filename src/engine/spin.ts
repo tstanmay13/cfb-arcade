@@ -2,16 +2,45 @@
 // dual-position eligibility, duplicate block, and the §5.6 edge cases.
 // Pure functions over GameData — no React, no globals, rng injected.
 import type {
+  Coach,
+  CoachTier,
   Decade,
   GameData,
   Player,
-  Coach,
   SlotId,
 } from "../data/types.ts";
 import { POS_SLOTS } from "../data/types.ts";
 import { pick, type Rng } from "./rng.ts";
 
-export const POWERHOUSE_WEIGHT = 3; // §5.3 / §12 dial
+// §5.3 spin weighting — TALENT-DRIVEN and fully tweakable (no one-door dial).
+// A {team, era} cell's landing weight scales with its top-end talent (so a
+// stacked roster — of ANY program — is exciting to hit) plus a small brand
+// "marquee" bump (so a cool/blue-blood program still shines in a down year).
+// Retuning any of these is a one-line edit + redeploy: weights are derived at
+// runtime from the players already in data.json, so no data re-bake is needed.
+//
+// Curve: a cell's talent percentile within the current candidate set maps
+// linearly onto [MIN_CELL_WEIGHT, MAX_CELL_WEIGHT]. "Gentle" by default — even
+// the weakest pool keeps a real chance, so the long tail still shows up.
+export const TALENT_TOP_K = 3; // players averaged for a cell's talent score
+export const MIN_CELL_WEIGHT = 1.5; // weakest cell's weight (gentle floor)
+export const MAX_CELL_WEIGHT = 3.0; // strongest cell's weight
+export const MARQUEE_BUMP = 1.25; // brand-shine multiplier for MARQUEE_TEAMS
+export const COACH_TIER_WEIGHT: Record<CoachTier, number> = {
+  Elite: 3.0,
+  Great: 2.25,
+  Standard: 1.5,
+  "Sub-Par": 1.0,
+};
+/** Hand-curated "cool/marquee" programs (school_id) — editorial, tweakable. */
+export const MARQUEE_TEAMS = new Set<string>([
+  // established blue-bloods (the original 18)
+  "alabama", "auburn", "florida", "florida_state", "georgia", "lsu", "miami",
+  "michigan", "nebraska", "notre_dame", "ohio_state", "oklahoma", "oregon",
+  "penn_state", "tennessee", "texas", "usc", "washington",
+  // marquee brands among the expansion
+  "clemson", "colorado", "texas_a_m", "wisconsin", "ucla", "michigan_state",
+]);
 const POWERHOUSE_ONLY_DECADES: Decade[] = ["1980s", "1990s"]; // §5.3 era authenticity
 
 export type PlayerSlots = Record<Exclude<SlotId, "HC">, Player | null>;
@@ -65,13 +94,49 @@ export function playerCells(
   return [...cells.values()];
 }
 
-function weightedCell(cells: Cell[], rng: Rng): Cell {
-  const expanded: Cell[] = [];
-  for (const c of cells) {
-    const w = c.powerhouse ? POWERHOUSE_WEIGHT : 1;
-    for (let i = 0; i < w; i++) expanded.push(c);
+/** Top-K average OVR — a cell's "star power", the excitement signal. */
+function talentScore(players: Player[]): number {
+  if (players.length === 0) return 0;
+  const top = players
+    .map((p) => p.hidden_ovr)
+    .sort((a, b) => b - a)
+    .slice(0, TALENT_TOP_K);
+  return top.reduce((a, b) => a + b, 0) / top.length;
+}
+
+function weightFor(teamId: string, score: number, scores: number[]): number {
+  const below = scores.filter((x) => x < score).length;
+  const pct = scores.length > 1 ? below / (scores.length - 1) : 0.5;
+  const base = MIN_CELL_WEIGHT + (MAX_CELL_WEIGHT - MIN_CELL_WEIGHT) * pct;
+  return base * (MARQUEE_TEAMS.has(teamId) ? MARQUEE_BUMP : 1);
+}
+
+/** A cell's landing weight: talent percentile within `allCells` → the gentle
+    [MIN,MAX] curve, times the marquee brand bump. Exported for tuning/tests. */
+export function cellSpinWeight(
+  cell: { teamId: string; players: Player[] },
+  allCells: { players: Player[] }[],
+): number {
+  const scores = allCells.map((c) => talentScore(c.players));
+  return weightFor(cell.teamId, talentScore(cell.players), scores);
+}
+
+/** Weighted pick over parallel items/weights arrays; one rng() draw. */
+function pickWeighted<T>(items: T[], weights: number[], rng: Rng): T {
+  const total = weights.reduce((a, b) => a + b, 0);
+  if (total <= 0) return pick(items, rng);
+  let r = rng() * total;
+  for (let i = 0; i < items.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return items[i];
   }
-  return pick(expanded, rng);
+  return items[items.length - 1];
+}
+
+function weightedCell(cells: Cell[], rng: Rng): Cell {
+  const scores = cells.map((c) => talentScore(c.players));
+  const weights = cells.map((c, i) => weightFor(c.teamId, scores[i], scores));
+  return pickWeighted(cells, weights, rng);
 }
 
 const notCell =
@@ -79,13 +144,14 @@ const notCell =
   (c: { teamId: string; era: Decade }): boolean =>
     !(c.teamId === teamId && c.era === era);
 
-/** Default spin (§5.1): any era unless a decade filter is passed. */
+/** Default spin (§5.1): any era unless a decade filter is passed. A teamId
+    filter locks the spin to one program (used by the "keep team" token, §5.2). */
 export function spin(
   data: GameData,
   rng: Rng,
-  opts: { decade?: Decade | null; exclude?: SpinResult | null } = {},
+  opts: { decade?: Decade | null; teamId?: string | null; exclude?: SpinResult | null } = {},
 ): SpinResult {
-  let cells = playerCells(data, { decade: opts.decade });
+  let cells = playerCells(data, { decade: opts.decade, teamId: opts.teamId });
   if (opts.exclude) {
     const filtered = cells.filter(notCell(opts.exclude.teamId, opts.exclude.era));
     if (filtered.length > 0) cells = filtered;
@@ -240,12 +306,14 @@ export function spinCoach(
     const filtered = cells.filter(notCell(opts.exclude.teamId, opts.exclude.era));
     if (filtered.length > 0) cells = filtered;
   }
-  const expanded: typeof cells = [];
-  for (const c of cells) {
-    const w = c.powerhouse ? POWERHOUSE_WEIGHT : 1;
-    for (let i = 0; i < w; i++) expanded.push(c);
-  }
-  const cell = pick(expanded, rng);
+  // Coaches carry no OVR, so weight the cell by its best coach's tier (with the
+  // same marquee brand bump the player spin uses) — parallel to talent weighting.
+  const weights = cells.map(
+    (c) =>
+      Math.max(...c.coaches.map((co) => COACH_TIER_WEIGHT[co.coach_tier] ?? 1)) *
+      (MARQUEE_TEAMS.has(c.teamId) ? MARQUEE_BUMP : 1),
+  );
+  const cell = pickWeighted(cells, weights, rng);
   return { teamId: cell.teamId, era: cell.era, pool: cell.coaches };
 }
 

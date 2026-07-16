@@ -1,0 +1,35 @@
+{
+  "school_id": "texas_a_m",
+  "cfbd_name": "Texas A&M",
+  "name": "Texas A&M",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Kevin Sumlin",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 51,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 95
+      }
+    },
+    {
+      "name": "Jimbo Fisher",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 28,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 128
+      }
+    }
+  ],
+  "players": []
+}

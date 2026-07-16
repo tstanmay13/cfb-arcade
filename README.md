@@ -33,17 +33,18 @@ static SPA; all data ships as one static `public/data.json`.
 
 ## Data
 
-`data.json` is baked at build time from the Supabase serving layer, read with
-the public anon key — no warehouse, no secrets; a clean clone can re-bake:
+`data.json` is baked owner-side from the platform repo's **local warehouse**
+(`cfb.db`, read directly via `node:sqlite` — ADR-0025) and committed, so a
+clean clone never needs to re-bake — it builds against the committed file:
 
 ```bash
-npm run build:data   # reads Supabase (anon key), writes public/data.json
+npm run build:data   # reads ../cfb/cfb.db (override: CFB_DB_PATH), writes public/data.json
 ```
 
-- **2010s + 2020s eras — real data** from the Supabase serving layer:
-  `cfb_player_ratings` (`overall` = the game's `hidden_ovr`), real stat lines
-  from `cfb_player_season_stats`, jerseys from `cfb_rosters`, colors from
-  `cfb_teams`. Seasons 2010–2022 + 2024–25 (2023 pending API quota).
+- **2010s + 2020s eras — real data** from the warehouse:
+  `player_ratings` (`overall` = the game's `hidden_ovr`), real stat lines
+  from `player_season_stats`, jerseys from `rosters`, colors from
+  `teams`. Seasons 2010–2022 + 2024–25 (2023 pending API quota).
 - **Pre-2010 eras are excluded** (user decision: real data only — CFBD has no
   player data there). The authored rosters remain as dormant source in
   `scripts/content/` behind `EXCLUDED_DECADES` in `build-data.ts`; a handful
@@ -51,9 +52,12 @@ npm run build:data   # reads Supabase (anon key), writes public/data.json
   2010–2015 defensive stats can't rate (Cam Newton, Joey Bosa…), plus all
   coaches (CFBD has no coach data).
 
-Current coverage: **18 programs, 36 team/era cells, ~1,000 players** — expand
-by adding `scripts/content/*.json` program files and re-baking; both real
-eras come along automatically.
+Current coverage: **68 programs, 136 team/era cells, 3,624 players, 123 coaches**
+(all Power-conference teams — SEC/Big Ten/Big 12/ACC + Notre Dame, ADR-0024). The
+18 original blue-bloods are fully hand-authored in `scripts/content/*.json`; the
+~50 expansion programs are identity + coach stubs whose modern rosters and branding
+are pulled from the warehouse at bake. Expand by adding another `scripts/content/*.json`
+file (full or stub) and re-baking; both real eras come along automatically.
 
 The running game never touches a database or API for game data — design
 pillar #4. The one deliberate exception is **global stats** (ADR-0019): on
@@ -62,24 +66,30 @@ Supabase (`arcade_results`, anon key, append-only under RLS) and the stats
 sheet reads aggregate numbers back via an RPC. Offline it degrades silently —
 the games themselves never depend on it.
 
-## The Supabase seam (the only tie to the data platform)
+## The data-platform seams
 
-Everything this repo touches in Supabase, all through the **public anon key**
-embedded in the scripts (safe to embed by design — RLS-bounded, read-only on
-the `cfb_*` tables, append-only on `arcade_results`):
+Two ties to the private platform repo, each with one job (ADR-0025):
+
+1. **The warehouse (owner-side, bake-time):** every bake — `build:data`,
+   `build:seasons`, `build:gm` — reads the platform repo's `cfb.db` directly
+   via `node:sqlite` (read-only; sibling checkout by default, `CFB_DB_PATH`
+   to override; restore it with `cfb restore` from R2). No credentials — it's
+   a local file. Collaborators don't bake; they build against the committed
+   `public/*.json`.
+2. **Supabase = runtime stats only (anon key, RLS-bounded):** the one runtime
+   network touch, through the **public anon key** embedded in
+   `src/data/stats.ts` (safe to embed by design):
 
 | access            | tables / RPC                                                          | when                          |
 | ----------------- | --------------------------------------------------------------------- | ----------------------------- |
-| read              | `cfb_teams`, `cfb_rosters`, `cfb_player_ratings`, `cfb_player_season_stats` | `npm run build:data` (bake)   |
-| read              | `cfb_games`, `cfb_teams`, `cfb_player_ratings`                        | `npm run build:seasons` (bake) |
-| read              | `cfb_teams`, `cfb_rosters`, `cfb_player_ratings`, `cfb_games` — season-scoped, **2010–2026** (historical GM starts, ADR-0027; 2014/2023 unusable) | `npm run build:gm [-- year]` (bake) |
 | append            | `arcade_results` (INSERT only; raw reads are RLS/privilege-denied)    | runtime, finishing a round    |
-| read (aggregates) | `arcade_daily_stats(game, puzzle)` RPC                                | runtime, stats sheet          |
+| read (aggregates) | `arcade_daily_stats(game, puzzle)` + `arcade_overview(game, days)` RPCs | runtime, stats sheet          |
 
-The pipeline that fills the `cfb_*` tables, the schema migrations, and the
-service-role key all live in the private platform repo. If a bake warns that
-something isn't served yet, that's a platform-side push to run — nothing in
-this repo can (or should) fix it.
+The pipeline that fills the warehouse, the stats-table migrations, and the
+service-role key all live in the private platform repo. R2 stays warehouse
+durability, never a serving store. If a bake warns that something is missing,
+that's a platform-side ingest/ratings run — nothing in this repo can (or
+should) fix it.
 
 ## Guess the Season (arcade cabinet #2)
 
@@ -92,13 +102,13 @@ star name), a date-seeded **daily** puzzle, a free-play random round, and a
 copy-paste share. Pure logic + tests: `src/engine/guessSeason.ts`.
 
 ```bash
-npm run build:seasons   # bake public/seasons.json (18 programs × 2010–2025)
+npm run build:seasons   # bake public/seasons.json (68 programs × 2010–2025)
 ```
 
-`seasons.json` (~260 KB, ~268 team-seasons) is baked from the Supabase serving
-layer — completed games from `cfb_games`, season-scoped conference from
-`cfb_teams`, and a star-player hint (top-rated real player) from
-`cfb_player_ratings`. Kept separate from `data.json` so the draft never loads it
+`seasons.json` (~990 KB, ~1,008 team-seasons across all 68 programs) is baked
+from the warehouse (ADR-0025) — completed games from `games`, season-scoped
+conference from `teams`, and a star-player hint (top-rated real player) from
+`player_ratings`. Kept separate from `data.json` so the draft never loads it
 (ADR-0017). Seasons with <6 completed games or no rated star are skipped; 2023
 is absent (API quota) and COVID-short 2020 slates are kept as fun puzzles.
 
@@ -113,3 +123,5 @@ node --no-warnings scripts/screenshot-guess.ts  <baseUrl> <outDir>  # drive a Gu
 `screenshot-guess.ts` plays a full win (it reads `seasons.json` + the engine's
 daily pick to know the answer) and a full loss, asserts the share text reaches
 the clipboard, and fails on any console error.
+
+<!-- trivial touch: 2026-07-15 -->

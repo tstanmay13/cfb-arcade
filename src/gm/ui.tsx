@@ -5,7 +5,10 @@
 // No engine logic here — pure presentation over data the panels already hold.
 import type { ReactNode } from "react";
 import type { GmTeam } from "./engine/types.ts";
-import { getMarkColors, getTeamColors, monogram } from "./theme.ts";
+import { getTeamColors } from "./theme.ts";
+import BaseTeamMark, { type MarkSize } from "../components/TeamMark.tsx";
+
+export type { MarkSize };
 
 /** Raw card class for the rare case a bespoke layout can't use <Card>. */
 export const cardCls =
@@ -124,21 +127,9 @@ export function Meter({
   );
 }
 
-export type MarkSize = "xs" | "s" | "m" | "l" | "xl";
-
-const MARK_SIZE: Record<MarkSize, { box: string; font: string; ring: number }> = {
-  xs: { box: "h-4 w-4", font: "text-[7px]", ring: 1 },
-  s: { box: "h-5 w-5", font: "text-[8px]", ring: 1.5 },
-  m: { box: "h-8 w-8", font: "text-[11px]", ring: 2 },
-  l: { box: "h-10 w-10", font: "text-sm", ring: 2.5 },
-  xl: { box: "h-16 w-16", font: "text-2xl", ring: 3.5 },
-};
-
 /**
- * TeamMark (V1 identity pass): the generated monogram badge that gives every
- * program a visual body — primary fill, secondary ring, Graduate letters.
- * `inverse` flips to a light badge for placement ON a primary-colored slab
- * (the broadcast scoreboard). Decorative next to a written name.
+ * TeamMark for a GmTeam — thin wrapper over the shared arcade-wide badge
+ * (src/components/TeamMark.tsx), which owns the monogram + contrast math.
  */
 export function TeamMark({
   team,
@@ -151,25 +142,15 @@ export function TeamMark({
   inverse?: boolean;
   className?: string;
 }) {
-  const s = MARK_SIZE[size];
-  const mk = getMarkColors(team);
-  const c = getTeamColors(team);
-  const bg = inverse ? "#fffdf6" : mk.bg;
-  const fg = inverse ? c.primary : mk.fg;
-  const ring = inverse ? c.primary : mk.ring;
   return (
-    <span
-      aria-hidden
-      title={team?.school}
-      className={`inline-flex shrink-0 select-none items-center justify-center rounded-full font-display leading-none ${s.box} ${s.font} ${className}`}
-      style={{
-        background: bg,
-        color: fg,
-        boxShadow: `inset 0 0 0 ${s.ring}px ${ring}, 0 1px 2px rgba(27, 42, 65, 0.25)`,
-      }}
-    >
-      {monogram(team?.school ?? "?")}
-    </span>
+    <BaseTeamMark
+      school={team?.school}
+      primary={team?.color}
+      secondary={team?.altColor}
+      size={size}
+      inverse={inverse}
+      className={className}
+    />
   );
 }
 

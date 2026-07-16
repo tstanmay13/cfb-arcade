@@ -40,6 +40,25 @@ const STUB_GLOBAL = {
   win_pct: 75.0,
   guess_distribution: { "1": 4, "2": 18, "3": 30, "4": 24, "5": 14, "6": 6 },
   avg_guesses: 3.4,
+  // v2 keys (migration 0008)
+  players: 41,
+  avg_hints: 1.25,
+  median_time_seconds: 102,
+  top_guesses: [
+    { guess: "georgia 2021", n: 40 },
+    { guess: "ohio_state 2014", n: 22 },
+    { guess: "alabama 2020", n: 17 },
+  ],
+};
+const STUB_OVERVIEW = {
+  all_time: { plays: 500, wins: 300, players: 88, win_pct: 60.0 },
+  today: { plays: 12, players: 9, wins: 7 },
+  series: Array.from({ length: 14 }, (_, i) => ({
+    day: new Date(Date.now() - (13 - i) * 86_400_000).toISOString().slice(0, 10),
+    plays: 5 + ((i * 7) % 26),
+    players: 3 + ((i * 5) % 15),
+    wins: 2 + ((i * 3) % 11),
+  })),
 };
 
 function wire(page: Page, tag: string): void {
@@ -59,6 +78,9 @@ async function openArcade(context: BrowserContext, tag: string): Promise<Page> {
   await context.route("**/rest/v1/rpc/arcade_daily_stats", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(STUB_GLOBAL) }),
   );
+  await context.route("**/rest/v1/rpc/arcade_overview", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(STUB_OVERVIEW) }),
+  );
   const page = await context.newPage();
   wire(page, tag);
   await page.goto(base);
@@ -76,6 +98,15 @@ async function checkStatsModal(page: Page, tag: string, shot: string | null): Pr
   assert(text.includes(`DAILY #${puzzle}`), `[${tag}] stats sheet shows today's puzzle number`);
   assert(/75%/.test(text) && /128/.test(text), `[${tag}] stats sheet shows the (stubbed) global solve rate`);
   assert(text.includes("GUESS DISTRIBUTION"), `[${tag}] stats sheet has the you-vs-everyone distribution`);
+  // v2 (migration 0008): distinct players, median time, popular guesses
+  // (visible here because the harness just finished today's daily), and the
+  // 14-day national traffic strip from arcade_overview.
+  assert(/41\s*players/i.test(text), `[${tag}] stats sheet shows the distinct-player count`);
+  assert(text.includes("median 1:42"), `[${tag}] stats sheet shows the median solve time`);
+  assert(text.includes("TODAY'S POPULAR GUESSES"), `[${tag}] stats sheet lists popular guesses post-finish`);
+  assert(/georgia 2021/i.test(text), `[${tag}] popular guesses render prettified slugs (underscores stripped)`);
+  assert(text.includes("LAST 14 DAYS"), `[${tag}] stats sheet has the daily-runs strip`);
+  assert(/88\s*players all-time/i.test(text), `[${tag}] overview totals render`);
   if (shot) {
     await page.waitForTimeout(250);
     await page.screenshot({ path: `${outDir}/${shot}`, fullPage: true });

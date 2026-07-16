@@ -1,0 +1,35 @@
+{
+  "school_id": "ole_miss",
+  "cfbd_name": "Ole Miss",
+  "name": "Ole Miss",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Hugh Freeze",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 39,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 94
+      }
+    },
+    {
+      "name": "Lane Kiffin",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 44,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 60,
+        "stat_5": 105
+      }
+    }
+  ],
+  "players": []
+}

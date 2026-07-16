@@ -14,9 +14,12 @@ union mapped to URL paths (`/` draft · `/guess` · `/gm`; SPA rewrite in
 `vercel.json`). **Do not entangle a new cabinet with the draft's
 `runState`/reducer** (`src/state/store.tsx`) — that's the shipped game.
 
-The data pipeline lives in a separate, private platform repo; the ONLY seam
-between the two is Supabase (see README "The Supabase seam"). Never add a
-credential beyond the public anon key to this repo.
+The data pipeline lives in a separate, private platform repo. Two seams, each
+with one job (ADR-0025, README "The data-platform seams"): ALL bakes read the
+platform's **local warehouse** (`cfb.db` via `node:sqlite` — see
+`scripts/warehouse.ts`; owner-side, no credentials), and Supabase is **runtime
+stats only** (ADR-0019, anon key). Never add a credential beyond the public
+anon key to this repo.
 
 ## Ground rules
 
@@ -41,8 +44,11 @@ credential beyond the public anon key to this repo.
   everything unit-tested with vitest (`npm test`).
 - `src/` React components consume engines via the runState reducer.
 - `scripts/build-data.ts` — bakes `public/data.json` (see ADR-0010/0011).
-  `scripts/content/*.json` — authored historical rosters/coaches, one file per
-  program; the human-readable source of truth (§4.5).
+  `scripts/content/*.json` — one file per program, **hybrid** since the 68 P4
+  expansion (ADR-0024): the original 18 are fully authored (historical rosters +
+  coaches, the human-readable source of truth, §4.5); the ~50 expansion teams are
+  stubs — authored coaches only (CFBD has none, ADR-0014/0015), with branding +
+  modern rosters merged from the warehouse at bake (`players: []`, ADR-0025).
 - **Guess the Season** (cabinet #2): `src/engine/guessSeason.ts` (pure logic +
   `.test.ts`), `src/components/GuessSeason.tsx` (screen, rendered *outside*
   `GameProvider`; takes `teams` as a prop, lazy-fetches its own JSON via
@@ -65,21 +71,25 @@ credential beyond the public anon key to this repo.
   never import it), `src/gm/GmCabinet.tsx`/`GmShell.tsx`/`panels.tsx`/
   `recruitingPanel.tsx`/`WatchGame.tsx` (screens; lazy chunk so the dailies
   never pay for it), `src/gm/ui.tsx` + `theme.ts` (the GM design system:
-  Card/Meter/Pill/Delta primitives, `getTeamColors()` contrast correction,
-  and the `TeamMark` monogram badge — school colors live in the mark and
-  `TeamName` text stays ink; screens never hardcode a brand hex),
+  Card/Meter/Pill/Delta primitives + `getTeamColors()` contrast correction;
+  the `TeamMark` monogram badge itself is ARCADE-SHARED at
+  `src/components/TeamMark.tsx` and used by all three cabinets — school
+  colors live in the mark, team-name text stays ink, and screens never
+  hardcode a brand hex),
   `scripts/build-gm.ts` → `public/gm-data.json` (real
   2026 P4 universe: projected rosters + Elo from real 2025 results + real
-  rivalries from 2010-25 matchup history; Supabase-only, anon key). **Historical
-  starts (ADR-0027)**: the same script takes a year (`npm run build:gm -- 2010`)
-  and bakes `public/gm-data-YYYY.json` for any season 2010–2025 **except 2014
-  and 2023** (unusable served-ratings coverage; the bake fails loudly). It reads
-  season-scoped `cfb_teams`/`cfb_player_ratings`/`cfb_rosters`/`cfb_games` for
-  that year — era-correct conferences included — plus the 2026 team list to fix
-  the 68-team full-sim set (universe rule (a): the 2026 P4 schools full-sim in
-  every era; the league realigns to the modern map at first rollover). One
-  static file per year, lazy-loaded only when that start year is picked. All
-  game "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
+  rivalries from 2010-25 matchup history; warehouse-direct, ADR-0025).
+  **Historical starts (ADR-0027)**: the same script takes a year
+  (`npm run build:gm -- 2010`) and bakes `public/gm-data-YYYY.json` for any
+  season 2010–2025 **except 2014 and 2023** (unusable ratings coverage; the
+  bake fails loudly rather than shipping a walk-on-filled universe). It reads
+  season-scoped teams/ratings/rosters/games for that year — era-correct
+  conferences included — plus the 2026 team list to fix the 68-team full-sim
+  set (universe rule (a): the 2026 P4 schools full-sim in every era; the
+  league realigns to the modern map at first rollover). One static file per
+  year, committed like gm-data.json and lazy-loaded only when that start year
+  is picked. All game
+  "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
   live in `docs/CFB_GM_DESIGN.md` implementation-notes sections.
 
 ## Commands
@@ -87,12 +97,13 @@ credential beyond the public anon key to this repo.
 - `npm run dev` — localhost dev server.
 - `npm test` — vitest unit tests (engines + bake helpers). Run after touching
   `src/engine/` or `scripts/`.
-- `npm run build:data` — re-bake `public/data.json` (Supabase-only via the
-  public anon key; no warehouse dependency, works from a clean clone).
+- `npm run build:data` — re-bake `public/data.json` (owner-side, ADR-0025:
+  reads the platform repo's `cfb.db` directly — sibling checkout by default,
+  `CFB_DB_PATH` to override. Collaborators use the committed `data.json`).
 - `npm run build:seasons` — re-bake `public/seasons.json` for Guess the Season
-  (Supabase-only; ADR-0017).
-- `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM (Supabase-only;
-  ADR-0023).
+  (warehouse-direct like all bakes, ADR-0025/0017).
+- `npm run build:gm` — re-bake `public/gm-data.json` for CFB-GM
+  (warehouse-direct, ADR-0025/0023).
 - `npm run bench:gm -- run|report` — CFB-GM policy benchmark (headless
   30-year dynasties under scripted profiles). Baselines + method live in
   `docs/benchmarks/`; re-run and diff after ANY GM tuning change.
@@ -106,8 +117,13 @@ credential beyond the public anon key to this repo.
   Both slots resolve to `STAT_LABELS.WR`.
 - Historical content: keep players era-correct (a 2009 Heisman is the 2000s
   decade, not the 2010s) and never author a kicker/TE/OL into a board position.
-- Decade powerhouse flags live per-program in `scripts/content/*.json`
-  (`powerhouse_eras`), not in code.
+- Spin landing weight is **talent-driven and lives IN code** (§5.3,
+  `src/engine/spin.ts`, ADR-0024): a cell's top-3-avg-OVR percentile on a gentle
+  `[MIN_CELL_WEIGHT=1.5, MAX_CELL_WEIGHT=3.0]` curve, a `MARQUEE_BUMP=1.25` for the
+  hand-curated `MARQUEE_TEAMS`, and `COACH_TIER_WEIGHT` for coach spins — all
+  runtime-tweakable constants (retune = one-line edit, no data re-bake;
+  `cellSpinWeight` is exported for tuning/tests). `powerhouse_eras` in
+  `scripts/content/*.json` now only gates 80s/90s era authenticity, not weight.
 - **ADRs share one global sequence across both repos** (see `docs/adr/`).
   Historical 0001–0021 stay in the private platform repo (owner-side); this
   repo owns **0022 onward** and is where new arcade decisions go. Numbers mean

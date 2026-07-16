@@ -1,0 +1,35 @@
+{
+  "school_id": "northwestern",
+  "cfbd_name": "Northwestern",
+  "name": "Northwestern",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Pat Fitzgerald",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 72,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 110
+      }
+    },
+    {
+      "name": "Pat Fitzgerald",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 11,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 110
+      }
+    }
+  ],
+  "players": []
+}

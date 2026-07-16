@@ -1,0 +1,35 @@
+{
+  "school_id": "wisconsin",
+  "cfbd_name": "Wisconsin",
+  "name": "Wisconsin",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Paul Chryst",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 52,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 62,
+        "stat_5": 86
+      }
+    },
+    {
+      "name": "Luke Fickell",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 12,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 75
+      }
+    }
+  ],
+  "players": []
+}

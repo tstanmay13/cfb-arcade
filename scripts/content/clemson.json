@@ -1,0 +1,35 @@
+{
+  "school_id": "clemson",
+  "cfbd_name": "Clemson",
+  "name": "Clemson",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Dabo Swinney",
+      "decade": "2010s",
+      "coach_tier": "Elite",
+      "stats": {
+        "stat_1": 117,
+        "stat_2": 2,
+        "stat_3": 6,
+        "stat_4": 78,
+        "stat_5": 180
+      }
+    },
+    {
+      "name": "Dabo Swinney",
+      "decade": "2020s",
+      "coach_tier": "Elite",
+      "stats": {
+        "stat_1": 50,
+        "stat_2": 0,
+        "stat_3": 3,
+        "stat_4": 72,
+        "stat_5": 180
+      }
+    }
+  ],
+  "players": []
+}

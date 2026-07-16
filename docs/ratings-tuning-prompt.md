@@ -7,8 +7,8 @@ targets from the ADR-0016 balance pass.
 
 ---
 
-You are tuning the hidden player ratings of **The 16-0 Draft** (`game/` in the
-cfb repo). `hidden_ovr` is the sim's ONLY input, so rating inflation directly
+You are tuning the hidden player ratings of **The 16-0 Draft** (this repo,
+`cfb-arcade`). `hidden_ovr` is the sim's ONLY input, so rating inflation directly
 inflates perfect seasons. Your job: make the draft pool honest and keep 16-0
 rare, without breaking the game's invariants.
 
@@ -16,7 +16,7 @@ rare, without breaking the game's invariants.
 
 1. **Rank preservation.** Never reorder players within a position. All
    deflation happens through the monotonic quantile remap
-   (`calibrationMap` in `game/scripts/lib.ts`), never per-player edits.
+   (`calibrationMap` in `scripts/lib.ts`), never per-player edits.
    Same input rating → same output rating.
 2. **§12 correlation.** Visible stats are untouched; because the remap is
    monotonic, the stat↔OVR correlation warning in `build-data.ts` must stay
@@ -31,13 +31,13 @@ rare, without breaking the game's invariants.
 ## Why inflation happens (so you fix causes, not symptoms)
 
 The warehouse rating is a within-season cohort percentile. The game pool then
-takes top-N per powerhouse program at each player's best career season —
+takes top-N per P4 program at each player's best career season —
 triple selection bias. Unremapped, the pool's median is ~87 and a third of
 players are 90+, which made random play go 16-0 in 22.5% of runs.
 
 ## The loop
 
-1. Bake: `cd game && npm run build:data` — note the `recalibrated OVRs` line.
+1. Bake: `npm run build:data` — note the `recalibrated OVRs` line.
 2. Measure: `node --no-warnings scripts/balance.ts 20000` — it Monte-Carlos
    full drafts with the real engines under two bracketing strategies:
    `random` (floor: button-mashing) and `greedy` (ceiling: sees hidden

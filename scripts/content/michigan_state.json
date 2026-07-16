@@ -1,0 +1,35 @@
+{
+  "school_id": "michigan_state",
+  "cfbd_name": "Michigan State",
+  "name": "Michigan State",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Mark Dantonio",
+      "decade": "2010s",
+      "coach_tier": "Elite",
+      "stats": {
+        "stat_1": 92,
+        "stat_2": 0,
+        "stat_3": 3,
+        "stat_4": 70,
+        "stat_5": 132
+      }
+    },
+    {
+      "name": "Mel Tucker",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 20,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 45,
+        "stat_5": 25
+      }
+    }
+  ],
+  "players": []
+}

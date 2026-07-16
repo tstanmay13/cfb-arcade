@@ -7,7 +7,7 @@ import { CLASS_LABELS, DEV_TIER_LABELS, expandSheet } from "./engine/player.ts";
 import { confStandings, p4Conferences } from "./engine/postseason.ts";
 import { committeeOrder } from "./engine/poll.ts";
 import { fmtMoney, marketValue } from "./engine/nil.ts";
-import { LINEUP_COUNTS, selectLineup } from "./engine/lineup.ts";
+import { LINEUP_COUNTS } from "./engine/lineup.ts";
 import { effectiveAsk, portalFit, type PortalOffer } from "./engine/offseason.ts";
 import {
   ARCHETYPE_LABELS, BOOSTER_LABELS, coachMarket, coachSalary, fireCoach, hireCoach,
@@ -950,7 +950,6 @@ function DepthChart({
 }) {
   const team = state.teams[state.userTid];
   const colors = getTeamColors(team);
-  const lineup = useMemo(() => selectLineup(team.roster.map((pid) => state.players[pid]), team.pins), [state, team]);
 
   const band = (label: string, groups: PosGroup[]) => (
     <div>
@@ -962,13 +961,12 @@ function DepthChart({
         {groups.map((g) => {
           const stack = byGroup.get(g) ?? [];
           const starters = STARTER_COUNT.get(g) ?? 1;
-          const starterIds = new Set((lineup[g] ?? []).map((p) => p.id));
           return (
-            <div key={g} className="min-w-[92px] flex-1 rounded-lg bg-black/25 p-2 backdrop-blur-[1px]">
+            <div key={g} className="min-w-[92px] flex-1 rounded-lg bg-black/25 p-2">
               <div className="mb-1 text-center font-display text-[11px] tracking-widest text-chalk/95">{g}</div>
               <div className="space-y-1">
-                {stack.slice(0, Math.max(starters + 1, 2)).map((p) => {
-                  const isStarter = starterIds.has(p.id);
+                {stack.slice(0, Math.max(starters + 1, 2)).map((p, idx) => {
+                  const isStarter = idx === 0;
                   return (
                     <button
                       key={p.id}
@@ -990,7 +988,7 @@ function DepthChart({
                       </span>
                       <span className="block text-[9px] uppercase tracking-wide opacity-80">
                         {p.rs ? "rs-" : ""}{CLASS_LABELS[p.cls] ?? p.cls}
-                        {p.inj > 0 ? " · OUT" : isStarter ? "" : " · depth"}
+                        {p.inj > 0 ? " · OUT" : isStarter ? " · starter" : " · depth"}
                       </span>
                     </button>
                   );

@@ -1,0 +1,35 @@
+{
+  "school_id": "byu",
+  "cfbd_name": "BYU",
+  "name": "BYU",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Bronco Mendenhall",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 50,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 135
+      }
+    },
+    {
+      "name": "Kalani Sitake",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 45,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 72
+      }
+    }
+  ],
+  "players": []
+}

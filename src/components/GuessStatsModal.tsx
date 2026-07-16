@@ -8,7 +8,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { MAX_GUESSES } from "../engine/guessSeason.ts";
 import { loadGuessStats } from "../state/guessStorage.ts";
-import { fetchGlobalStats, type GlobalStats } from "../data/stats.ts";
+import {
+  fetchGlobalStats,
+  fetchOverview,
+  type GlobalStats,
+  type OverviewStats,
+} from "../data/stats.ts";
 
 interface JustFinished {
   won: boolean;
@@ -29,6 +34,18 @@ async function cachedGlobal(puzzle: number | null): Promise<GlobalStats | null> 
   return stats;
 }
 
+let overviewCache: { at: number; stats: OverviewStats | null } | null = null;
+
+async function cachedOverview(): Promise<OverviewStats | null> {
+  if (overviewCache && Date.now() - overviewCache.at < CACHE_MS) return overviewCache.stats;
+  const stats = await fetchOverview("guess_season", 14);
+  overviewCache = { at: Date.now(), stats };
+  return stats;
+}
+
+/** 102 → "1:42". */
+const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
 export default function GuessStatsModal({
   open,
   onClose,
@@ -43,14 +60,17 @@ export default function GuessStatsModal({
   const personal = useMemo(() => (open ? loadGuessStats() : null), [open]);
   const [today, setToday] = useState<GlobalStats | null | "loading">("loading");
   const [allTime, setAllTime] = useState<GlobalStats | null | "loading">("loading");
+  const [overview, setOverview] = useState<OverviewStats | null | "loading">("loading");
 
   useEffect(() => {
     if (!open) return;
     let alive = true;
     setToday("loading");
     setAllTime("loading");
+    setOverview("loading");
     cachedGlobal(todayPuzzle).then((s) => alive && setToday(s));
     cachedGlobal(null).then((s) => alive && setAllTime(s));
+    cachedOverview().then((s) => alive && setOverview(s));
     return () => {
       alive = false;
     };
@@ -83,6 +103,13 @@ export default function GuessStatsModal({
   const maxPct = Math.max(1, ...rows.map((r) => Math.max(r.minePct, r.theirsPct)));
   const highlight = justFinished?.won ? justFinished.guessCount : null;
   const globalOffline = allTime === null && today === null;
+  // Popular guesses reveal what today's crowd tried (usually the answer) —
+  // only shown once THIS player has finished today's daily.
+  const finishedToday = personal.lastPuzzle >= todayPuzzle;
+  const todayGuesses =
+    today !== "loading" && today !== null && finishedToday ? today.topGuesses.slice(0, 5) : [];
+  const series = overview !== "loading" && overview !== null ? overview.series : [];
+  const maxDayPlays = Math.max(1, ...series.map((d) => d.plays));
 
   return (
     <div
@@ -137,11 +164,48 @@ export default function GuessStatsModal({
             <p className="mt-1">
               <strong className="font-display">{Math.round(today.winPct ?? 0)}%</strong> of{" "}
               <span className="tabular-nums">{today.plays}</span>{" "}
-              {today.plays === 1 ? "player" : "players"} solved it
+              {today.players !== null && today.players > 0 ? (
+                <>
+                  {today.plays === 1 ? "run" : "runs"} by{" "}
+                  <span className="tabular-nums">{today.players}</span>{" "}
+                  {today.players === 1 ? "player" : "players"}
+                </>
+              ) : (
+                <>{today.plays === 1 ? "player" : "players"}</>
+              )}{" "}
+              solved it
               {today.avgGuesses !== null && (
                 <span className="opacity-70"> · avg {Number(today.avgGuesses).toFixed(1)} guesses</span>
               )}
+              {today.medianTimeSeconds !== null && (
+                <span className="opacity-70"> · median {fmtTime(today.medianTimeSeconds)}</span>
+              )}
             </p>
+          )}
+          {todayGuesses.length > 0 && (
+            <div className="mt-3 border-t border-paper-edge pt-2">
+              <h4 className="font-display text-[10px] tracking-[0.25em] opacity-60">
+                TODAY'S POPULAR GUESSES
+              </h4>
+              <ol className="mt-1.5 space-y-1">
+                {todayGuesses.map((t, i) => (
+                  <li key={t.guess} className="flex items-center gap-2">
+                    <span className="w-3 text-right font-display text-xs tabular-nums opacity-50" aria-hidden>
+                      {i + 1}
+                    </span>
+                    <span className="flex-1 truncate font-display text-sm uppercase tracking-wide">
+                      {t.guess.replace(/_/g, " ")}
+                    </span>
+                    <span
+                      className="text-[10px] tabular-nums opacity-60"
+                      aria-label={`guessed ${t.n} ${t.n === 1 ? "time" : "times"}`}
+                    >
+                      ×{t.n}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
           )}
         </section>
 
@@ -217,6 +281,37 @@ export default function GuessStatsModal({
             </p>
           )}
         </section>
+
+        {/* National traffic: runs per day, zero-filled, today labeled (never
+            color-only). Hidden entirely until the overview RPC is reachable. */}
+        {series.length > 0 && overview !== "loading" && overview !== null && (
+          <section aria-label="National runs per day, last 14 days" className="mt-4">
+            <div className="flex items-baseline justify-between">
+              <h3 className="font-display text-xs tracking-[0.25em] opacity-60">LAST 14 DAYS</h3>
+              <span className="text-[10px] uppercase tracking-wider opacity-50">runs per day</span>
+            </div>
+            <div className="mt-2 flex h-16 items-end gap-[3px]" aria-hidden>
+              {series.map((d, i) => (
+                <div
+                  key={d.day}
+                  title={`${d.day}: ${d.plays} ${d.plays === 1 ? "run" : "runs"}, ${d.players} ${d.players === 1 ? "player" : "players"}`}
+                  className={`flex-1 rounded-t-sm ${i === series.length - 1 ? "bg-emerald-700" : "bg-ink/70"}`}
+                  style={{ height: d.plays > 0 ? `${Math.max(12.5, (d.plays / maxDayPlays) * 100)}%` : "2px" }}
+                />
+              ))}
+            </div>
+            <div className="mt-1 flex justify-between text-[9px] uppercase tracking-wider opacity-50">
+              <span>{series[0].day.slice(5)}</span>
+              <span>today</span>
+            </div>
+            <p className="mt-1.5 text-[10px] uppercase tracking-wider opacity-60">
+              <span className="tabular-nums">{overview.today.plays}</span> runs ·{" "}
+              <span className="tabular-nums">{overview.today.players}</span> players today —{" "}
+              <span className="tabular-nums">{overview.allTime.plays}</span> runs ·{" "}
+              <span className="tabular-nums">{overview.allTime.players}</span> players all-time
+            </p>
+          </section>
+        )}
       </div>
     </div>
   );

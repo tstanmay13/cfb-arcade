@@ -1,0 +1,35 @@
+{
+  "school_id": "smu",
+  "cfbd_name": "SMU",
+  "name": "SMU",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Sonny Dykes",
+      "decade": "2010s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 20,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 55,
+        "stat_5": 103
+      }
+    },
+    {
+      "name": "Rhett Lashlee",
+      "decade": "2020s",
+      "coach_tier": "Great",
+      "stats": {
+        "stat_1": 29,
+        "stat_2": 0,
+        "stat_3": 1,
+        "stat_4": 55,
+        "stat_5": 29
+      }
+    }
+  ],
+  "players": []
+}

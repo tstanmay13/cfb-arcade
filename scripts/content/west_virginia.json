@@ -1,0 +1,35 @@
+{
+  "school_id": "west_virginia",
+  "cfbd_name": "West Virginia",
+  "name": "West Virginia",
+  "mascot": "",
+  "powerhouse_eras": [],
+  "conferences": {},
+  "coaches": [
+    {
+      "name": "Dana Holgorsen",
+      "decade": "2010s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 61,
+        "stat_2": 0,
+        "stat_3": 1,
+        "stat_4": 50,
+        "stat_5": 96
+      }
+    },
+    {
+      "name": "Neal Brown",
+      "decade": "2020s",
+      "coach_tier": "Standard",
+      "stats": {
+        "stat_1": 32,
+        "stat_2": 0,
+        "stat_3": 0,
+        "stat_4": 50,
+        "stat_5": 72
+      }
+    }
+  ],
+  "players": []
+}

@@ -33,6 +33,20 @@ export default function GmCabinet({ onBack }: { onBack: () => void }) {
     refreshSlots();
   }, []);
 
+  // GM keeps a consistent, neutral backdrop. The draft cabinet writes a team
+  // "stadium glow" onto :root (e.g. a Kentucky-blue radial haze) that otherwise
+  // persists into GM and shifts as tab content changes height. Neutralize it
+  // while GM is mounted; restore whatever was there on the way out.
+  useEffect(() => {
+    const root = document.documentElement.style;
+    const prev = root.getPropertyValue("--bg-stadium-glow");
+    root.setProperty("--bg-stadium-glow", "none");
+    return () => {
+      if (prev) root.setProperty("--bg-stadium-glow", prev);
+      else root.removeProperty("--bg-stadium-glow");
+    };
+  }, []);
+
   if (error) {
     return (
       <Shell onBack={onBack}>

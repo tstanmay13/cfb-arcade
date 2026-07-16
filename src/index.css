@@ -174,24 +174,20 @@ body {
 /* position clusters sit on top as jersey chips.                      */
 /* ------------------------------------------------------------------ */
 .gm-field {
-  background:
-    repeating-linear-gradient(
-      90deg,
-      var(--turf-a) 0px,
-      var(--turf-a) 48px,
-      var(--turf-b) 48px,
-      var(--turf-b) 96px
-    );
-  box-shadow: inset 0 0 0 3px var(--turf-line), inset 0 0 70px rgba(0, 0, 0, 0.28);
+  /* Muted pine turf — a single cheap repeating gradient + a crisp inset line.
+     No blurred vignette / backdrop filters: keeps the depth chart repaint-light. */
+  background: repeating-linear-gradient(90deg, #1f5638 0, #1f5638 58px, #1c4f33 58px, #1c4f33 116px);
+  box-shadow: inset 0 0 0 2px rgba(238,244,233,0.40);
 }
 /* faint yard hash line every quarter */
 .gm-field-hash {
   background-image: linear-gradient(90deg, transparent 0, transparent calc(100% - 1px), var(--turf-line) 100%);
   opacity: 0.28;
 }
-/* Depth-chart jersey chip: program color with a soft top-light */
+/* Depth-chart jersey chip: flat program color — no gradient, so the starter
+   chip is a single cheap paint that knits into the navy theme. */
 .gm-chip {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--chip) 88%, white) 0%, var(--chip) 60%, color-mix(in srgb, var(--chip) 80%, black) 100%);
+  background: var(--chip);
   color: var(--chip-ink);
 }
 

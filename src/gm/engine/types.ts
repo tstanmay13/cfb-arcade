@@ -28,6 +28,12 @@ export interface GmTeam {
   prestige: number;
   /** Real rivals (team ids), from 2010-25 matchup history (v1.3). */
   rivals?: number[];
+  /**
+   * Historical bakes only (M0.2): this program's 2026 conference when it
+   * differs from the era conference. The league realigns to the modern
+   * structure at the first rollover so generated schedules stay legal.
+   */
+  conf2026?: string;
 }
 
 /** Compact baked player seed — expanded into a full Player at dynasty creation. */
@@ -113,6 +119,10 @@ export interface Player {
   loyalty: number;
   stats: SeasonStats;
   career: CareerLine[];
+  /** Award history, append-only (M1.2 player detail). */
+  accolades?: { season: number; award: string }[];
+  /** Injury history, append-only: season + weeks lost (M1.2 player detail). */
+  injHist?: { season: number; weeks: number }[];
 }
 
 export interface TeamSeason {
@@ -143,13 +153,15 @@ export interface Team extends GmTeam {
 // Portal & NIL (v1.2)
 // ---------------------------------------------------------------------------
 
-export type OffStage = "report" | "retention" | "portal" | "done";
+export type OffStage = "report" | "retention" | "portal" | "signing" | "done";
 
 export interface RetentionCase {
   pid: number;
   /** NIL ask to attempt retention (market value + premium). */
   ask: number;
   reason: string;
+  /** Non-NIL retention effort spent (M1.4): raises stay odds without paying. */
+  courted?: boolean;
 }
 
 export interface PortalEntry {
@@ -201,6 +213,10 @@ export interface Recruit {
   scouted: 0 | 1 | 2;
   /** User's one in-home HC visit spent. */
   hcUsed: boolean;
+  /** User's one official visit hosted (M1.4: one per recruit, like real CFB). */
+  visited?: boolean;
+  /** User removed this prospect from their board (persists; M1.4). */
+  hidden?: boolean;
 }
 
 export type GameKind =
@@ -334,6 +350,8 @@ export interface OffseasonReport {
   signees: { name: string; pos: string; stars: number; ovr: number }[];
   /** Biggest riser lines, user team. */
   risers: { name: string; pos: string; from: number; to: number }[];
+  /** Biggest decliner lines, user team (M1.6). */
+  droppers: { name: string; pos: string; from: number; to: number }[];
   prestigeChanges: { school: string; from: number; to: number }[];
   classRank: number;
 }
@@ -346,9 +364,18 @@ export interface DynastyState {
   /** Dynasty year, 1-based. */
   year: number;
   season: number;
+  /** Calendar year the dynasty began (M0.2 historical starts; display + bake). */
+  startYear: number;
   /** Next week to simulate (regular season). */
   week: number;
   phase: Phase;
+  /**
+   * Offseason week 1..8 (0 outside the offseason). Recruiting + the portal run
+   * ONLY across these weeks (M0.1). Week 1 report, 2 retention, 3-7 the five
+   * portal rounds, 8 signing day + close. The zero-input path is the SIM
+   * OFFSEASON action (autoAdvanceOffseason), not a persisted toggle.
+   */
+  offWeek: number;
   userTid: number;
   teams: Team[];
   players: Record<number, Player>;
@@ -364,10 +391,8 @@ export interface DynastyState {
   /** Recruiting (v1.1): this cycle's national pool. */
   recruits: Recruit[];
   nextRid: number;
-  /** User's weekly recruiting action points. */
-  rapLeft: number;
-  /** Recruits with an official visit pending this week's home result. */
-  pendingVisits: number[];
+  /** User's shared weekly stamina pool (M1.4): recruiting/develop/morale/etc. */
+  stamina: number;
   /** Offseason interactive stage (v1.2). */
   offStage: OffStage;
   /** User-team retention cases awaiting a decision. */

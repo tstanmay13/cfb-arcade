@@ -23,7 +23,7 @@ export const TOUR_STEPS: TourStep[] = [
     tab: "dashboard",
     key: "advance",
     title: "The most important button",
-    body: "SIM WEEK advances the whole world one week — every game plays, recruiting ticks, injuries heal. SIM TO SEASON END fast-forwards to the offseason.",
+    body: "SIM WEEK advances the whole world one week — every game plays, injuries heal. SIM REG SEASON stops before the postseason; SIM WHOLE SEASON runs to the recap. Recruiting waits for the offseason.",
   },
   {
     tab: "dashboard",

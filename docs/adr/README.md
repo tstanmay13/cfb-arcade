@@ -32,6 +32,7 @@ understand the *why* without needing platform access.
 | [0024](0024-16-0-team-expansion.md) | The 16-0 Draft expands to 68 P4 teams with talent-weighted spins | Accepted |
 | [0025](0025-bake-reads-warehouse.md) | The data.json bake reads the warehouse directly; Supabase heads toward stats-only | Accepted |
 | [0026](0026-outcome-odds-ramp.md) | 16-0 odds ramp + varied records: no mid-range cliffs, loss counts drawn per outcome (ten live records) — 16-0 stays rare (skilled ~8%, oracle ~12%, random ~5%) | Accepted |
+| [0027](0027-gm-mode-mechanical-rework.md) | CFB-GM mechanical rework (PR 2): offseason-gated recruiting/portal, shared stamina pool, fit-discounted portal NIL, 5-role staff, scheme-fit layer, historical 2010+ starts (revises design-doc calendar + 5-champ CFP) | Accepted |
 
 ## Historical arcade decisions (in the platform repo, owner-side)
 

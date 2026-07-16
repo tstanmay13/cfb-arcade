@@ -37,19 +37,35 @@ export function confStandings(teams: Team[], conference: string): Team[] {
     });
 }
 
+/**
+ * The P4 conferences actually present, modern four first (stable order). A
+ * historical start's year 1 can have era conferences (Big East, Pac-10, …)
+ * until the realignment wave at rollover (M0.2).
+ */
+export function p4Conferences(teams: Team[]): string[] {
+  const present = new Set(teams.filter((t) => t.p4).map((t) => t.conference));
+  return [
+    ...REAL_CONFS.filter((c) => present.has(c)),
+    ...[...present].filter((c) => !REAL_CONFS.includes(c)).sort(),
+  ];
+}
+
 export function ccgGames(state: DynastyState): SchedGame[] {
-  return REAL_CONFS.map((conf, i) => {
+  const games: SchedGame[] = [];
+  for (const conf of p4Conferences(state.teams)) {
     const [one, two] = confStandings(state.teams, conf);
-    return {
-      id: state.nextGid + i,
+    if (!one || !two) continue; // era conference with a lone member — no CCG
+    games.push({
+      id: state.nextGid + games.length,
       week: CCG_WEEK,
       kind: "ccg" as const,
       home: one.id,
       away: two.id,
       conf: false,
       name: `${conf} Championship`,
-    };
-  });
+    });
+  }
+  return games;
 }
 
 export interface PostseasonSlate {
@@ -62,12 +78,16 @@ export function buildPostseason(state: DynastyState, ccgWinners: number[]): Post
   const order = committeeOrder(state.teams);
   const champs = new Set(ccgWinners);
   const field: number[] = [];
+  // The 4 HIGHEST-RANKED champions are guaranteed (ADR-0027). With the modern
+  // four conferences that's all of them; a historical year 1 can stage more
+  // CCGs, and its lower-ranked champs compete as at-large like everyone else.
   for (const tid of order) {
+    if (field.length >= 4) break;
     if (champs.has(tid)) field.push(tid);
   }
   for (const tid of order) {
     if (field.length >= 12) break;
-    if (!champs.has(tid)) field.push(tid);
+    if (!field.includes(tid)) field.push(tid);
   }
   // Straight seeding by committee order.
   field.sort((a, b) => order.indexOf(a) - order.indexOf(b));

@@ -28,16 +28,21 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
       <div className={`${card} md:col-span-2`}>
         <h3 className={h}>THE LOOP</h3>
         <p className="mt-2 text-sm">
-          You're the head coach of a real 2026 Power-4 program, forever. One season =
+          You're the head coach of a real Power-4 program, forever — start in{" "}
+          <span className="font-bold">2026 or any real season back to 2010</span> (era-correct rosters and
+          conferences; realignment catches up in year 2). One season =
           <span className="font-bold"> sim (or play) 13 weeks → conference title games → 12-team Playoff + bowls →
-          the offseason</span>. The offseason is where dynasties are made: keep your stars out of the portal,
-          shop it yourself, sign your recruiting class, survive your boosters, then hit{" "}
+          an 8-week offseason</span>. The offseason is where dynasties are made: it's the ONLY time recruiting and
+          the portal are open. Work it week by week, then hit{" "}
           <span className="font-display">START SEASON</span> and do it again — for up to 50 years.
         </p>
         <p className="mt-2 text-sm">
-          Two buttons drive everything: <span className="font-display">SIM WEEK</span> plays the current week
-          (recruiting ticks along automatically), and <span className="font-display">🏈 PLAY GAME</span> lets you
-          coach your game drive-by-drive before simming the rest. Everything autosaves after every click.
+          In season: <span className="font-display">SIM WEEK</span> plays the current week,{" "}
+          <span className="font-display">🏈 PLAY GAME</span> coaches your game drive-by-drive,{" "}
+          <span className="font-display">SIM REG SEASON</span> stops before the postseason, and{" "}
+          <span className="font-display">SIM WHOLE SEASON</span> runs to the recap. In the offseason, each panel's
+          advance button moves one week; <span className="font-display">SIM OFFSEASON</span> auto-resolves the
+          rest. Everything autosaves after every click.
         </p>
       </div>
 
@@ -46,7 +51,8 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
         <p className="mt-2 text-sm">
           Your week at a glance: next opponent, last result (with box score), the Top 10 rankings, your{" "}
           <span className="font-bold">booster mandates</span> (seasonal demands — meet them all for +25% NIL money
-          next year, miss them all for −20% and an unhappy locker room), your three coaches, and the news feed.
+          next year, miss them all for −20% and an unhappy locker room), season stat leaders, an opponent
+          scouting strip (their scheme + best players), your staff, and the news feed.
         </p>
       </div>
 
@@ -64,22 +70,23 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
       </div>
 
       <div className={card}>
-        <h3 className={h}>RECRUITING</h3>
+        <h3 className={h}>RECRUITING &amp; STAMINA (OFFSEASON ONLY)</h3>
         <p className="mt-2 text-sm">
-          You get <span className="font-bold">600 RAP each week</span> to spend on high-schoolers. First school to
-          ~1,000 interest points usually gets the commit — watch the "leads" column.
+          Each offseason week you get <span className="font-bold">~100 stamina</span> — ONE pool shared by
+          recruiting, player development, morale work, and retention courting. Spend it where it matters; it
+          resets weekly. First school to ~650 interest points usually gets the commit.
         </p>
         <ul className="mt-2 space-y-0.5 text-xs">
           <li><span className="font-display">DM {RAP_ACTIONS.dm.cost}</span> — +{RAP_ACTIONS.dm.pts} interest, cheap pressure.</li>
           <li><span className="font-display">PC {RAP_ACTIONS.coach.cost}</span> — position coach, +{RAP_ACTIONS.coach.pts}.</li>
           <li><span className="font-display">HC {RAP_ACTIONS.hc.cost}</span> — in-home head-coach visit, +{RAP_ACTIONS.hc.pts}, once per recruit.</li>
-          <li><span className="font-display">VIS {RAP_ACTIONS.visit.cost}</span> — official visit, +{RAP_ACTIONS.visit.pts}, needs a home game that week, +50 more if you win it.</li>
-          <li><span className="font-display">S1/S2</span> — scouting: S1 tightens the OVR guess; S2 reveals the dev badge and whether he's a 💎 gem or ⚠️ bust.</li>
+          <li><span className="font-display">VIS {RAP_ACTIONS.visit.cost}</span> — official visit, +{RAP_ACTIONS.visit.pts}, once per recruit.</li>
+          <li><span className="font-display">S1/S2</span> — scouting, capped at two per recruit: S1 tightens the OVR guess; S2 reveals the dev badge and 💎/⚠️.</li>
+          <li><span className="font-display">DEVELOP 25 / 1-ON-1 10 / TEAM TALK 30</span> — on the Roster tab: coach a player toward his ceiling or lift morale, from the same pool.</li>
         </ul>
         <p className="mt-2 text-xs opacity-75">
-          🔒 means a deal-breaker blocks you (he wants playing time you can't offer, a ranked contender, or an
-          NFL-factory program). Signing Day hits after the conference championships — commits can still flip!
-          Unsigned needs fill automatically in the late signing period.
+          🔒 means a deal-breaker blocks you. ✕ REMOVE hides a prospect from your board for the cycle. Signing Day
+          is offseason week 8 — commits can still flip! Unsigned needs fill in the late signing period.
         </p>
       </div>
 
@@ -109,37 +116,43 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
       </div>
 
       <div className={card}>
-        <h3 className={h}>THE OFFSEASON (IN ORDER)</h3>
+        <h3 className={h}>THE 8-WEEK OFFSEASON</h3>
         <ul className="mt-2 space-y-1 text-sm">
           <li>
-            <span className="font-bold">1 · Report</span> — who graduated, who got drafted (and where), camp
-            risers, All-Americans.
+            <span className="font-bold">Wk 1 · Report</span> — who graduated, who got drafted (and where), camp
+            risers <em>and</em> droppers, All-Americans. Recruiting opens.
           </li>
           <li>
-            <span className="font-bold">2 · Retention</span> — unhappy players list their price. Pay it and
-            they'll <em>probably</em> stay (loyalty helps; money only leaves on a yes). Pass and they hit the
-            portal.
+            <span className="font-bold">Wk 2 · Retention</span> — unhappy players list their price. Pay it and
+            they'll <em>probably</em> stay (money only leaves on a yes), or spend stamina to{" "}
+            <span className="font-bold">court them the non-NIL way</span> — it stacks, and sometimes works alone.
           </li>
           <li>
-            <span className="font-bold">3 · Portal (3 rounds)</span> — bid your NIL pool on transfers. Offers
-            must clear ~90% of the ask; every AI program is bidding from the same pool of money rules.
+            <span className="font-bold">Wk 3–7 · Portal (5 rounds)</span> — bid your NIL pool on transfers.{" "}
+            <span className="font-bold">Program fit discounts a player's ask up to 40%</span> (the YOUR PRICE
+            column) — playing time, prestige, contention all count, and a great fit can beat a richer offer.
+            Players take a few rounds to pick; every AI program bids under the same rules.
           </li>
           <li>
-            <span className="font-bold">4 · Close-out</span> — your class signs, rosters cut to 85, prestige
-            moves, coaching carousel spins (your coordinators can get poached; fired programs appear as{" "}
-            <span className="font-bold">open jobs you can take</span>), and next year's NIL budget lands.
+            <span className="font-bold">Wk 8 · Signing Day</span> — your class signs (flips happen!), rosters cut
+            to 85, prestige moves, the carousel spins (fired programs appear as{" "}
+            <span className="font-bold">open jobs you can take</span>), staff salaries come out, and next year's
+            NIL budget lands.
           </li>
         </ul>
       </div>
 
       <div className={card}>
-        <h3 className={h}>MONEY, MORALE & STAFF</h3>
+        <h3 className={h}>MONEY, MORALE, STAFF &amp; SCHEMES</h3>
         <p className="mt-2 text-sm">
-          Your <span className="font-bold">NIL pool</span> (top bar) is a per-cycle budget for retention + portal
-          bids — set by prestige, boosted by winning it all, slashed by 4-win seasons and booster revolts.
-          Players get unhappy when they're underpaid stars, buried on the depth chart, or losing.{" "}
-          <span className="font-bold">Coaches</span> matter: Recruiters boost your interest gains, Tacticians
-          boost game execution, Developers boost offseason growth.
+          Your <span className="font-bold">NIL pool</span> (top bar) is a per-cycle budget for retention, portal
+          bids, <em>and staff salaries</em> — set by prestige, boosted by winning it all, slashed by 4-win seasons
+          and booster revolts. You employ <span className="font-bold">five coaches</span> (HC, OC, DC, Recruiting
+          Coordinator, S&amp;C) — hire &amp; fire on the Staff tab in the offseason. Recruiters/RC boost interest
+          and your stamina cap, Tacticians boost execution, Developers/S&amp;C boost growth. Your{" "}
+          <span className="font-bold">OC and DC set your schemes</span> (Air Raid, 4-2-5…) — players whose skills
+          fit the scheme execute better, portal targets discount for it, and a coordinator change reshapes your
+          identity.
         </p>
         <p className="mt-2 text-xs opacity-75">
           Difficulty (picked at dynasty creation): Hard/Brutal sharpen every AI staff's recruiting and portal

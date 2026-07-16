@@ -363,6 +363,36 @@ either (calibration gate re-run on V1: 122/122).
   - Labeled mechanical-PR slots kept: hero scouting line, portal interest
     race, droppers.
 
+## Mechanical rework implementation notes (ADR-0027, shipped 2026-07-15)
+
+The "Mechanical Spec PR 2" rework — see ADR-0027 for the full decision set.
+Where this section disagrees with text above, this section wins:
+
+- **The calendar's "recruiting runs weekly alongside the season" is reversed**:
+  recruiting + the portal live entirely in an explicit 8-week offseason
+  (report → retention → 5 portal rounds → signing day). The 600-RAP economy
+  became a ~100/week shared stamina pool (recruiting, development, morale,
+  retention courting). Scout capped 2×; official visit and HC in-home are
+  once-per-recruit (the visit cap is benchmark-driven — uncapped visit-spam
+  took the #1 class from a 1-star program).
+- **Portal**: the 90%-of-ask rule became fit-derived pricing (40% max
+  discount, 60% floor) with fit boosting commit utility; commits take 2-4
+  rounds; tier-based churn (5★8/4★15/3★22/2★30%) on top of flight risk.
+- **The CFP field text above ("5 champs + 7 at-large") was never what the
+  code did** — it's 4 highest-ranked champs guaranteed + 8 at-large, straight
+  seeding (ADR-0027 ratified the code).
+- **Schemes** (previously deferred) shipped: 5 off/4 def as near-zero-sum
+  trait reallocation + whole-roster fit, coordinator-driven identity.
+- **Staffs are five roles** (HC/OC/DC/RC/S&C) with salaries from the program
+  NIL pool and a user hire/fire market.
+- **Historical starts**: any real season 2010–2025 (minus 2014/2023,
+  unusable coverage) with era conferences year 1 and a realignment wave to
+  the modern map at first rollover; one bake file per year.
+- Save format v2 (pure migration in `src/gm/migrate.ts`). Veteran
+  plateau-decline feeds the recap's Biggest Droppers. Mandates: 16 kinds
+  across 7 categories, 2-3/season. Still deferred: wear-and-tear, academics,
+  watch-mode fatigue, scheme installation penalty.
+
 ## Open items (deferred, non-blocking)
 
 - Cabinet display name ("CFB-GM" is a working title; arcade names are

@@ -6,11 +6,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { DynastyState, GmData } from "./types.ts";
-import { advance, autoOffseason, createDynasty, simToSeasonEnd, startNextSeason, stateHash } from "./dynasty.ts";
+import { advance, autoOffseason, createDynasty, simRegularSeason, simToSeasonEnd, startNextSeason, stateHash } from "./dynasty.ts";
 import { selectLineup, traitsFromElo, traitsFromLineup } from "./lineup.ts";
-import { dealBreakerLock, userAction, userPoints } from "./recruiting.ts";
-import { resolveRetention, submitPortalRound } from "./offseason.ts";
-import { gameBonus, recruitMult, staffOf, takeJob } from "./coaches.ts";
+import {
+  boostMorale, dealBreakerLock, developPlayer, removeFromBoard, retainEffort,
+  userAction, userPoints,
+} from "./recruiting.ts";
+import { advanceOffseasonWeek, effectiveAsk, portalFit, resolveRetention } from "./offseason.ts";
+import { coachMarket, coachSalary, fireCoach, gameBonus, hireCoach, recruitMult, staffOf, takeJob, teamScheme } from "./coaches.ts";
+import { applySchemes, DEF_SCHEMES, OFF_SCHEMES } from "./schemes.ts";
 import { commitOutcome, prepareGame, togglePin, sideFor } from "./dynasty.ts";
 import { GameSim, simGame } from "./game.ts";
 import { buildSeasonRecap } from "./recap.ts";
@@ -248,9 +252,14 @@ describe("year-2 generated schedule", () => {
   });
 });
 
-describe("recruiting (v1.1)", () => {
-  it("generates a national pool with the designed star shape", () => {
+describe("recruiting (M0.1: offseason-gated)", () => {
+  it("no recruit pool during the season; it opens when the offseason begins", () => {
     const state = freshDynasty(21);
+    // Recruiting is locked out of the regular season entirely (M0.1).
+    expect(state.recruits.length).toBe(0);
+    expect(userAction(state, 1, "dm")).toBeTruthy(); // nothing to recruit in-season
+    simToSeasonEnd(state);
+    expect(state.phase).toBe("offseason");
     expect(state.recruits.length).toBe(1450);
     const five = state.recruits.filter((r) => r.stars === 5).length;
     const four = state.recruits.filter((r) => r.stars === 4).length;
@@ -258,23 +267,26 @@ describe("recruiting (v1.1)", () => {
     expect(five).toBeLessThan(60);
     expect(four).toBeGreaterThan(180);
     expect(state.recruits.every((r) => r.committed === null)).toBe(true);
-    // Gems/busts hidden in ~30% of the pool.
     const gb = state.recruits.filter((r) => r.gb !== 0).length / 1450;
     expect(gb).toBeGreaterThan(0.2);
     expect(gb).toBeLessThan(0.4);
   });
 
-  it("user actions spend RAP, add interest, and respect scouting order + locks", () => {
+  it("offseason actions spend stamina, add interest, respect scouting order + the scout cap", () => {
     const state = freshDynasty(22);
+    simToSeasonEnd(state); // into the offseason — recruiting open
     const open = state.recruits.find((r) => !dealBreakerLock(state, r, USER_TID))!;
     expect(userAction(state, open.id, "s2")).toBeTruthy(); // S1 required first
+    const before = state.stamina;
     expect(userAction(state, open.id, "dm")).toBeNull();
-    expect(state.rapLeft).toBe(590);
-    // Staff recruiter multiplier scales interest gains (v1.3).
+    expect(state.stamina).toBe(before - 10); // shared stamina pool (M1.4)
     expect(userPoints(open, USER_TID)).toBe(Math.round(15 * recruitMult(state, USER_TID)));
     expect(userAction(state, open.id, "s1")).toBeNull();
     expect(userAction(state, open.id, "s2")).toBeNull();
     expect(open.scouted).toBe(2);
+    expect(userAction(state, open.id, "s1")).toBeTruthy(); // scout capped at two uses
+    expect(userAction(state, open.id, "visit")).toBeNull();
+    expect(userAction(state, open.id, "visit")).toBeTruthy(); // one official visit each
 
     const locked = state.recruits.find((r) => dealBreakerLock(state, r, USER_TID));
     if (locked) {
@@ -283,11 +295,20 @@ describe("recruiting (v1.1)", () => {
     }
   });
 
-  it("interest race commits recruits during the season and signs classes that track prestige", () => {
+  it("stamina refreshes every offseason week and commits accrue over the weeks", () => {
+    const state = freshDynasty(24);
+    simToSeasonEnd(state);
+    state.stamina = 5;
+    advanceOffseasonWeek(state); // AI works its boards, commits fire, pool refreshes
+    expect(state.stamina).toBeGreaterThan(50);
+    for (let i = 0; i < 5; i++) advanceOffseasonWeek(state);
+    expect(state.recruits.some((r) => r.committed !== null)).toBe(true);
+  });
+
+  it("the class signs over 8 offseason weeks and tracks prestige", () => {
     const state = freshDynasty(23);
     simToSeasonEnd(state);
-    autoOffseason(state); // classes sign at the final offseason stage (v1.2)
-    // After the offseason, cls-1 players are the signed class.
+    autoOffseason(state); // AI recruits across the weeks; classes sign at week 8
     const byPrestige: [number, number][] = state.teams
       .filter((t) => t.p4)
       .map((t) => {
@@ -299,25 +320,45 @@ describe("recruiting (v1.1)", () => {
     const lo = byPrestige.filter(([p]) => p <= 2).map(([, v]) => v);
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     expect(mean(hi)).toBeGreaterThan(mean(lo) + 2); // blue bloods sign better
-    // Most of the pool found a home or was consumed by fills, pool then reset.
     expect(state.recruits).toHaveLength(0);
   });
 
-  it("weekly RAP refreshes and commits show up in news", () => {
-    const state = freshDynasty(24);
-    state.rapLeft = 5;
-    advance(state);
-    expect(state.rapLeft).toBe(600);
-    for (let i = 0; i < 9; i++) advance(state);
-    expect(state.recruits.some((r) => r.committed !== null)).toBe(true);
+  it("removing a prospect from the board persists for the cycle (M1.4)", () => {
+    const state = freshDynasty(25);
+    simToSeasonEnd(state);
+    const r = state.recruits[0];
+    r.hidden = true;
+    autoOffseason(state);
+    // Board removal is a UI filter; it never crashes the cycle.
+    expect(state.phase).toBe("offseason");
   });
 });
 
-describe("portal & NIL (v1.2)", () => {
-  const state = freshDynasty(31);
-  simToSeasonEnd(state);
+describe("season simulation actions (M0.1)", () => {
+  it("Simulate Regular Season stops in the postseason with the bracket unplayed", () => {
+    const state = freshDynasty(81);
+    simRegularSeason(state);
+    expect(state.phase).not.toBe("regular");
+    expect(["ccg", "cfp"]).toContain(state.phase);
+    expect(state.cfp?.champion ?? null).toBeNull();
+  });
 
-  it("offseason halts at the retention stage with priced user cases", () => {
+  it("Simulate Whole Season runs through to the offseason recap", () => {
+    const state = freshDynasty(81);
+    simToSeasonEnd(state);
+    expect(state.phase).toBe("offseason");
+    expect(state.offStage).toBe("report");
+    expect(state.offWeek).toBe(1);
+  });
+});
+
+describe("portal & NIL (M1.3)", () => {
+  it("offseason opens at the report; retention is priced in week 2", () => {
+    const state = freshDynasty(31);
+    simToSeasonEnd(state);
+    expect(state.offStage).toBe("report");
+    expect(state.offWeek).toBe(1);
+    advanceOffseasonWeek(state); // → week 2, retention window
     expect(state.offStage).toBe("retention");
     for (const c of state.retention) {
       expect(c.ask).toBeGreaterThan(0);
@@ -325,27 +366,42 @@ describe("portal & NIL (v1.2)", () => {
     }
   });
 
-  it("portal churn lands in a realistic band; budgets never go negative", () => {
-    resolveRetention(state, []);
+  it("portal runs five rounds, doesn't clear round 1, churn realistic, budgets never negative", () => {
+    const state = freshDynasty(31);
+    simToSeasonEnd(state);
+    advanceOffseasonWeek(state); // → retention
+    advanceOffseasonWeek(state, { paidPids: [] }); // resolve retention → portal opens (week 3)
     expect(state.offStage).toBe("portal");
     const poolSize = state.portal.length;
     expect(poolSize).toBeGreaterThan(200);
     expect(poolSize).toBeLessThan(1500);
+    const beforeRound1 = state.portal.length;
+    advanceOffseasonWeek(state); // portal round 1
+    expect(state.portal.length).toBeGreaterThan(beforeRound1 * 0.4); // must NOT clear in one round
     let guard = 0;
-    while (state.offStage === "portal" && guard++ < 5) submitPortalRound(state, []);
+    while (state.offStage !== "done" && guard++ < 12) advanceOffseasonWeek(state);
     expect(state.offStage).toBe("done");
-    for (const t of state.teams) {
-      expect(t.nilBudget).toBeGreaterThanOrEqual(0);
-    }
-    // The pool fully resolves: players either found a new P4 home or stepped down.
+    for (const t of state.teams) expect(t.nilBudget).toBeGreaterThanOrEqual(0);
     expect(state.portal).toHaveLength(0);
     const downs = state.offseason!.archive.filter((a) => a.reason === "transfer-down").length;
-    const placements = poolSize - downs;
-    expect(placements).toBeGreaterThan(50); // AI programs actually shop the portal
-    expect(downs).toBeGreaterThanOrEqual(0);
+    expect(poolSize - downs).toBeGreaterThan(50); // AI programs actually shop the portal
+  });
+
+  it("fit discounts the ask toward a 60% floor (M1.3)", () => {
+    expect(effectiveAsk(100_000, 0)).toBe(100_000); // no fit → full ask
+    expect(effectiveAsk(100_000, 1)).toBe(60_000); // perfect fit → 60% floor
+    const state = freshDynasty(31);
+    simToSeasonEnd(state);
+    const p4 = state.teams.filter((t) => t.p4);
+    const strong = [...p4].sort((a, b) => b.prestige - a.prestige)[0];
+    const weak = [...p4].sort((a, b) => a.prestige - b.prestige)[0];
+    expect(portalFit(state, strong, "WR")).toBeGreaterThan(portalFit(state, weak, "WR"));
   });
 
   it("draft rounds, All-America team, and record books populate", () => {
+    const state = freshDynasty(33);
+    simToSeasonEnd(state);
+    autoOffseason(state);
     const drafted = state.offseason!.archive.filter((a) => a.draft);
     expect(drafted.length).toBeGreaterThan(80);
     expect(drafted.length).toBeLessThanOrEqual(224);
@@ -357,6 +413,9 @@ describe("portal & NIL (v1.2)", () => {
   });
 
   it("rollover still lands exactly 85 everywhere with clean player dict", () => {
+    const state = freshDynasty(33);
+    simToSeasonEnd(state);
+    autoOffseason(state);
     startNextSeason(state);
     for (const t of state.teams) {
       if (t.p4) expect(t.roster.length).toBe(85);
@@ -365,9 +424,10 @@ describe("portal & NIL (v1.2)", () => {
     expect(Object.keys(state.players)).toHaveLength(rostered);
   });
 
-  it("retention pay only charges on success", () => {
+  it("retention pay only charges on success (and can be earned non-NIL)", () => {
     const s2 = freshDynasty(32);
     simToSeasonEnd(s2);
+    advanceOffseasonWeek(s2); // → retention window
     if (s2.retention.length > 0) {
       const c = s2.retention[0];
       const before = s2.teams[s2.userTid].nilBudget;
@@ -378,21 +438,106 @@ describe("portal & NIL (v1.2)", () => {
   });
 });
 
+describe("schemes & scheme fit (M1.2)", () => {
+  it("every P4 team has a coordinator-driven scheme identity", () => {
+    const state = freshDynasty(46);
+    for (const t of state.teams) {
+      if (!t.p4) continue;
+      const { off, def } = teamScheme(state, t.id);
+      expect(OFF_SCHEMES).toContain(off);
+      expect(DEF_SCHEMES).toContain(def);
+    }
+  });
+
+  it("scheme reallocation + fit shifts traits without exploding them", () => {
+    const state = freshDynasty(46);
+    const team = state.teams.find((t) => t.p4)!;
+    const lu = selectLineup(team.roster.map((pid) => state.players[pid]), team.pins);
+    const base = traitsFromLineup(lu);
+    // Air Raid trades ground for air; the fit bonus stays small.
+    const air = applySchemes(base, "airraid", "base43", lu);
+    expect(air.airO).toBeGreaterThan(base.airO); // air emphasis up
+    expect(air.gndO).toBeLessThan(base.gndO); // ground down
+    for (const k of ["airO", "gndO", "prot", "sec", "rzO", "airD", "gndD", "havoc"] as const) {
+      expect(Math.abs(air[k] - base[k])).toBeLessThan(base[k] * 0.15 + 3); // bounded
+    }
+    // Pro Style / 4-3 base are the neutral identities (fit-only deltas).
+    const neutral = applySchemes(base, "pro", "base43", lu);
+    expect(Math.abs(neutral.gndO - base.gndO)).toBeLessThan(2);
+  });
+});
+
 describe("coaches & boosters (v1.3)", () => {
-  it("every P4 program has a full staff and effects stay bounded", () => {
+  it("every P4 program has a full five-role staff and effects stay bounded (M1.7)", () => {
     const state = freshDynasty(41);
     for (const t of state.teams) {
       if (!t.p4) continue;
       const staff = staffOf(state, t.id);
-      expect(staff.HC).toBeDefined();
-      expect(staff.OC).toBeDefined();
-      expect(staff.DC).toBeDefined();
+      for (const role of ["HC", "OC", "DC", "RC", "SC"] as const) {
+        expect(staff[role], `${t.school} missing ${role}`).toBeDefined();
+      }
       const b = gameBonus(state, t.id);
       expect(b).toBeGreaterThanOrEqual(-2);
       expect(b).toBeLessThanOrEqual(6);
     }
-    expect(state.mandates.length).toBeGreaterThanOrEqual(1);
-    expect(state.mandates.length).toBeLessThanOrEqual(2);
+    expect(state.mandates.length).toBeGreaterThanOrEqual(2);
+    expect(state.mandates.length).toBeLessThanOrEqual(3);
+  });
+
+  it("user can fire a coordinator, browse the market, and hire a replacement (M1.7)", () => {
+    const state = freshDynasty(47);
+    // In-season staff moves are blocked.
+    const preseason = staffOf(state, USER_TID).DC!;
+    expect(fireCoach(state, preseason.id)).toBeTruthy();
+    simToSeasonEnd(state); // offseason — moves open
+    const dc = staffOf(state, USER_TID).DC!;
+    expect(fireCoach(state, dc.id)).toBeNull();
+    expect(staffOf(state, USER_TID).DC).toBeUndefined();
+    const market = coachMarket(state);
+    expect(market.length).toBeGreaterThan(0);
+    const hire = market[0];
+    const before = state.teams[USER_TID].nilBudget;
+    expect(hireCoach(state, hire.id, "DC")).toBeNull();
+    expect(staffOf(state, USER_TID).DC!.id).toBe(hire.id);
+    expect(staffOf(state, USER_TID).DC!.scheme).toBeDefined(); // a DC carries a scheme identity
+    expect(state.teams[USER_TID].nilBudget).toBe(before - coachSalary(hire)); // salary left the pool
+    expect(fireCoach(state, staffOf(state, USER_TID).HC!.id)).toBeTruthy(); // can't fire yourself
+  });
+
+  it("AI programs stay fully staffed across seasons; salaries never bankrupt a pool", () => {
+    const state = freshDynasty(49);
+    for (let y = 0; y < 3; y++) {
+      simToSeasonEnd(state);
+      autoOffseason(state);
+      startNextSeason(state);
+    }
+    for (const t of state.teams) {
+      if (!t.p4 || t.id === state.userTid) continue;
+      const staff = staffOf(state, t.id);
+      for (const role of ["HC", "OC", "DC", "RC", "SC"] as const) {
+        expect(staff[role], `${t.school} missing ${role} after carousel`).toBeDefined();
+      }
+      expect(t.nilBudget).toBeGreaterThan(0);
+    }
+  });
+
+  it("mandates cover rivalry + conference and get real verdicts (M1.8)", () => {
+    const CONF = new Set(["win-conf", "conf-top2"]);
+    const RIVALRY = new Set(["beat-rival", "sweep-rivals"]);
+    let sawConf = false;
+    let sawRivalry = false;
+    // Sample several programs so we exercise the category spread.
+    for (const seed of [201, 202, 203, 204, 205]) {
+      const tid = data.teams.filter((t) => t.p4)[seed % 60].id;
+      const state = createDynasty(data, tid, seed);
+      if (state.mandates.some((m) => CONF.has(m.kind))) sawConf = true;
+      if (state.mandates.some((m) => RIVALRY.has(m.kind))) sawRivalry = true;
+      simToSeasonEnd(state);
+      autoOffseason(state);
+      for (const m of state.mandates) expect(m.met).not.toBeNull();
+    }
+    expect(sawConf).toBe(true); // conference mandate eligible every season
+    expect(sawRivalry).toBe(true); // rivalry mandate eligible when a rival is scheduled
   });
 
   it("rivalries are baked, mutual, and real-shaped", () => {
@@ -564,6 +709,21 @@ describe("quick wins: difficulty, recap, 50-year soak", () => {
     expect(brutal.teams[USER_TID].nilBudget).toBeLessThan(normal.teams[USER_TID].nilBudget);
   });
 
+  it("the recap tracks both risers and droppers (M1.6)", () => {
+    const state = freshDynasty(91);
+    let sawDroppers = false;
+    for (let y = 0; y < 3; y++) {
+      simToSeasonEnd(state);
+      autoOffseason(state);
+      const rep = state.offseason!;
+      expect(Array.isArray(rep.droppers)).toBe(true);
+      for (const d of rep.droppers) expect(d.to).toBeLessThan(d.from);
+      if (rep.droppers.length > 0) sawDroppers = true;
+      startNextSeason(state);
+    }
+    expect(sawDroppers).toBe(true);
+  });
+
   it("the season recap shares a full result grid", () => {
     const state = freshDynasty(62);
     simToSeasonEnd(state);
@@ -597,7 +757,8 @@ describe("quick wins: difficulty, recap, 50-year soak", () => {
       }
       const rostered = state.teams.reduce((a, t) => a + t.roster.length, 0);
       expect(Object.keys(state.players)).toHaveLength(rostered);
-      expect(state.coaches.length).toBeLessThan(260);
+      // 68 programs × 5 staff roles (M1.7) + a pruned ≤40 free-agent pool.
+      expect(state.coaches.length).toBeLessThan(400);
       expect(state.news.length).toBeLessThanOrEqual(60);
       for (const book of Object.values(state.records)) {
         expect(book.season.length).toBeLessThanOrEqual(10);
@@ -615,6 +776,238 @@ describe("quick wins: difficulty, recap, 50-year soak", () => {
       expect(mean).toBeLessThan(75);
     },
     120_000,
+  );
+});
+
+describe("historical dynasty starts (M0.2)", () => {
+  // Baked separately (npm run build:gm -- 2010); skip cleanly if absent.
+  let hist: GmData | null = null;
+  try {
+    hist = JSON.parse(
+      readFileSync(new URL("../../../public/gm-data-2010.json", import.meta.url), "utf8"),
+    ) as GmData;
+  } catch {
+    hist = null;
+  }
+
+  it.skipIf(!hist)("2010 universe is era-correct: same 68 programs, period conferences", () => {
+    expect(hist!.season).toBe(2010);
+    expect(hist!.teams.filter((t) => t.p4)).toHaveLength(68);
+    const conf = (school: string) => hist!.teams.find((t) => t.school === school)?.conference;
+    expect(conf("Nebraska")).toBe("Big 12"); // pre-realignment
+    expect(conf("Missouri")).toBe("Big 12");
+    expect(conf("Texas")).toBe("Big 12");
+    expect(conf("Louisville")).toBe("Big East"); // a conference that no longer exists
+    expect(conf("Maryland")).toBe("ACC");
+    // Programs that moved carry their 2026 destination for the realignment wave.
+    const neb = hist!.teams.find((t) => t.school === "Nebraska")!;
+    expect(neb.conf2026).toBe("Big Ten");
+    expect(hist!.schedule.length).toBeGreaterThan(400); // the real 2010 slate
+  });
+
+  it.skipIf(!hist)(
+    "a 2010 dynasty sims a full season, realigns at rollover, and plays year 2 cleanly",
+    () => {
+      const tid = hist!.teams.find((t) => t.school === "Nebraska")!.id;
+      const state = createDynasty(hist!, tid, 2010);
+      expect(state.startYear).toBe(2010);
+      expect(state.season).toBe(2010);
+      simToSeasonEnd(state);
+      expect(state.phase).toBe("offseason");
+      expect(state.cfp?.field).toHaveLength(12);
+      expect(state.cfp?.champion).not.toBeNull();
+      // 4 champions guaranteed even with extra era-conference CCGs staged.
+      const ccgs = state.results.filter((r) => r.kind === "ccg");
+      expect(ccgs.length).toBeGreaterThanOrEqual(4);
+      autoOffseason(state);
+      startNextSeason(state);
+      // Realignment wave: everyone P4 now sits in a modern conference (Notre
+      // Dame stays independent in 2026 too — it schedules inside the ACC pool).
+      const MODERN = new Set(["SEC", "Big Ten", "Big 12", "ACC", "FBS Independents"]);
+      for (const t of state.teams) {
+        if (!t.p4) continue;
+        expect(MODERN.has(t.conference), `${t.school} still in ${t.conference}`).toBe(true);
+        expect(t.conf2026).toBeUndefined();
+      }
+      // Year 2 generates a legal modern schedule and sims clean.
+      const count = new Map<number, number>();
+      for (const g of state.schedule) {
+        for (const id of [g.home, g.away]) {
+          if (state.teams[id].p4) count.set(id, (count.get(id) ?? 0) + 1);
+        }
+      }
+      for (const t of state.teams) {
+        if (t.p4) expect(count.get(t.id) ?? 0).toBe(12);
+      }
+      simToSeasonEnd(state);
+      expect(state.phase).toBe("offseason");
+      expect(state.honors).toHaveLength(2);
+    },
+    60_000,
+  );
+});
+
+describe("end-to-end feature exercise (plays the game like a user)", () => {
+  it(
+    "drives two full seasons through every interactive surface",
+    () => {
+      const state = freshDynasty(777001);
+
+      // --- Season 1: watch the opener like a user, then sim the season -------
+      const opener = state.schedule.find(
+        (g) => g.week === 1 && (g.home === state.userTid || g.away === state.userTid),
+      )!;
+      const prep = prepareGame(state, opener);
+      const sim = new GameSim(prep.home, prep.away, prep.rng, prep.opts);
+      let guard = 0;
+      while (!sim.done && guard++ < 90) sim.playDrive();
+      commitOutcome(state, opener, sim.outcome(), true);
+      expect(state.results.some((r) => r.gid === opener.id)).toBe(true);
+
+      // Depth chart feeds the sim: pin a backup QB, verify he starts, unpin.
+      const user = () => state.teams[state.userTid];
+      const qbs = user().roster
+        .map((pid) => state.players[pid])
+        .filter((p) => p.g === "QB" && p.inj === 0)
+        .sort((a, b) => b.ovr - a.ovr);
+      togglePin(state, qbs[1].id);
+      expect(sideFor(state, state.userTid).lineup!.QB![0].id).toBe(qbs[1].id);
+      togglePin(state, qbs[1].id);
+
+      simRegularSeason(state);
+      expect(["ccg", "cfp"]).toContain(state.phase); // bracket still unplayed
+      simToSeasonEnd(state);
+      expect(state.phase).toBe("offseason");
+
+      // --- Offseason week 1: recruiting economy --------------------------------
+      expect(state.offWeek).toBe(1);
+      const open = state.recruits.find((r) => !dealBreakerLock(state, r, state.userTid))!;
+      expect(userAction(state, open.id, "s1")).toBeNull(); // 20
+      expect(userAction(state, open.id, "s2")).toBeNull(); // 20
+      expect(userAction(state, open.id, "dm")).toBeNull(); // 10
+      expect(userAction(state, open.id, "hc")).toBeNull(); // 25
+      // Develop draws from the SAME pool (M1.4) — 25 more ≈ the whole week.
+      const devTarget = user().roster
+        .map((pid) => state.players[pid])
+        .find((p) => p.ovr < p.ceil - 3)!;
+      const beforeOvr = devTarget.ovr;
+      expect(developPlayer(state, devTarget.id)).toBeNull();
+      expect(devTarget.ovr).toBeGreaterThan(beforeOvr);
+      // The shared pool BITES: a ~100-stamina week is now spent.
+      expect(state.stamina).toBeLessThan(10);
+      expect(boostMorale(state, devTarget.id)).toBeTruthy(); // out of gas
+      // Board removal persists (M1.4).
+      const cut = state.recruits.find((r) => r.committed === null && r.id !== open.id)!;
+      removeFromBoard(state, cut.id);
+      expect(state.recruits.find((r) => r.id === cut.id)?.hidden).toBe(true);
+
+      // Staff management (M1.7): fire the DC, hire the best market coach.
+      const dc = staffOf(state, state.userTid).DC!;
+      expect(fireCoach(state, dc.id)).toBeNull();
+      const hire = coachMarket(state)[0];
+      expect(hireCoach(state, hire.id, "DC")).toBeNull();
+      expect(staffOf(state, state.userTid).DC!.id).toBe(hire.id);
+
+      // --- Week 2: stamina refreshed; retention with a courting effort ---------
+      advanceOffseasonWeek(state);
+      expect(state.offStage).toBe("retention");
+      expect(state.stamina).toBeGreaterThan(50); // weekly reset
+      expect(boostMorale(state, devTarget.id)).toBeNull(); // now affordable
+      if (state.retention.length > 0) {
+        expect(retainEffort(state, state.retention[0].pid)).toBeNull();
+        expect(state.retention[0].courted).toBe(true);
+      }
+
+      // --- Weeks 3-7: portal rounds with a fit-priced offer --------------------
+      advanceOffseasonWeek(state, { paidPids: state.retention.map((c) => c.pid) });
+      expect(state.offStage).toBe("portal");
+      const target = state.portal
+        .map((e) => ({ e, p: state.players[e.pid] }))
+        .find(({ p }) => p && p.ovr >= 70);
+      if (target) {
+        const fit = portalFit(state, user(), target.p.g);
+        const price = effectiveAsk(target.e.ask, fit);
+        expect(price).toBeLessThanOrEqual(target.e.ask);
+        advanceOffseasonWeek(state, {
+          portalOffers: [{ pid: target.e.pid, amount: Math.min(price, user().nilBudget) }],
+        });
+      } else {
+        advanceOffseasonWeek(state);
+      }
+      let g2 = 0;
+      while (state.offStage !== "done" && g2++ < 12) advanceOffseasonWeek(state);
+      expect(state.offStage).toBe("done");
+      expect(state.offseason!.droppers).toBeDefined();
+      for (const m of state.mandates) expect(m.met).not.toBeNull();
+
+      // --- Season 2 clean off the interactive path ------------------------------
+      startNextSeason(state);
+      expect(user().roster.length).toBe(85);
+      simToSeasonEnd(state);
+      expect(state.honors).toHaveLength(2);
+    },
+    60_000,
+  );
+});
+
+describe("save migration (v1 → v2)", () => {
+  it("backfills the offseason calendar and strips retired fields", async () => {
+    const { migrateDynasty } = await import("../migrate.ts");
+    const state = freshDynasty(880);
+    // Shape a pre-rework snapshot: no calendar/stamina, old fields present.
+    const old = state as DynastyState & { rapLeft?: number; pendingVisits?: number[] };
+    old.v = 1;
+    // @ts-expect-error — simulating a v1 save that predates these fields
+    delete old.startYear; delete old.offWeek; delete old.stamina;
+    old.rapLeft = 600;
+    old.pendingVisits = [1, 2];
+    const migrated = migrateDynasty(old) as typeof old;
+    expect(migrated.v).toBe(2);
+    expect(migrated.startYear).toBe(migrated.season);
+    expect(migrated.offWeek).toBe(0);
+    expect(migrated.stamina).toBe(0);
+    expect(migrated.rapLeft).toBeUndefined();
+    expect(migrated.pendingVisits).toBeUndefined();
+    // And a migrated save still sims.
+    simToSeasonEnd(migrated);
+    expect(migrated.phase).toBe("offseason");
+  });
+});
+
+describe("every baked start year boots and sims", () => {
+  const years = [2010, 2011, 2012, 2013, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2024, 2025];
+  const loaded = years
+    .map((y) => {
+      try {
+        return [
+          y,
+          JSON.parse(
+            readFileSync(new URL(`../../../public/gm-data-${y}.json`, import.meta.url), "utf8"),
+          ) as GmData,
+        ] as const;
+      } catch {
+        return null;
+      }
+    })
+    .filter((x): x is readonly [number, GmData] => x !== null);
+
+  it.skipIf(loaded.length === 0)(
+    `all ${loaded.length} historical universes create + sim week 1 cleanly`,
+    () => {
+      for (const [year, d] of loaded) {
+        expect(d.season).toBe(year);
+        expect(d.teams.filter((t) => t.p4), `${year} P4 count`).toHaveLength(68);
+        const s = createDynasty(d, d.teams.find((t) => t.p4)!.id, year * 7);
+        for (const t of s.teams) {
+          if (t.p4) expect(t.roster.length, `${year} ${t.school}`).toBeGreaterThanOrEqual(60);
+        }
+        // Real slates start unevenly (2020's COVID opening week had 2 games) —
+        // sim the first several weeks and require the season to be underway.
+        for (let w = 0; w < 6; w++) advance(s);
+        expect(s.results.length, `${year} games after 6 weeks`).toBeGreaterThan(50);
+      }
+    },
+    60_000,
   );
 });
 

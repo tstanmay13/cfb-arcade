@@ -4,7 +4,7 @@
 // the dailies never pay for it.
 import { useEffect, useRef, useState } from "react";
 import type { GmData } from "./engine/types.ts";
-import { loadGmData } from "./loadGmData.ts";
+import { GM_ANCHOR_YEAR, GM_START_YEARS, loadGmData } from "./loadGmData.ts";
 import { createDynasty } from "./engine/dynasty.ts";
 import { newSeed } from "../engine/rng.ts";
 import {
@@ -24,14 +24,38 @@ export default function GmCabinet({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotRow[] | null>(null);
   const [stage, setStage] = useState<Stage>({ k: "slots" });
+  // Historical starts (M0.2): the pick screen can load any supported year.
+  const [pickYear, setPickYear] = useState(GM_ANCHOR_YEAR);
+  const [yearData, setYearData] = useState<Map<number, GmData>>(new Map());
   const fileRef = useRef<HTMLInputElement>(null);
 
   const refreshSlots = () => listSlots().then(setSlots, (e) => setError(String(e)));
 
   useEffect(() => {
-    loadGmData().then(setData, (e) => setError(String(e)));
+    loadGmData().then(
+      (d) => {
+        setData(d);
+        setYearData((m) => new Map(m).set(GM_ANCHOR_YEAR, d));
+      },
+      (e) => setError(String(e)),
+    );
     refreshSlots();
   }, []);
+
+  const pickData = yearData.get(pickYear) ?? null;
+  useEffect(() => {
+    if (yearData.has(pickYear)) return;
+    let stale = false;
+    loadGmData(pickYear).then(
+      (d) => {
+        if (!stale) setYearData((m) => new Map(m).set(pickYear, d));
+      },
+      (e) => setError(String(e)),
+    );
+    return () => {
+      stale = true;
+    };
+  }, [pickYear, yearData]);
 
   // GM keeps a consistent, neutral backdrop. The draft cabinet writes a team
   // "stadium glow" onto :root (e.g. a Kentucky-blue radial haze) that otherwise
@@ -81,14 +105,19 @@ export default function GmCabinet({ onBack }: { onBack: () => void }) {
   if (stage.k === "pick") {
     return (
       <Shell onBack={() => setStage({ k: "slots" })}>
-        <TeamPick
-          data={data}
-          onPick={async (tid, difficulty) => {
-            const state = createDynasty(data, tid, newSeed(), difficulty);
-            const slotId = await createSlot(state);
-            setStage({ k: "play", slotId });
-          }}
-        />
+        <YearPick year={pickYear} onYear={setPickYear} />
+        {pickData ? (
+          <TeamPick
+            data={pickData}
+            onPick={async (tid, difficulty) => {
+              const state = createDynasty(pickData, tid, newSeed(), difficulty);
+              const slotId = await createSlot(state);
+              setStage({ k: "play", slotId });
+            }}
+          />
+        ) : (
+          <p className="mt-10 text-center font-display tracking-widest">LOADING {pickYear}…</p>
+        )}
       </Shell>
     );
   }
@@ -217,6 +246,31 @@ function Shell({ children, onBack }: { children: React.ReactNode; onBack: () => 
   );
 }
 
+/** Start-year selector (M0.2): any season 2010–2026 except 2023. */
+function YearPick({ year, onYear }: { year: number; onYear: (y: number) => void }) {
+  return (
+    <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+      <span className="font-display text-xs tracking-[0.25em] opacity-70">START YEAR</span>
+      <select
+        value={year}
+        onChange={(e) => onYear(Number(e.target.value))}
+        className="rounded-md border-2 border-paper-edge bg-white/60 px-2 py-1 font-display text-sm"
+      >
+        {GM_START_YEARS.map((y) => (
+          <option key={y} value={y}>
+            {y}{y === GM_ANCHOR_YEAR ? " (current)" : ""}
+          </option>
+        ))}
+      </select>
+      {year !== GM_ANCHOR_YEAR && (
+        <span className="text-[11px] opacity-60">
+          era-correct rosters &amp; conferences · realignment arrives in year 2
+        </span>
+      )}
+    </div>
+  );
+}
+
 function TeamPick({
   data,
   onPick,
@@ -224,13 +278,21 @@ function TeamPick({
   data: GmData;
   onPick: (tid: number, difficulty: number) => void;
 }) {
-  const confs = ["SEC", "Big Ten", "Big 12", "ACC", "FBS Independents"];
+  // Conference groups from the data itself — era conferences for 2010+ starts.
+  const confs = [...new Set(data.teams.filter((t) => t.p4).map((t) => t.conference))].sort(
+    (a, b) => {
+      const PRIORITY = ["SEC", "Big Ten", "Big 12", "ACC"];
+      const [ia, ib] = [PRIORITY.indexOf(a), PRIORITY.indexOf(b)];
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+    },
+  );
   const [difficulty, setDifficulty] = useState(0);
   return (
     <section className="mt-6">
       <h2 className="mb-1 text-center font-display text-2xl tracking-widest">PICK YOUR PROGRAM</h2>
       <p className="mb-3 text-center text-xs opacity-70">
-        Real 2026 rosters, projected ratings, real schedule. Prestige ★ sets your recruiting gravity.
+        Real {data.season} rosters &amp; schedule{data.season === GM_ANCHOR_YEAR ? ", projected ratings" : ""}.
+        Prestige ★ sets your recruiting gravity.
       </p>
       <div className="mb-6 flex items-center justify-center gap-2">
         {["NORMAL", "HARD", "BRUTAL"].map((label, i) => (

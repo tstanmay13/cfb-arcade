@@ -1,12 +1,17 @@
-// Bake public/gm-data.json for the CFB-GM dynasty cabinet (ADR-0023): the real
-// 2026 preseason universe — 68 P4 programs with projected rosters/ratings, G5 +
-// FCS shell opponents with Elo strengths from real 2025 results, and the real
-// 2026 regular-season schedule. Reads the warehouse (cfb.db) directly via
+// Bake public/gm-data.json for the CFB-GM dynasty cabinet (ADR-0023): a real
+// preseason universe — the 68 programs that are P4 in 2026 with real
+// rosters/ratings, G5 + FCS shell opponents, and that year's real
+// regular-season schedule. Reads the warehouse (cfb.db) directly via
 // node:sqlite (ADR-0025) — owner-side; collaborators use the committed
-// gm-data.json. Deterministic: every order-sensitive read is ORDER BY nkey,
+// gm-data*.json. Deterministic: every order-sensitive read is ORDER BY nkey,
 // so the same warehouse always bakes the same universe.
 //
-// Run: npm run build:gm
+// Historical starts (M0.2, ADR-0027): pass a year to bake that season —
+//   npm run build:gm            → 2026 → public/gm-data.json
+//   npm run build:gm -- 2010    → 2010 → public/gm-data-2010.json
+// Universe rule (a): the SAME 68 schools full-sim in every era, each shown in
+// its era-correct conference (2010 Nebraska is Big 12); everyone else shells.
+// 2014 and 2023 have unusable ratings coverage and cannot be baked.
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,8 +20,16 @@ import { ELO_BASE, ELO_FCS, eloDelta, eloPreseason } from "../src/gm/engine/elo.
 import { openWarehouse } from "./warehouse.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const OUT_PATH = join(HERE, "..", "public", "gm-data.json");
-const SEASON = 2026;
+const ANCHOR = 2026;
+const SEASON = Number(process.argv[2] ?? ANCHOR);
+/** Seasons with unusable ratings coverage: 2023 empty, 2014 ~46% of rosters. */
+const BAD_COVERAGE = new Set([2014, 2023]);
+if (!Number.isInteger(SEASON) || SEASON < 2010 || SEASON > ANCHOR || BAD_COVERAGE.has(SEASON)) {
+  throw new Error(
+    `Season must be 2010–${ANCHOR}, excluding ${[...BAD_COVERAGE].join("/")} (unusable ratings coverage); got ${process.argv[2]}`,
+  );
+}
+const OUT_PATH = join(HERE, "..", "public", SEASON === ANCHOR ? "gm-data.json" : `gm-data-${SEASON}.json`);
 const P4_CONFS = new Set(["SEC", "Big Ten", "Big 12", "ACC"]);
 const P4_INDEPENDENTS = new Set(["Notre Dame"]);
 /** Max real players baked per P4 team (dynasty creation trims to 85). */
@@ -52,7 +65,7 @@ interface RosterRow { athlete_id: string; class_year: number | null }
 interface GameRow { season: number; week: number; home_team: string; away_team: string; home_points: number | null; away_points: number | null }
 
 function main(): void {
-  console.log("Baking gm-data.json …");
+  console.log(`Baking ${SEASON} → ${OUT_PATH.split("/").pop()} …`);
   const db = openWarehouse();
 
   const teamRows = db
@@ -62,8 +75,21 @@ function main(): void {
     )
     .all() as unknown as TeamRow[];
 
-  // Projected 2026 rows included by design (they ARE the preseason ratings).
-  // ORDER BY nkey pins the WR/CB/LB rotation for position-less ATH players.
+  // The fixed full-sim set is "P4 as of 2026" in EVERY era (universe rule a);
+  // for historical bakes we also carry each school's 2026 conference so the
+  // engine can realign the league to the modern structure at rollover.
+  const anchorRows =
+    SEASON === ANCHOR
+      ? teamRows
+      : (db
+          .prepare(
+            `SELECT school, conference, mascot, color, alternate_color
+               FROM teams WHERE season = ${ANCHOR} AND is_current = 1 ORDER BY nkey`,
+          )
+          .all() as unknown as TeamRow[]);
+
+  // Projected anchor-year rows included by design (they ARE the preseason
+  // ratings). ORDER BY nkey pins the WR/CB/LB rotation for ATH players.
   const ratingRows = db
     .prepare(
       `SELECT athlete_id, player, team, position, pos_group, overall
@@ -71,40 +97,45 @@ function main(): void {
     )
     .all() as unknown as RatingRow[];
 
+  // Class years: 2026 projects forward from the 2025 roster (+1); historical
+  // years read that season's own roster as-is.
   const rosterRows = db
     .prepare(
       `SELECT athlete_id, class_year
-         FROM rosters WHERE season = ${SEASON - 1} AND is_current = 1 ORDER BY nkey`,
+         FROM rosters WHERE season = ${SEASON === ANCHOR ? SEASON - 1 : SEASON} AND is_current = 1 ORDER BY nkey`,
     )
     .all() as unknown as RosterRow[];
 
   // ORDER BY nkey pins FCS-shell team ids (created in encounter order).
-  const sched26 = db
+  const schedRows = db
     .prepare(
       `SELECT season, week, home_team, away_team, home_points, away_points
          FROM games WHERE season = ${SEASON} AND season_type = 'regular' ORDER BY nkey`,
     )
     .all() as unknown as GameRow[];
 
-  // Elo replay is order-sensitive: week ascending, nkey breaking ties.
-  const games25 = db
+  // Prior-season results seed Elo (order-sensitive replay: week, then nkey).
+  // 2009 isn't in the warehouse, so a 2010 bake falls back to roster talent.
+  const priorGames = db
     .prepare(
       `SELECT season, week, home_team, away_team, home_points, away_points
          FROM games WHERE season = ${SEASON - 1} AND completed = 1 ORDER BY week, nkey`,
     )
     .all() as unknown as GameRow[];
 
+  // Rivalries always come from the full 2010–2025 matchup history — they're
+  // era-independent flavor, and early-year windows would be too thin.
   const histGames = db
     .prepare(
       `SELECT home_team, away_team
-         FROM games WHERE season >= 2010 AND season <= ${SEASON - 1} AND completed = 1`,
+         FROM games WHERE season >= 2010 AND season <= 2025 AND completed = 1`,
     )
     .all() as unknown as { home_team: string; away_team: string }[];
   db.close();
 
-  // --- Elo from real 2025 results (FCS opponents fixed, never updated) ------
+  // --- Elo from prior-season results (FCS opponents fixed, never updated) ---
   const elo = new Map<string, number>(teamRows.map((t) => [t.school, ELO_BASE]));
-  for (const g of games25) {
+  for (const g of priorGames) {
     if (g.home_points === null || g.away_points === null || g.home_points === g.away_points) continue;
     const homeWon = g.home_points > g.away_points;
     const [wTeam, lTeam] = homeWon ? [g.home_team, g.away_team] : [g.away_team, g.home_team];
@@ -114,10 +145,38 @@ function main(): void {
     if (elo.has(wTeam)) elo.set(wTeam, wElo + delta);
     if (elo.has(lTeam)) elo.set(lTeam, lElo - delta);
   }
+  // No prior season served (2010): spread Elo by roster talent instead so
+  // prestige tiers and shell strengths stay meaningful.
+  if (priorGames.length === 0) {
+    const byTeamOvr = new Map<string, number[]>();
+    for (const r of ratingRows) {
+      const list = byTeamOvr.get(r.team) ?? [];
+      list.push(Math.max(40, Math.min(99, r.overall)));
+      byTeamOvr.set(r.team, list);
+    }
+    // Mean of the top-50 rated players — roster QUALITY, not roster size.
+    const ranked = [...byTeamOvr.entries()]
+      .map(([school, ovrs]) => {
+        const top = ovrs.sort((a, b) => b - a).slice(0, 50);
+        return [school, top.reduce((a, b) => a + b, 0) / top.length] as [string, number];
+      })
+      .sort((a, b) => b[1] - a[1]);
+    ranked.forEach(([school], i) => {
+      if (elo.has(school)) {
+        elo.set(school, ELO_BASE + 170 - Math.round((i / Math.max(1, ranked.length - 1)) * 340));
+      }
+    });
+    console.log(`  no ${SEASON - 1} results served — Elo seeded from roster talent`);
+  }
 
-  // --- Teams: P4 full-sim + FBS shells, then FCS shells found in schedule ---
-  const isP4 = (t: TeamRow) =>
-    P4_CONFS.has(t.conference ?? "") || P4_INDEPENDENTS.has(t.school);
+  // --- Teams: fixed 2026-P4 set full-sim + FBS shells, then FCS shells ------
+  const p4Set = new Set(
+    anchorRows
+      .filter((t) => P4_CONFS.has(t.conference ?? "") || P4_INDEPENDENTS.has(t.school))
+      .map((t) => t.school),
+  );
+  const conf2026 = new Map(anchorRows.map((t) => [t.school, t.conference ?? "Independent"]));
+  const isP4 = (t: TeamRow) => p4Set.has(t.school);
   const teams: GmTeam[] = [];
   const idOf = new Map<string, number>();
   const sorted = [...teamRows].sort(
@@ -125,7 +184,7 @@ function main(): void {
   );
   for (const t of sorted) {
     idOf.set(t.school, teams.length);
-    teams.push({
+    const team: GmTeam = {
       id: teams.length,
       school: t.school,
       mascot: t.mascot,
@@ -135,7 +194,18 @@ function main(): void {
       altColor: t.alternate_color,
       elo: Math.round(eloPreseason(elo.get(t.school) ?? ELO_BASE)),
       prestige: 0,
-    });
+    };
+    // Historical bake: remember where this program lands in the modern league.
+    if (SEASON !== ANCHOR && team.p4 && conf2026.get(t.school) !== team.conference) {
+      team.conf2026 = conf2026.get(t.school);
+    }
+    teams.push(team);
+  }
+  // A 2026-P4 school missing from an old season's cfb_teams (shouldn't happen
+  // for 2010+, but guard) would silently shrink the universe — fail loudly.
+  const missing = [...p4Set].filter((s) => !idOf.has(s));
+  if (missing.length > 0) {
+    throw new Error(`P4 schools missing from ${SEASON} cfb_teams: ${missing.join(", ")}`);
   }
 
   // Prestige tiers from preseason Elo rank among the P4.
@@ -175,9 +245,9 @@ function main(): void {
     if (t.p4) t.rivals = [...(rivals.get(t.id) ?? [])].sort((a, b) => a - b);
   }
 
-  // --- Schedule: real 2026 regular season, P4-involved games only -----------
+  // --- Schedule: that year's real regular season, P4-involved games only ----
   const schedule: GmSchedGame[] = [];
-  for (const g of sched26) {
+  for (const g of schedRows) {
     const homeP4 = idOf.has(g.home_team) && teams[idOf.get(g.home_team)!].p4;
     const awayP4 = idOf.has(g.away_team) && teams[idOf.get(g.away_team)!].p4;
     if (!homeP4 && !awayP4) continue;
@@ -194,11 +264,13 @@ function main(): void {
   }
   schedule.sort((x, y) => x.w - y.w || x.h - y.h);
 
-  // --- P4 rosters from projected ratings + 2025 class years -----------------
+  // --- P4 rosters from real ratings + class years ----------------------------
   const clsOf = new Map<string, number>();
   for (const r of rosterRows) {
     const c = r.class_year ?? 0;
-    if (c >= 1 && c <= 4) clsOf.set(r.athlete_id, Math.min(4, c + 1));
+    // 2026 projects the 2025 roster forward one year; historical seasons read
+    // their own roster's class years directly.
+    if (c >= 1 && c <= 4) clsOf.set(r.athlete_id, SEASON === ANCHOR ? Math.min(4, c + 1) : c);
   }
   const byTeam = new Map<number, GmPlayerSeed[]>();
   let athIndex = 0;
@@ -234,6 +306,14 @@ function main(): void {
     if (roster.length < 60) {
       console.warn(`  thin roster: ${teams[tid].school} has only ${roster.length} rated players`);
     }
+  }
+  // Coverage gate: a season where many programs lack real rosters would bake a
+  // walk-on-filled fake universe (how 2014/2023 were caught). Fail, don't ship.
+  const thinTeams = [...byTeam.values()].filter((all) => all.length < 45).length;
+  if (thinTeams > 4 || players.length < 5000) {
+    throw new Error(
+      `Unusable ratings coverage for ${SEASON}: ${players.length} players, ${thinTeams} teams under 45 rated — not writing ${OUT_PATH}`,
+    );
   }
 
   const data: GmData = { version: 1, season: SEASON, teams, players, schedule };

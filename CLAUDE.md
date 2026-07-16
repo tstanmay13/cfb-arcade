@@ -78,7 +78,17 @@ anon key to this repo.
   hardcode a brand hex),
   `scripts/build-gm.ts` → `public/gm-data.json` (real
   2026 P4 universe: projected rosters + Elo from real 2025 results + real
-  rivalries from 2010-25 matchup history; warehouse-direct, ADR-0025). All game
+  rivalries from 2010-25 matchup history; warehouse-direct, ADR-0025).
+  **Historical starts (ADR-0027)**: the same script takes a year
+  (`npm run build:gm -- 2010`) and bakes `public/gm-data-YYYY.json` for any
+  season 2010–2025 **except 2014 and 2023** (unusable ratings coverage; the
+  bake fails loudly rather than shipping a walk-on-filled universe). It reads
+  season-scoped teams/ratings/rosters/games for that year — era-correct
+  conferences included — plus the 2026 team list to fix the 68-team full-sim
+  set (universe rule (a): the 2026 P4 schools full-sim in every era; the
+  league realigns to the modern map at first rollover). One static file per
+  year, committed like gm-data.json and lazy-loaded only when that start year
+  is picked. All game
   "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
   live in `docs/CFB_GM_DESIGN.md` implementation-notes sections.
 

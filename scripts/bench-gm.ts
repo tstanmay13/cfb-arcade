@@ -17,9 +17,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DynastyState, GmData, Recruit } from "../src/gm/engine/types.ts";
 import { advance, createDynasty, startNextSeason } from "../src/gm/engine/dynasty.ts";
-import { resolveRetention, submitPortalRound, type PortalOffer } from "../src/gm/engine/offseason.ts";
 import {
-  dealBreakerLock, hasHomeGame, teamNeeds, userAction, userPoints,
+  advanceOffseasonWeek, effectiveAsk, portalFit, type PortalOffer,
+} from "../src/gm/engine/offseason.ts";
+import {
+  dealBreakerLock, teamNeeds, userAction, userPoints,
 } from "../src/gm/engine/recruiting.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -58,11 +60,13 @@ interface RunRow {
 // Policies (visible-info only — stars, locks, leads, asks; never hidden ovr)
 // ---------------------------------------------------------------------------
 
+/** One offseason week of recruiting spend from the shared stamina pool
+    (ADR-0027: recruiting is offseason-only; costs dm 10 / coach 15 / hc 25). */
 function recruitWeek(state: DynastyState, breadth: number): void {
   const uid = state.userTid;
   const needs = teamNeeds(state, state.teams[uid]);
   const cands = state.recruits
-    .filter((r: Recruit) => r.committed === null && !dealBreakerLock(state, r, uid))
+    .filter((r: Recruit) => r.committed === null && !r.hidden && !dealBreakerLock(state, r, uid))
     .map((r: Recruit) => {
       const mine = userPoints(r, uid);
       let score = r.stars * 10 + ((needs.get(r.g) ?? 0) > 0 ? 8 : 0);
@@ -74,25 +78,29 @@ function recruitWeek(state: DynastyState, breadth: number): void {
     .sort((a, b) => b.score - a.score)
     .slice(0, breadth);
 
+  // Depth beats breadth under the stamina economy: the one-shot official
+  // visit and HC in-home carry the best interest-per-stamina, then coach.
   for (const { r, mine } of cands) {
-    if (state.rapLeft < 10) break;
-    if (hasHomeGame(state) && state.rapLeft >= 150 && mine >= 150 && !state.pendingVisits.includes(r.id)) {
+    if (state.stamina < 10) break;
+    if (!r.visited && state.stamina >= 30) {
       userAction(state, r.id, "visit");
-    } else if (!r.hcUsed && state.rapLeft >= 75 && mine >= 50) {
+    } else if (!r.hcUsed && state.stamina >= 25 && mine >= 50) {
       userAction(state, r.id, "hc");
-    } else if (state.rapLeft >= 25) {
+    } else if (state.stamina >= 15) {
       userAction(state, r.id, "coach");
     } else {
       userAction(state, r.id, "dm");
     }
   }
   for (const { r } of cands) {
-    if (state.rapLeft < 10) break;
+    if (state.stamina < 10) break;
     userAction(state, r.id, "dm");
   }
 }
 
-function retentionPolicy(state: DynastyState, mode: "all" | "stars"): void {
+/** Which flight-risk players to pay (visible info: ask, OVR, budget). */
+function retentionPolicy(state: DynastyState, mode: "none" | "all" | "stars"): number[] {
+  if (mode === "none") return [];
   let budget = state.teams[state.userTid].nilBudget;
   const paid: number[] = [];
   const cases = [...state.retention].sort(
@@ -105,10 +113,11 @@ function retentionPolicy(state: DynastyState, mode: "all" | "stars"): void {
       budget -= c.ask;
     }
   }
-  resolveRetention(state, paid);
+  return paid;
 }
 
-function portalPolicy(state: DynastyState, share: number): void {
+/** Portal offers priced off the visible fit discount (the UI's YOUR PRICE). */
+function portalPolicy(state: DynastyState, share: number): PortalOffer[] {
   const team = state.teams[state.userTid];
   const needs = teamNeeds(state, team);
   let budget = Math.floor(team.nilBudget * share);
@@ -118,32 +127,33 @@ function portalPolicy(state: DynastyState, share: number): void {
     const p = state.players[e.pid];
     if (!p) continue;
     if ((needs.get(p.g) ?? 0) <= 0 && p.ovr < 80) continue;
-    const amount = Math.min(budget, Math.round((e.ask * 1.05) / 500) * 500);
-    if (amount < e.ask * 0.9) continue;
+    const price = effectiveAsk(e.ask, portalFit(state, team, p.g));
+    const amount = Math.min(budget, Math.round((price * 1.02) / 500) * 500);
+    if (amount < price) continue;
     offers.push({ pid: e.pid, amount });
     budget -= amount;
     if (budget < 20000) break;
   }
-  submitPortalRound(state, offers);
+  return offers;
 }
 
 const POLICIES: Record<
   string,
   {
     week: (s: DynastyState) => void;
-    retention: (s: DynastyState) => void;
-    portal: (s: DynastyState) => void;
+    retention: (s: DynastyState) => number[];
+    portal: (s: DynastyState) => PortalOffer[];
   }
 > = {
   autopilot: {
     week: () => {},
-    retention: (s) => resolveRetention(s, []),
-    portal: (s) => submitPortalRound(s, []),
+    retention: () => [],
+    portal: () => [],
   },
   recruiter: {
     week: (s) => recruitWeek(s, 12),
-    retention: (s) => resolveRetention(s, []),
-    portal: (s) => submitPortalRound(s, []),
+    retention: () => [],
+    portal: () => [],
   },
   "portal-gm": {
     week: () => {},
@@ -178,12 +188,21 @@ function runDynasty(
   for (let y = 0; y < SEASONS; y++) {
     let guard = 0;
     while (state.phase !== "offseason" && guard++ < 40) {
-      if (state.phase === "regular") policy.week(state);
       advance(state);
     }
-    policy.retention(state);
-    let pg = 0;
-    while (state.offStage === "portal" && pg++ < 5) policy.portal(state);
+    // The 8-week offseason (ADR-0027): recruit every week from the stamina
+    // pool; answer retention in week 2 and each portal round in weeks 3-7.
+    let wk = 0;
+    while (state.offStage !== "done" && wk++ < 12) {
+      policy.week(state);
+      if (state.offStage === "retention") {
+        advanceOffseasonWeek(state, { paidPids: policy.retention(state) });
+      } else if (state.offStage === "portal") {
+        advanceOffseasonWeek(state, { portalOffers: policy.portal(state) });
+      } else {
+        advanceOffseasonWeek(state);
+      }
+    }
 
     const team = state.teams[uid];
     const honors = state.honors[state.honors.length - 1];

@@ -4,12 +4,18 @@
 import { useEffect, useMemo, useState } from "react";
 import type { DynastyState, GameResult, Player, PosGroup } from "./engine/types.ts";
 import { CLASS_LABELS, DEV_TIER_LABELS, expandSheet } from "./engine/player.ts";
-import { confStandings, REAL_CONFS } from "./engine/postseason.ts";
+import { confStandings, p4Conferences } from "./engine/postseason.ts";
 import { committeeOrder } from "./engine/poll.ts";
 import { fmtMoney, marketValue } from "./engine/nil.ts";
 import { LINEUP_COUNTS } from "./engine/lineup.ts";
-import type { PortalOffer } from "./engine/offseason.ts";
-import { ARCHETYPE_LABELS, BOOSTER_LABELS, staffOf } from "./engine/coaches.ts";
+import { effectiveAsk, portalFit, type PortalOffer } from "./engine/offseason.ts";
+import {
+  ARCHETYPE_LABELS, BOOSTER_LABELS, coachMarket, coachSalary, fireCoach, hireCoach,
+  ROLE_LABELS, STAFF_ROLES, staffOf, teamScheme, type CoachRole,
+} from "./engine/coaches.ts";
+import { DEF_LABELS, OFF_LABELS, playerSchemeFit, type DefScheme, type OffScheme } from "./engine/schemes.ts";
+import { boostMorale, developPlayer, retainEffort, STAMINA_COSTS, staminaMax } from "./engine/recruiting.ts";
+import { draftProjection } from "./engine/progression.ts";
 import { buildSeasonRecap } from "./engine/recap.ts";
 import { archiveFor, type ArchiveRow } from "./db.ts";
 import { getTeamColors } from "./theme.ts";
@@ -29,17 +35,21 @@ function rankOf(state: DynastyState, tid: number): number {
   return i >= 0 ? i + 1 : 0;
 }
 
-/** A school name rendered in its own colors, with its AP rank when ranked. */
+/** A school name rendered in its own colors, with its poll rank when ranked. */
 function TeamRef({ state, tid, lead }: { state: DynastyState; tid: number; lead?: boolean }) {
   const r = rankOf(state, tid);
   return <TeamName team={state.teams[tid]} rank={r || undefined} lead={lead ?? tid === state.userTid} />;
 }
 
-function userGames(state: DynastyState) {
+function teamGames(state: DynastyState, tid: number) {
   return state.schedule
-    .filter((g) => g.home === state.userTid || g.away === state.userTid)
+    .filter((g) => g.home === tid || g.away === tid)
     .sort((a, b) => a.week - b.week)
     .map((g) => ({ game: g, result: state.results.find((r) => r.gid === g.id) ?? null }));
+}
+
+function userGames(state: DynastyState) {
+  return teamGames(state, state.userTid);
 }
 
 // --- Dashboard ---------------------------------------------------------------
@@ -104,6 +114,8 @@ export function Dashboard({ state }: { state: DynastyState }) {
         </Card>
 
         <ProgramRail state={state} />
+
+        <SeasonStatsCard state={state} />
       </div>
 
       <Card title="#CFB_PULSE" tour="news">
@@ -186,12 +198,42 @@ function MatchupHero({ state, next }: { state: DynastyState; next: DynastyState[
         </div>
         {side(opp, oc, oppRank, true)}
       </div>
-      {/* Opponent snapshot slot — key players & play style land here from the
-          mechanical scouting PR. */}
-      <p className="border-t border-line/60 px-5 py-1.5 text-[11px] text-ink/45">
-        Scouting report: key players &amp; play style — coming with scouting.
-      </p>
+      <OpponentScouting state={state} oppTid={oppTid} />
     </section>
+  );
+}
+
+/** Next-game scouting snapshot (M1.1): top players + scheme identity. */
+function OpponentScouting({ state, oppTid }: { state: DynastyState; oppTid: number }) {
+  const opp = state.teams[oppTid];
+  if (!opp.p4) {
+    return (
+      <p className="border-t border-line/60 px-5 py-1.5 text-[11px] text-ink/55">
+        <span className="font-display tracking-widest text-ink/45">SCOUT </span>
+        Buy-game opponent — they bring a team rating, not a roster. Handle business.
+      </p>
+    );
+  }
+  const top = opp.roster
+    .map((pid) => state.players[pid])
+    .sort((a, b) => b.ovr - a.ovr)
+    .slice(0, 3);
+  const { off, def } = teamScheme(state, oppTid);
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-line/60 px-5 py-1.5 text-[11px]">
+      <span className="font-display tracking-widest text-ink/45">SCOUT</span>
+      <span className="text-ink/75">
+        Runs <span className="font-bold">{OFF_LABELS[off]}</span> ·{" "}
+        <span className="font-bold">{DEF_LABELS[def]}</span>
+      </span>
+      <span className="text-ink/40">|</span>
+      {top.map((p) => (
+        <span key={p.id} className="text-ink/75">
+          <span className="font-display text-ink/50">{p.pos}</span>{" "}
+          <span className="font-bold">{p.name}</span> <span className="text-ink/55">{p.ovr}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -226,7 +268,7 @@ function LastResult({ state, r, onBox }: { state: DynastyState; r: GameResult; o
           {r.name ? ` · ${r.name}` : ""}
         </p>
       </div>
-      {/* Star-player-of-the-game stat line (mechanical PR fills richer data). */}
+      {/* Star-player-of-the-game stat line (M1.1). */}
       {r.star && (
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-line/70 bg-surface-sunken/60 p-2.5">
           <span className="text-lg leading-none">⭐</span>
@@ -244,6 +286,59 @@ function LastResult({ state, r, onBox }: { state: DynastyState; r: GameResult; o
         Box score + drive log →
       </button>
     </div>
+  );
+}
+
+/** Season Stats module (M1.1): cumulative team stats + leaders per category. */
+function SeasonStatsCard({ state }: { state: DynastyState }) {
+  const team = state.teams[state.userTid];
+  const players = team.roster.map((pid) => state.players[pid]);
+  const gp = team.rec.w + team.rec.l;
+
+  const leader = (f: (p: Player) => number) =>
+    players.reduce<Player | null>((best, p) => (f(p) > (best ? f(best) : 0) ? p : best), null);
+
+  const cats: { label: string; p: Player | null; line: (p: Player) => string }[] = [
+    { label: "PASSING", p: leader((p) => p.stats.paYd), line: (p) => `${p.stats.paYd} yds · ${p.stats.paTD} TD ${p.stats.paInt} INT` },
+    { label: "RUSHING", p: leader((p) => p.stats.ruYd), line: (p) => `${p.stats.ruYd} yds · ${p.stats.ruTD} TD` },
+    { label: "RECEIVING", p: leader((p) => p.stats.reYd), line: (p) => `${p.stats.rec} rec · ${p.stats.reYd} yds · ${p.stats.reTD} TD` },
+    { label: "TACKLES", p: leader((p) => p.stats.tkl), line: (p) => `${p.stats.tkl} tkl` },
+    { label: "SACKS", p: leader((p) => p.stats.sck), line: (p) => `${p.stats.sck} sacks` },
+    { label: "INTERCEPTIONS", p: leader((p) => p.stats.int), line: (p) => `${p.stats.int} INT` },
+  ];
+
+  return (
+    <Card title="SEASON STATS" className="lg:col-span-3" bodyClassName="p-4">
+      {gp === 0 ? (
+        <p className="text-sm text-ink/60">No games yet — leaders appear after week 1.</p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <span><span className="text-ink/55">PPG</span> <span className="font-display">{(team.rec.pf / gp).toFixed(1)}</span></span>
+            <span><span className="text-ink/55">Opp PPG</span> <span className="font-display">{(team.rec.pa / gp).toFixed(1)}</span></span>
+            <span><span className="text-ink/55">Point diff</span>{" "}
+              <StatusText tone={team.rec.pf >= team.rec.pa ? "pos" : "neg"} className="font-display">
+                {team.rec.pf - team.rec.pa > 0 ? "+" : ""}{team.rec.pf - team.rec.pa}
+              </StatusText>
+            </span>
+          </div>
+          <div className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-3">
+            {cats.map(({ label, p, line }) =>
+              p && line(p) && !line(p).startsWith("0 ") ? (
+                <div key={label}>
+                  <SectionLabel>{label}</SectionLabel>
+                  <p className="mt-0.5 text-sm">
+                    <span className="font-display text-xs text-ink/50">{p.pos}</span>{" "}
+                    <span className="font-bold">{p.name}</span>{" "}
+                    <span className="text-xs text-ink/60">{line(p)}</span>
+                  </p>
+                </div>
+              ) : null,
+            )}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 
@@ -335,7 +430,7 @@ function ProgramRail({ state }: { state: DynastyState }) {
       <div className="px-4 py-2.5">
         <SectionLabel>STAFF</SectionLabel>
         <ul className="mt-1 space-y-1 text-sm">
-          {(["HC", "OC", "DC"] as const).map((role) => {
+          {STAFF_ROLES.map((role) => {
             const c = staffOf(state, state.userTid)[role];
             return (
               <li key={role} className="flex items-baseline gap-2">
@@ -353,7 +448,7 @@ function ProgramRail({ state }: { state: DynastyState }) {
           })}
         </ul>
         <p className="mt-1.5 text-[10px] text-ink/45">
-          Recruiters boost interest · Tacticians boost execution · Developers boost camp gains.
+          Hire &amp; fire on the Staff tab. Recruiters boost interest · Tacticians execution · Developers camp gains.
         </p>
       </div>
       <div className="border-t border-line/60 px-4 py-2.5">
@@ -386,6 +481,122 @@ function ProgramRail({ state }: { state: DynastyState }) {
   );
 }
 
+// --- Staff (M1.7) --------------------------------------------------------------
+
+/** Coaching staff management: your five-role staff + the hiring market. */
+export function StaffPanel({ state, onMutate }: { state: DynastyState; onMutate: () => void }) {
+  const [flash, setFlash] = useState<string | null>(null);
+  const staff = staffOf(state, state.userTid);
+  const market = coachMarket(state);
+  const offseason = state.phase === "offseason";
+  const vacantRoles = STAFF_ROLES.filter((r) => r !== "HC" && !staff[r]);
+
+  const run = (fn: () => string | null) => {
+    const err = fn();
+    if (err) {
+      setFlash(err);
+      window.setTimeout(() => setFlash(null), 2500);
+    } else {
+      onMutate();
+    }
+  };
+
+  const schemeOf = (role: CoachRole, scheme?: string) =>
+    role === "OC" && scheme ? OFF_LABELS[scheme as OffScheme] :
+    role === "DC" && scheme ? DEF_LABELS[scheme as DefScheme] : null;
+
+  return (
+    <div className="space-y-3">
+      <Card
+        title="YOUR STAFF"
+        right={!offseason && <Pill tone="neu">HIRE &amp; FIRE OPEN IN THE OFFSEASON</Pill>}
+      >
+        {flash && <StatusText tone="neg" className="mb-2 block rounded bg-neg-soft px-2 py-1">{flash}</StatusText>}
+        <ul className="divide-y divide-line/60">
+          {STAFF_ROLES.map((role) => {
+            const c = staff[role];
+            const scheme = c && schemeOf(role, c.scheme);
+            return (
+              <li key={role} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+                <div>
+                  <SectionLabel>{ROLE_LABELS[role]}</SectionLabel>
+                  {c ? (
+                    <p className="mt-0.5 text-sm">
+                      <span className="font-bold">{c.name}</span>{" "}
+                      <span className="text-ink/60">
+                        {c.rating} OVR · {ARCHETYPE_LABELS[c.archetype]}
+                        {scheme ? <> · runs the <span className="font-bold text-ink/80">{scheme}</span></> : null}
+                        {" · "}{fmtMoney(coachSalary(c))}/yr
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="mt-0.5 text-sm text-ink/45">Vacant — no {role === "RC" ? "recruiting" : role === "SC" ? "development" : "scheme"} boost</p>
+                  )}
+                </div>
+                {c && role !== "HC" && offseason && (
+                  <button
+                    type="button"
+                    onClick={() => run(() => fireCoach(state, c.id))}
+                    className="rounded-full border border-line px-3 py-1 font-display text-[10px] tracking-widest text-neg transition hover:border-neg/60 hover:bg-neg-soft"
+                  >
+                    FIRE
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-[11px] text-ink/50">
+          Salaries come out of your NIL pool every cycle — a stud coordinator is money the portal never sees.
+          Your OC/DC set the schemes your roster is graded against.
+        </p>
+      </Card>
+
+      <Card title={`COACHING MARKET · ${market.length} AVAILABLE`}>
+        {vacantRoles.length === 0 && (
+          <p className="mb-2 text-sm text-ink/55">No openings — fire someone to make room.</p>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-line bg-surface-sunken/50">
+                <th className={th}>NAME</th>
+                <th className={th}>OVR</th>
+                <th className={th}>TYPE</th>
+                <th className={`${th} hidden sm:table-cell`}>SALARY/YR</th>
+                <th className={th}>{offseason ? "HIRE AS" : ""}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {market.slice(0, 20).map((c) => (
+                <tr key={c.id} className="border-b border-line/50">
+                  <td className={`${td} font-bold`}>{c.name}</td>
+                  <td className={`${td} font-display`}>{c.rating}</td>
+                  <td className={td}>{ARCHETYPE_LABELS[c.archetype]}</td>
+                  <td className={`${td} hidden font-mono text-xs sm:table-cell`}>{fmtMoney(coachSalary(c))}</td>
+                  <td className={`${td} whitespace-nowrap`}>
+                    {offseason &&
+                      vacantRoles.map((role) => (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => run(() => hireCoach(state, c.id, role))}
+                          className="mr-1 rounded border border-line px-2 py-0.5 text-[10px] font-bold transition hover:border-ink/50 hover:bg-accent-soft"
+                        >
+                          {role}
+                        </button>
+                      ))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // --- Roster ------------------------------------------------------------------
 
 /** Group order for the depth chart formation and the grouped roster table. */
@@ -400,16 +611,26 @@ const GROUP_LABELS: Record<PosGroup, string> = {
 };
 const STARTER_COUNT = new Map(LINEUP_COUNTS);
 
+type RosterSortCol = "pos" | "name" | "yr" | "ovr" | "dev" | "nil" | "mor";
+
 export function RosterPanel({
   state,
   onCut,
   onPin,
+  onMutate,
 }: {
   state: DynastyState;
   onCut?: (pid: number) => void;
   onPin?: (pid: number) => void;
+  onMutate?: () => void;
 }) {
   const [sel, setSel] = useState<Player | null>(null);
+  // Column sorting (M1.2): "pos" is the grouped depth-chart default; any other
+  // column flattens the table and sorts by it, re-click flips direction.
+  const [sortCol, setSortCol] = useState<RosterSortCol>("pos");
+  const [sortDir, setSortDir] = useState<1 | -1>(-1);
+  // Side-by-side comparison (M1.2): pick two, get the modal.
+  const [compare, setCompare] = useState<number[]>([]);
   const canCut = state.phase === "offseason" && !!onCut;
   const team = state.teams[state.userTid];
   const pins = useMemo(() => new Set(team.pins ?? []), [team.pins]);
@@ -427,101 +648,263 @@ export function RosterPanel({
     return map;
   }, [state, team.roster, pins]);
 
+  // Flat sorted view when a column sort is active.
+  const flatRows = useMemo(() => {
+    if (sortCol === "pos") return null;
+    const key: Record<Exclude<RosterSortCol, "pos">, (p: Player) => number | string> = {
+      name: (p) => p.name,
+      yr: (p) => p.cls,
+      ovr: (p) => p.ovr,
+      dev: (p) => p.devTier,
+      nil: (p) => p.nil,
+      mor: (p) => p.morale,
+    };
+    const f = key[sortCol];
+    return team.roster
+      .map((pid) => state.players[pid])
+      .sort((a, b) => {
+        const [x, y] = [f(a), f(b)];
+        const cmp = typeof x === "string" ? x.localeCompare(y as string) : (x as number) - (y as number);
+        return cmp * sortDir || b.ovr - a.ovr;
+      });
+  }, [state, team.roster, sortCol, sortDir]);
+
+  const clickSort = (col: RosterSortCol) => {
+    if (col === sortCol) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortCol(col);
+      setSortDir(col === "name" ? 1 : -1);
+    }
+  };
+  const sortTh = (col: RosterSortCol, label: string, extra = "") => (
+    <th
+      className={`${th} ${extra} cursor-pointer select-none hover:text-ink`}
+      onClick={() => clickSort(col)}
+      title={col === "pos" ? "Group by position" : `Sort by ${label}`}
+    >
+      {label}
+      {sortCol === col ? (sortDir === -1 ? " ▾" : " ▴") : ""}
+    </th>
+  );
+
+  const comparePair = compare.length === 2 ? (compare.map((pid) => state.players[pid]).filter(Boolean) as Player[]) : null;
+  const toggleCompare = (pid: number) =>
+    setCompare((c) => (c.includes(pid) ? c.filter((x) => x !== pid) : [...c.slice(-1), pid]));
+
   return (
     <div className="space-y-3">
       <NilHeader state={state} />
+      {state.phase === "offseason" && onMutate && (
+        <StaminaActionsBar state={state} onMutate={onMutate} />
+      )}
       <DepthChart state={state} byGroup={byGroup} onSelect={setSel} />
 
-      <Card title={`ROSTER · ${team.roster.length} PLAYERS`} tour="roster-table" bodyClassName="p-0">
+      <Card
+        title={`ROSTER · ${team.roster.length} PLAYERS`}
+        tour="roster-table"
+        bodyClassName="p-0"
+        right={
+          compare.length > 0 && (
+            <span className="text-xs text-ink/60">
+              comparing {compare.length}/2 — pick with the ⚖ column
+            </span>
+          )
+        }
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line bg-surface-sunken/50">
-                <th className={th}>NAME</th>
-                <th className={th}>YR</th>
-                <th className={th}>OVR</th>
-                <th className={th}>DEV</th>
-                <th className={`${th} hidden sm:table-cell`}>NIL</th>
-                <th className={`${th} hidden sm:table-cell`}>MOR</th>
+                {sortTh("name", "NAME")}
+                {sortTh("pos", "POS")}
+                {sortTh("yr", "YR")}
+                {sortTh("ovr", "OVR")}
+                {sortTh("dev", "DEV")}
+                {sortTh("nil", "NIL", "hidden sm:table-cell")}
+                {sortTh("mor", "MOR", "hidden sm:table-cell")}
                 <th className={th}>STATUS</th>
+                <th className={th} title="Compare two players">⚖</th>
                 {canCut && <th className={th}></th>}
               </tr>
             </thead>
-            {GROUP_ORDER.filter((g) => (byGroup.get(g)?.length ?? 0) > 0).map((g) => {
-              const list = byGroup.get(g)!;
-              const starters = STARTER_COUNT.get(g) ?? 1;
-              return (
-                <tbody key={g}>
-                  <tr>
-                    <td colSpan={canCut ? 8 : 7} className="border-b border-line bg-surface-sunken/70 px-2 py-1">
-                      <span className="font-display text-[11px] tracking-[0.2em] text-ink/70">
-                        {GROUP_LABELS[g]}
-                      </span>
-                      <span className="ml-2 text-[10px] text-ink/45">{list.length}</span>
-                    </td>
-                  </tr>
-                  {list.map((p, i) => (
-                    <tr
-                      key={p.id}
-                      className="cursor-pointer border-b border-line/50 transition hover:bg-accent-soft/40"
-                      onClick={() => setSel(p)}
-                    >
-                      <td className={td}>
-                        <span className="flex items-center gap-1.5">
-                          {onPin && (
-                            <button
-                              type="button"
-                              title={pins.has(p.id) ? "Unpin from the starting lineup" : "Pin as starter"}
-                              className={pins.has(p.id) ? "" : "opacity-25 hover:opacity-70"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onPin(p.id);
-                              }}
-                            >
-                              📌
-                            </button>
-                          )}
-                          <span className="font-medium">{p.name}</span>
-                          {i < starters && <Pill tone="pos" className="!px-1.5 !py-0">ST</Pill>}
+            {flatRows ? (
+              <tbody>
+                {flatRows.map((p) => (
+                  <RosterRow
+                    key={p.id}
+                    p={p}
+                    starter={false}
+                    pins={pins}
+                    onPin={onPin}
+                    canCut={canCut}
+                    onCut={onCut}
+                    onSel={() => setSel(p)}
+                    compared={compare.includes(p.id)}
+                    onCompare={() => toggleCompare(p.id)}
+                  />
+                ))}
+              </tbody>
+            ) : (
+              GROUP_ORDER.filter((g) => (byGroup.get(g)?.length ?? 0) > 0).map((g) => {
+                const list = byGroup.get(g)!;
+                const starters = STARTER_COUNT.get(g) ?? 1;
+                return (
+                  <tbody key={g}>
+                    <tr>
+                      <td colSpan={canCut ? 10 : 9} className="border-b border-line bg-surface-sunken/70 px-2 py-1">
+                        <span className="font-display text-[11px] tracking-[0.2em] text-ink/70">
+                          {GROUP_LABELS[g]}
                         </span>
+                        <span className="ml-2 text-[10px] text-ink/45">{list.length}</span>
                       </td>
-                      <td className={`${td} whitespace-nowrap text-ink/70`}>
-                        {p.rs ? "rs-" : ""}
-                        {CLASS_LABELS[p.cls] ?? p.cls}
-                      </td>
-                      <td className={`${td} font-display`}>{p.ovr}</td>
-                      <td className={td}><DevBadge tier={p.devTier} /></td>
-                      <td className={`${td} hidden font-mono text-xs sm:table-cell`}>{p.nil > 0 ? fmtMoney(p.nil) : "—"}</td>
-                      <td className={`${td} hidden font-mono text-xs sm:table-cell`}>
-                        <span className={p.morale <= 35 ? "text-neg" : ""}>{p.morale}</span>
-                      </td>
-                      <td className={`${td} text-xs`}>
-                        {p.inj > 0 ? <StatusText tone="neg">OUT {p.inj}w</StatusText> : <span className="text-ink/35">—</span>}
-                      </td>
-                      {canCut && (
-                        <td className={td}>
-                          <button
-                            type="button"
-                            className="rounded border border-line px-1.5 py-0.5 text-[10px] font-bold text-neg transition hover:border-neg/50 hover:bg-neg-soft"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm(`Cut ${p.name}?`)) onCut!(p.id);
-                            }}
-                          >
-                            CUT
-                          </button>
-                        </td>
-                      )}
                     </tr>
-                  ))}
-                </tbody>
-              );
-            })}
+                    {list.map((p, i) => (
+                      <RosterRow
+                        key={p.id}
+                        p={p}
+                        starter={i < starters}
+                        pins={pins}
+                        onPin={onPin}
+                        canCut={canCut}
+                        onCut={onCut}
+                        onSel={() => setSel(p)}
+                        compared={compare.includes(p.id)}
+                        onCompare={() => toggleCompare(p.id)}
+                      />
+                    ))}
+                  </tbody>
+                );
+              })
+            )}
           </table>
         </div>
       </Card>
 
-      {sel && <PlayerCard state={state} player={sel} onClose={() => setSel(null)} />}
+      {sel && <PlayerCard state={state} player={sel} onClose={() => setSel(null)} onMutate={onMutate} />}
+      {comparePair && comparePair.length === 2 && (
+        <CompareModal state={state} a={comparePair[0]} b={comparePair[1]} onClose={() => setCompare([])} />
+      )}
+    </div>
+  );
+}
+
+function RosterRow({
+  p, starter, pins, onPin, canCut, onCut, onSel, compared, onCompare,
+}: {
+  p: Player;
+  starter: boolean;
+  pins: Set<number>;
+  onPin?: (pid: number) => void;
+  canCut: boolean;
+  onCut?: (pid: number) => void;
+  onSel: () => void;
+  compared: boolean;
+  onCompare: () => void;
+}) {
+  return (
+    <tr
+      className="cursor-pointer border-b border-line/50 transition hover:bg-accent-soft/40"
+      onClick={onSel}
+      style={compared ? { boxShadow: "inset 3px 0 0 var(--accent)" } : undefined}
+    >
+      <td className={td}>
+        <span className="flex items-center gap-1.5">
+          {onPin && (
+            <button
+              type="button"
+              title={pins.has(p.id) ? "Unpin from the starting lineup" : "Pin as starter"}
+              className={pins.has(p.id) ? "" : "opacity-25 hover:opacity-70"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onPin(p.id);
+              }}
+            >
+              📌
+            </button>
+          )}
+          <span className="font-medium">{p.name}</span>
+          {starter && <Pill tone="pos" className="!px-1.5 !py-0">ST</Pill>}
+        </span>
+      </td>
+      <td className={`${td} font-display text-xs`}>{p.pos}</td>
+      <td className={`${td} whitespace-nowrap text-ink/70`}>
+        {p.rs ? "rs-" : ""}
+        {CLASS_LABELS[p.cls] ?? p.cls}
+      </td>
+      <td className={`${td} font-display`}>{p.ovr}</td>
+      <td className={td}><DevBadge tier={p.devTier} /></td>
+      <td className={`${td} hidden font-mono text-xs sm:table-cell`}>{p.nil > 0 ? fmtMoney(p.nil) : "—"}</td>
+      <td className={`${td} hidden font-mono text-xs sm:table-cell`}>
+        <span className={p.morale <= 35 ? "text-neg" : ""}>{p.morale}</span>
+      </td>
+      <td className={`${td} text-xs`}>
+        {p.inj > 0 ? <StatusText tone="neg">OUT {p.inj}w</StatusText> : <span className="text-ink/35">—</span>}
+      </td>
+      <td className={td}>
+        <button
+          type="button"
+          title="Compare"
+          className={compared ? "text-accent" : "opacity-30 hover:opacity-80"}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCompare();
+          }}
+        >
+          ⚖
+        </button>
+      </td>
+      {canCut && (
+        <td className={td}>
+          <button
+            type="button"
+            className="rounded border border-line px-1.5 py-0.5 text-[10px] font-bold text-neg transition hover:border-neg/50 hover:bg-neg-soft"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (window.confirm(`Cut ${p.name}?`)) onCut!(p.id);
+            }}
+          >
+            CUT
+          </button>
+        </td>
+      )}
+    </tr>
+  );
+}
+
+/** Offseason stamina sinks beyond recruiting (M1.4): the shared-pool tradeoff. */
+function StaminaActionsBar({ state, onMutate }: { state: DynastyState; onMutate: () => void }) {
+  const [flash, setFlash] = useState<string | null>(null);
+  const run = (fn: () => string | null) => {
+    const err = fn();
+    if (err) {
+      setFlash(err);
+      window.setTimeout(() => setFlash(null), 2500);
+    } else {
+      onMutate();
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-card border border-line bg-surface-raised px-4 py-2.5">
+      <div className="min-w-[140px]">
+        <SectionLabel>STAMINA</SectionLabel>
+        <p className="font-display text-sm">
+          {state.stamina}
+          <span className="text-ink/45"> / {staminaMax(state)}</span>
+        </p>
+      </div>
+      <button
+        type="button"
+        disabled={state.stamina < STAMINA_COSTS.moraleTeam}
+        onClick={() => run(() => boostMorale(state, null))}
+        className="rounded-full border border-line px-3 py-1 font-display text-[10px] tracking-widest transition hover:border-ink/50 hover:bg-accent-soft disabled:opacity-30"
+        title="+6 morale, whole roster"
+      >
+        🗣 TEAM MORALE TALK · {STAMINA_COSTS.moraleTeam}
+      </button>
+      <span className="text-[11px] text-ink/50">
+        Develop &amp; 1-on-1 morale actions live on each player's card. Same pool as recruiting — spend it where it matters.
+      </span>
+      {flash && <StatusText tone="neg" className="rounded bg-neg-soft px-2 py-0.5 text-xs">{flash}</StatusText>}
     </div>
   );
 }
@@ -634,8 +1017,8 @@ function DepthChart({
         {band("SPECIAL TEAMS", SPECIAL)}
       </div>
       <p className="px-4 py-2 text-[11px] text-ink/55">
-        Program-colored chips are this week's starters (📌 pins override OVR). Tap any player for their card.
-        Depth-chart editing arrives with the mechanical update.
+        Program-colored chips are this week's starters — 📌 pin any player in the roster table below to
+        promote them over a higher OVR; the sim starts exactly who you see here. Tap any player for their card.
       </p>
     </Card>
   );
@@ -655,12 +1038,58 @@ export function DevBadge({ tier }: { tier: number }) {
   );
 }
 
-function PlayerCard({ state, player, onClose }: { state: DynastyState; player: Player; onClose: () => void }) {
+function PlayerCard({
+  state,
+  player,
+  onClose,
+  onMutate,
+}: {
+  state: DynastyState;
+  player: Player;
+  onClose: () => void;
+  onMutate?: () => void;
+}) {
+  const [flash, setFlash] = useState<string | null>(null);
   const sheet = expandSheet(player);
   const colors = getTeamColors(state.teams[state.userTid]);
   const career = player.career;
   const peak = Math.max(player.ovr, ...career.map((c) => c.ovr));
   const floor = Math.min(player.ovr, ...career.map((c) => c.ovr));
+
+  // Live draft projection vs all current draft-eligibles (M1.2).
+  const eligibleOvrs = useMemo(
+    () =>
+      state.teams
+        .filter((t) => t.p4)
+        .flatMap((t) => t.roster.map((pid) => state.players[pid]))
+        .filter((p) => p.cls >= 3)
+        .map((p) => p.ovr),
+    [state],
+  );
+  const draft = draftProjection(eligibleOvrs, player);
+
+  // Scheme fit vs YOUR schemes (M1.2) — only meaningful for your own roster.
+  const onUserRoster = state.teams[state.userTid].roster.includes(player.id);
+  const { off, def } = teamScheme(state, state.userTid);
+  const fit = onUserRoster ? playerSchemeFit(player, off, def) : 0;
+  const fitLabel = fit > 0.25 ? "Great fit" : fit > 0.05 ? "Good fit" : fit < -0.25 ? "Poor fit" : fit < -0.05 ? "Stretch" : "Neutral";
+
+  // Usage proxy (M1.2): offensive touches as a share of the team's.
+  const touches = player.stats.paAtt + player.stats.ruAtt + player.stats.rec;
+  const teamTouches = state.teams[state.userTid].roster
+    .map((pid) => state.players[pid])
+    .reduce((a, p) => a + p.stats.paAtt + p.stats.ruAtt + p.stats.rec, 0);
+
+  const canAct = onMutate && onUserRoster && state.phase === "offseason";
+  const run = (fn: () => string | null) => {
+    const err = fn();
+    if (err) {
+      setFlash(err);
+      window.setTimeout(() => setFlash(null), 2500);
+    } else {
+      onMutate!();
+    }
+  };
   return (
     <Modal onClose={onClose}>
       {/* Header band in program colors */}
@@ -687,12 +1116,86 @@ function PlayerCard({ state, player, onClose }: { state: DynastyState; player: P
         </Vital>
         <Vital label="NIL">{player.nil > 0 ? fmtMoney(player.nil) : "unpaid"}</Vital>
         <Vital label="Market">{fmtMoney(marketValue(player))}</Vital>
+        <Vital label="Draft stock">{draft ?? <span className="text-ink/45">off the board</span>}</Vital>
+        {onUserRoster && (
+          <Vital label={`Fit · ${OFF_LABELS[off]}`}>
+            <StatusText tone={fit > 0.05 ? "pos" : fit < -0.05 ? "neg" : "neu"}>{fitLabel}</StatusText>
+          </Vital>
+        )}
+        <Vital label="Usage">
+          {touches > 0 && teamTouches > 0 ? (
+            <>
+              {touches} touches <span className="text-ink/50">· {Math.round((touches / teamTouches) * 100)}% of team</span>
+            </>
+          ) : (
+            <span className="text-ink/45">—</span>
+          )}
+          <div className="text-[9px] font-normal text-ink/40">derived from stats, not snaps</div>
+        </Vital>
       </div>
       {player.inj > 0 && (
         <p className="mt-2">
           <Pill tone="neg">OUT {player.inj} week{player.inj > 1 ? "s" : ""}</Pill>
         </p>
       )}
+
+      {/* Offseason stamina actions (M1.4) — the shared-pool tradeoff, per player. */}
+      {canAct && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-surface-sunken/40 px-3 py-2">
+          <span className="font-display text-[10px] tracking-widest text-ink/50">
+            STAMINA {state.stamina}
+          </span>
+          <button
+            type="button"
+            disabled={state.stamina < STAMINA_COSTS.develop || player.ovr >= player.ceil}
+            onClick={() => run(() => developPlayer(state, player.id))}
+            className="rounded-full border border-line px-3 py-1 font-display text-[10px] tracking-widest transition hover:border-ink/50 hover:bg-accent-soft disabled:opacity-30"
+            title="Coach them up — an immediate step toward their ceiling"
+          >
+            📈 DEVELOP · {STAMINA_COSTS.develop}
+          </button>
+          <button
+            type="button"
+            disabled={state.stamina < STAMINA_COSTS.moraleTarget}
+            onClick={() => run(() => boostMorale(state, player.id))}
+            className="rounded-full border border-line px-3 py-1 font-display text-[10px] tracking-widest transition hover:border-ink/50 hover:bg-accent-soft disabled:opacity-30"
+            title="+18 morale, this player"
+          >
+            🗣 1-ON-1 · {STAMINA_COSTS.moraleTarget}
+          </button>
+          {player.ovr >= player.ceil && <span className="text-[10px] text-ink/45">at their ceiling</span>}
+          {flash && <StatusText tone="neg" className="text-xs">{flash}</StatusText>}
+        </div>
+      )}
+
+      {(player.accolades?.length || player.injHist?.length) ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {player.accolades && player.accolades.length > 0 && (
+            <div>
+              <SectionLabel>ACCOLADES</SectionLabel>
+              <ul className="mt-1 space-y-0.5 text-sm">
+                {player.accolades.map((a, i) => (
+                  <li key={i}>
+                    🎖️ {a.season} — {a.award}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {player.injHist && player.injHist.length > 0 && (
+            <div>
+              <SectionLabel>INJURY HISTORY</SectionLabel>
+              <ul className="mt-1 space-y-0.5 text-sm">
+                {player.injHist.map((h, i) => (
+                  <li key={i} className="text-ink/70">
+                    {h.season} — out {h.weeks >= 15 ? "for the season" : `${h.weeks} wk${h.weeks > 1 ? "s" : ""}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       <SectionLabel className="mt-5">RATINGS</SectionLabel>
       <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
@@ -732,6 +1235,59 @@ function PlayerCard({ state, player, onClose }: { state: DynastyState; player: P
             </tbody>
           </table>
         </>
+      )}
+    </Modal>
+  );
+}
+
+/** Side-by-side player comparison (M1.2) — the roster note that survived. */
+function CompareModal({ state, a, b, onClose }: { state: DynastyState; a: Player; b: Player; onClose: () => void }) {
+  const colors = getTeamColors(state.teams[state.userTid]);
+  const sheets = [expandSheet(a), expandSheet(b)];
+  const labels = sheets[0].map((e) => e.label);
+  const num = (v: number | string) => (typeof v === "number" ? v : parseInt(String(v), 10) || 0);
+  const row = (label: string, va: React.ReactNode, vb: React.ReactNode, hiA = false, hiB = false) => (
+    <tr key={label} className="border-b border-line/40">
+      <td className={`${td} text-right font-bold ${hiA ? "text-pos" : ""}`}>{va}</td>
+      <td className={`${td} text-center text-xs text-ink/55`}>{label}</td>
+      <td className={`${td} font-bold ${hiB ? "text-pos" : ""}`}>{vb}</td>
+    </tr>
+  );
+  return (
+    <Modal onClose={onClose}>
+      <div className="-mx-5 -mt-5 mb-4 grid grid-cols-2 px-5 py-4" style={{ background: colors.primary, color: colors.onPrimary }}>
+        {[a, b].map((p, i) => (
+          <div key={p.id} className={i === 0 ? "text-right pr-4" : "pl-4"}>
+            <h3 className="font-display text-xl leading-none">{p.name}</h3>
+            <p className="mt-1 text-xs opacity-90">
+              {p.pos} · {CLASS_LABELS[p.cls] ?? p.cls} · <span className="font-display text-lg">{p.ovr}</span>
+            </p>
+          </div>
+        ))}
+      </div>
+      <table className="w-full text-sm">
+        <tbody>
+          {row("OVR", a.ovr, b.ovr, a.ovr > b.ovr, b.ovr > a.ovr)}
+          {row("DEV", <DevBadge tier={a.devTier} />, <DevBadge tier={b.devTier} />, a.devTier > b.devTier, b.devTier > a.devTier)}
+          {row("MORALE", a.morale, b.morale, a.morale > b.morale, b.morale > a.morale)}
+          {row("NIL", a.nil > 0 ? fmtMoney(a.nil) : "—", b.nil > 0 ? fmtMoney(b.nil) : "—", a.nil > b.nil, b.nil > a.nil)}
+          {row("MARKET", fmtMoney(marketValue(a)), fmtMoney(marketValue(b)), marketValue(a) > marketValue(b), marketValue(b) > marketValue(a))}
+          {labels.map((label, i) =>
+            row(
+              label,
+              sheets[0][i].value,
+              sheets[1][i]?.value ?? "—",
+              num(sheets[0][i].value) > num(sheets[1][i]?.value ?? 0),
+              num(sheets[1][i]?.value ?? 0) > num(sheets[0][i].value),
+            ),
+          )}
+          {row("SEASON", statLine(a) || "—", statLine(b) || "—")}
+        </tbody>
+      </table>
+      {a.g !== b.g && (
+        <p className="mt-2 text-[11px] text-ink/50">
+          Different position groups — the ratings sheets don't line up one-to-one.
+        </p>
       )}
     </Modal>
   );
@@ -953,9 +1509,11 @@ function BoxModal({ state, result, onClose }: { state: DynastyState; result: Gam
 // --- Standings -----------------------------------------------------------------
 
 export function StandingsPanel({ state }: { state: DynastyState }) {
+  const [viewTid, setViewTid] = useState<number | null>(null);
   return (
     <div className="grid gap-3 md:grid-cols-2" data-tour="standings-grid">
-      {REAL_CONFS.map((conf) => (
+      {viewTid !== null && <TeamPage state={state} tid={viewTid} onClose={() => setViewTid(null)} />}
+      {p4Conferences(state.teams).map((conf) => (
         <Card key={conf} title={conf.toUpperCase()} bodyClassName="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -971,7 +1529,9 @@ export function StandingsPanel({ state }: { state: DynastyState }) {
                 {confStandings(state.teams, conf).map((t) => (
                   <tr
                     key={t.id}
-                    className="border-b border-line/50"
+                    className="cursor-pointer border-b border-line/50 transition hover:bg-accent-soft/30"
+                    onClick={() => setViewTid(t.id)}
+                    title={`Open ${t.school}'s team page`}
                     style={
                       t.id === state.userTid
                         ? {
@@ -996,18 +1556,80 @@ export function StandingsPanel({ state }: { state: DynastyState }) {
   );
 }
 
+// --- Team page (M1.5): any team, their season at a glance ----------------------
+
+/** Full team page modal: identity, record, scheme, and season results. */
+export function TeamPage({ state, tid, onClose }: { state: DynastyState; tid: number; onClose: () => void }) {
+  const t = state.teams[tid];
+  const colors = getTeamColors(t);
+  const games = teamGames(state, tid);
+  const rank = rankOf(state, tid);
+  const { off, def } = t.p4 ? teamScheme(state, tid) : { off: null, def: null };
+  return (
+    <Modal onClose={onClose}>
+      <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 px-5 py-4" style={{ background: colors.primary, color: colors.onPrimary }}>
+        <TeamMark team={t} size="l" />
+        <div>
+          <h3 className="font-display text-2xl leading-none">
+            {rank > 0 && <span className="mr-1 opacity-70">#{rank}</span>}
+            {t.school}
+          </h3>
+          <p className="mt-1 text-sm opacity-90">
+            {t.rec.w}-{t.rec.l} ({t.rec.cw}-{t.rec.cl} {t.conference}) · {"★".repeat(t.prestige)}
+            {off && def ? ` · ${OFF_LABELS[off]} / ${DEF_LABELS[def]}` : ""}
+          </p>
+        </div>
+      </div>
+      <SectionLabel>{state.season} SCHEDULE &amp; RESULTS</SectionLabel>
+      <ul className="mt-1.5 space-y-1 text-sm">
+        {games.map(({ game, result }) => {
+          const home = game.home === tid;
+          const oppTid = home ? game.away : game.home;
+          const opp = state.teams[oppTid];
+          if (!result) {
+            return (
+              <li key={game.id} className="flex items-center gap-2 text-ink/60">
+                <span className="w-10 font-display text-xs text-ink/45">WK {game.week}</span>
+                <span>{home ? "vs" : "at"}</span>
+                <TeamName team={opp} />
+                {game.name && <span className="text-xs text-ink/45">· {game.name}</span>}
+              </li>
+            );
+          }
+          const us = home ? result.hs : result.as;
+          const them = home ? result.as : result.hs;
+          const won = us > them;
+          return (
+            <li key={game.id} className="flex items-center gap-2">
+              <span className="w-10 font-display text-xs text-ink/45">WK {game.week}</span>
+              <StatusText tone={won ? "pos" : "neg"} className="w-4 font-display">{won ? "W" : "L"}</StatusText>
+              <span className="font-mono text-xs">{us}-{them}{result.ot > 0 ? ` ${result.ot}OT` : ""}</span>
+              <span className="text-ink/60">{home ? "vs" : "at"}</span>
+              <TeamName team={opp} />
+              {game.name && <span className="text-xs text-ink/45">· {game.name}</span>}
+            </li>
+          );
+        })}
+        {games.length === 0 && <li className="text-ink/55">No games scheduled{t.p4 ? "" : " — buy-game shell opponent"}.</li>}
+      </ul>
+    </Modal>
+  );
+}
+
 // --- Top 25 (merged rankings + postseason, V5) ---------------------------------
 
 export function RankingsPanel({ state }: { state: DynastyState }) {
+  const [viewTid, setViewTid] = useState<number | null>(null);
   return (
     <div className="space-y-3">
-      <Top25Card state={state} />
+      <Top25Card state={state} onTeam={setViewTid} />
       <PostseasonSection state={state} />
+      {viewTid !== null && <TeamPage state={state} tid={viewTid} onClose={() => setViewTid(null)} />}
     </div>
   );
 }
 
-function Top25Card({ state }: { state: DynastyState }) {
+function Top25Card({ state, onTeam }: { state: DynastyState; onTeam: (tid: number) => void }) {
   const rows = state.poll.slice(0, 25).map((e, i) => ({ e, rank: i + 1 }));
   const hopefuls = rows.slice(0, 12);
   const rest = rows.slice(12);
@@ -1017,7 +1639,9 @@ function Top25Card({ state }: { state: DynastyState }) {
     return (
       <li
         key={e.tid}
-        className="flex items-center gap-2 break-inside-avoid rounded px-1 py-0.5"
+        className="flex cursor-pointer items-center gap-2 break-inside-avoid rounded px-1 py-0.5 transition hover:bg-accent-soft/40"
+        onClick={() => onTeam(e.tid)}
+        title={`Open ${t.school}'s team page`}
         style={
           self
             ? {
@@ -1465,11 +2089,13 @@ export function OffseasonPanel({
   onRetention,
   onPortal,
   onTakeJob,
+  onAdvanceWeek,
 }: {
   state: DynastyState;
   onRetention: (paidPids: number[]) => void;
   onPortal: (offers: PortalOffer[]) => void;
   onTakeJob?: (tid: number) => void;
+  onAdvanceWeek?: () => void;
 }) {
   if (state.offStage === "retention") {
     return <RetentionStage state={state} onRetention={onRetention} />;
@@ -1477,7 +2103,7 @@ export function OffseasonPanel({
   if (state.offStage === "portal") {
     return <PortalStage state={state} onPortal={onPortal} />;
   }
-  return <OffseasonReportView state={state} onTakeJob={onTakeJob} />;
+  return <OffseasonReportView state={state} onTakeJob={onTakeJob} onAdvanceWeek={onAdvanceWeek} />;
 }
 
 function BudgetBar({ state, committed }: { state: DynastyState; committed: number }) {
@@ -1507,40 +2133,67 @@ function RetentionStage({
   onRetention: (paidPids: number[]) => void;
 }) {
   const [picked, setPicked] = useState<number[]>([]);
+  const [, bump] = useState(0); // courting mutates engine state in place
   const committed = state.retention
     .filter((c) => picked.includes(c.pid))
     .reduce((a, c) => a + c.ask, 0);
   const budget = state.teams[state.userTid].nilBudget;
+  const court = (pid: number) => {
+    const err = retainEffort(state, pid);
+    if (!err) bump((n) => n + 1);
+  };
   return (
-    <Card title="RETENTION WINDOW" right={<Pill tone="neu">OFFSEASON · STAGE 1</Pill>}>
+    <Card
+      title="RETENTION WINDOW"
+      right={<Pill tone="neu">OFFSEASON · WEEK {state.offWeek}/8</Pill>}
+    >
       <p className="text-sm text-ink/75">
-        These players have one foot in the portal. Pay their ask and they'll probably stay (loyalty helps); pass
-        and they're gone. Money only leaves your pool on a successful re-sign.
+        These players have one foot in the portal. Pay their ask and they'll probably stay (loyalty helps); or spend{" "}
+        <span className="font-bold">{STAMINA_COSTS.retain} stamina</span> to court them the non-NIL way — it stacks
+        with a paid deal, and sometimes works alone. Money only leaves your pool on a successful re-sign.
       </p>
-      <div className="mt-3">
-        <BudgetBar state={state} committed={committed} />
+      <div className="mt-3 flex flex-wrap items-center gap-4">
+        <div className="flex-1 min-w-[220px]">
+          <BudgetBar state={state} committed={committed} />
+        </div>
+        <span className="text-xs text-ink/60">
+          Stamina <span className="font-display">{state.stamina}</span>
+        </span>
       </div>
       <ul className="mt-3 space-y-2">
         {state.retention.map((c) => {
           const p = state.players[c.pid];
           const on = picked.includes(c.pid);
           return (
-            <li key={c.pid} className="flex items-center justify-between rounded-lg border border-line bg-surface-sunken/40 px-3 py-2">
+            <li key={c.pid} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface-sunken/40 px-3 py-2">
               <div>
                 <span className="font-bold">{p.name}</span>{" "}
                 <span className="text-xs text-ink/55">
                   {p.pos} · {p.ovr} OVR · morale {p.morale} · {c.reason}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setPicked(on ? picked.filter((x) => x !== c.pid) : [...picked, c.pid])}
-                className={`rounded-full border-2 px-4 py-1 font-display text-xs tracking-widest transition ${
-                  on ? "border-ink bg-ink text-paper" : "border-line hover:border-ink/40"
-                }`}
-              >
-                {on ? `PAYING ${fmtMoney(c.ask)}` : `PAY ${fmtMoney(c.ask)}`}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={!!c.courted || state.stamina < STAMINA_COSTS.retain}
+                  onClick={() => court(c.pid)}
+                  title="Non-NIL retention effort: +loyalty, +morale, better stay odds"
+                  className={`rounded-full border px-3 py-1 font-display text-[10px] tracking-widest transition ${
+                    c.courted ? "border-pos/50 text-pos" : "border-line hover:border-ink/40"
+                  } disabled:opacity-40`}
+                >
+                  {c.courted ? "✓ COURTED" : `🤝 COURT · ${STAMINA_COSTS.retain}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPicked(on ? picked.filter((x) => x !== c.pid) : [...picked, c.pid])}
+                  className={`rounded-full border-2 px-4 py-1 font-display text-xs tracking-widest transition ${
+                    on ? "border-ink bg-ink text-paper" : "border-line hover:border-ink/40"
+                  }`}
+                >
+                  {on ? `PAYING ${fmtMoney(c.ask)}` : `PAY ${fmtMoney(c.ask)}`}
+                </button>
+              </div>
             </li>
           );
         })}
@@ -1609,12 +2262,13 @@ function PortalStage({
       <Card
         title="TRANSFER PORTAL"
         className="lg:col-span-2"
-        right={<Pill tone="accent">ROUND {state.portalRound} / 3</Pill>}
+        right={<Pill tone="accent">ROUND {state.portalRound} / 5</Pill>}
         bodyClassName="p-4"
       >
         <BudgetBar state={state} committed={committed} />
         <p className="mt-2 text-xs text-ink/60">
-          Bids need to clear ~90% of the ask to register. Everyone else is bidding too.
+          A strong program fit discounts a player's ask — down to 60% for a perfect fit. Great fit can
+          beat a richer offer. Players take a few rounds to decide; everyone else is bidding too.
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
           <select
@@ -1640,7 +2294,8 @@ function PortalStage({
                 {sortableTh("ovr", "OVR")}
                 {sortableTh("from", "FROM")}
                 {sortableTh("ask", "ASK")}
-                <th className={th}>PROGRESS</th>
+                <th className={th} title="Their ask after your program-fit discount">YOUR PRICE</th>
+                <th className={th}>INTEREST</th>
                 <th className={th}>MY OFFER</th>
               </tr>
             </thead>
@@ -1649,9 +2304,10 @@ function PortalStage({
                 const p = state.players[e.pid];
                 const need = (needs.get(p.g) ?? 0) > 0;
                 const myOffer = offers[e.pid] ?? 0;
-                // Commitment progress slot: your bid vs the ask is the visible
-                // signal today; the mechanical PR wires the real interest race.
-                const progress = e.ask > 0 ? Math.min(100, (myOffer / e.ask) * 100) : 0;
+                // Fit-discounted price (M1.3): what YOUR program has to clear.
+                const fit = portalFit(state, state.teams[state.userTid], p.g);
+                const myPrice = effectiveAsk(e.ask, fit);
+                const progress = myPrice > 0 ? Math.min(100, (myOffer / myPrice) * 100) : 0;
                 return (
                   <tr key={e.pid} className="border-b border-line/50">
                     <td className={td}>
@@ -1662,10 +2318,16 @@ function PortalStage({
                     <td className={`${td} font-display`}>{p.g}</td>
                     <td className={`${td} font-mono`}>{p.ovr}</td>
                     <td className={`${td} text-xs`}><TeamName team={state.teams[e.fromTid]} /></td>
-                    <td className={`${td} font-mono text-xs`}>{fmtMoney(e.ask)}</td>
+                    <td className={`${td} font-mono text-xs text-ink/55`}>{fmtMoney(e.ask)}</td>
+                    <td className={`${td} font-mono text-xs`}>
+                      <span className={myPrice < e.ask ? "font-bold text-pos" : ""}>{fmtMoney(myPrice)}</span>
+                      {myPrice < e.ask && (
+                        <span className="ml-1 text-[10px] text-pos">−{Math.round((1 - myPrice / e.ask) * 100)}%</span>
+                      )}
+                    </td>
                     <td className={td}>
-                      <div className="flex items-center gap-1">
-                        <Meter value={progress} max={100} color={progress >= 90 ? "var(--pos)" : "var(--accent)"} height={6} className="w-16" />
+                      <div className="flex items-center gap-1" title="How close your offer is to their (discounted) number">
+                        <Meter value={progress} max={100} color={progress >= 100 ? "var(--pos)" : "var(--accent)"} height={6} className="w-16" />
                         <span className="text-[10px] text-ink/50">{Math.round(progress)}%</span>
                       </div>
                     </td>
@@ -1693,7 +2355,7 @@ function PortalStage({
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td className={td} colSpan={7}>
+                  <td className={td} colSpan={8}>
                     <span className="text-sm text-ink/55">The portal is empty this round.</span>
                   </td>
                 </tr>
@@ -1730,18 +2392,40 @@ function PortalStage({
 function OffseasonReportView({
   state,
   onTakeJob,
+  onAdvanceWeek,
 }: {
   state: DynastyState;
   onTakeJob?: (tid: number) => void;
+  onAdvanceWeek?: () => void;
 }) {
   const r = state.offseason!;
   const honors = state.honors[state.honors.length - 1];
   const userTeam = state.teams[state.userTid];
   const colors = getTeamColors(userTeam);
   const allConf = honors?.allConf?.[userTeam.conference];
+  const showAdvance = onAdvanceWeek && (state.offStage === "report" || state.offStage === "signing");
 
   return (
     <div className="space-y-3">
+      {showAdvance && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border-2 border-ink bg-surface-raised px-4 py-3">
+          <div>
+            <SectionLabel>OFFSEASON · WEEK {state.offWeek} / 8</SectionLabel>
+            <p className="mt-0.5 text-sm text-ink/70">
+              {state.offStage === "report"
+                ? "Work the recruiting board, then advance to the retention window."
+                : "Signing day — commits finalize, cuts to 85, prestige & budgets settle."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onAdvanceWeek}
+            className="rounded-full border-2 border-ink bg-ink px-6 py-2 font-display text-xs tracking-widest text-paper transition hover:opacity-85"
+          >
+            {state.offStage === "report" ? "▶ ADVANCE TO RETENTION" : "🖊 SIGNING DAY → FINISH"}
+          </button>
+        </div>
+      )}
       {/* Big hero wrap-up */}
       <Card accent={colors.primary} bodyClassName="p-0">
         <div className="px-5 py-5" style={{ background: `linear-gradient(180deg, ${colors.primary}14, transparent)` }}>
@@ -1800,11 +2484,25 @@ function OffseasonReportView({
           </ul>
         </Card>
         <Card title="📉 BIGGEST DROPPERS" accent="var(--neg)">
-          {/* Droppers feed comes from the mechanical progression PR. */}
-          <div className="flex h-full min-h-[80px] flex-col items-center justify-center text-center">
-            <p className="text-sm text-ink/55">No regressions to report this camp.</p>
-            <p className="mt-1 text-[11px] text-ink/40">Decline tracking arrives with the mechanical update.</p>
-          </div>
+          <ul className="space-y-2">
+            {r.droppers.map((x, i) => (
+              <li key={i} className="flex items-center justify-between gap-2">
+                <span>
+                  <span className="font-bold">{x.name}</span>{" "}
+                  <span className="text-xs text-ink/55">{x.pos}</span>
+                </span>
+                <span className="flex items-center gap-2 text-sm">
+                  <span className="text-ink/50">{x.from}</span>
+                  <span className="text-ink/40">→</span>
+                  <span className="font-display text-lg text-neg">{x.to}</span>
+                  <Pill tone="neg">{x.to - x.from}</Pill>
+                </span>
+              </li>
+            ))}
+            {r.droppers.length === 0 && (
+              <li className="text-sm text-ink/55">No regressions to report this camp.</li>
+            )}
+          </ul>
         </Card>
       </div>
 

@@ -12,19 +12,32 @@
 import type {
   ArchivedPlayer, DepartureLine, DynastyState, OffseasonReport, Player, PortalEntry, Team,
 } from "./types.ts";
-import { clamp, stream } from "./streams.ts";
+import { clamp, rangeInt, stream } from "./streams.ts";
 import { playerOfTheYear } from "./awards.ts";
 import { emptyStats } from "./player.ts";
 import { declaresForDraft, facilityMult, progressPlayer } from "./progression.ts";
 import { STAR_POINTS } from "./recruits.ts";
-import { lateSigningPeriod, recruitToPlayer, teamNeeds, walkOns } from "./recruiting.ts";
+import {
+  generateRecruitPool, lateSigningPeriod, offseasonRecruitingTick, recruitToPlayer,
+  RECRUIT_POOL, signingDay, staminaMax, teamNeeds, walkOns,
+} from "./recruiting.ts";
 import { selectLineup } from "./lineup.ts";
 import { marketValue, nextBudget, fmtMoney } from "./nil.ts";
 import { updateRecords } from "./records.ts";
-import { coachCarousel, devBonus, evalMandates } from "./coaches.ts";
+import { coachCarousel, devBonus, evalMandates, staffBill } from "./coaches.ts";
 
 export const ROSTER_CAP = 85;
-const PORTAL_ROUNDS = 3;
+/** Five portal rounds mapped onto offseason weeks 3-7 (M1.3). */
+export const PORTAL_ROUNDS = 5;
+/** Offseason length in explicit user-turn weeks (M0.1). */
+export const OFFSEASON_WEEKS = 8;
+/**
+ * Baseline annual portal-entry rate by star tier (M1.3). Layered ON TOP of the
+ * morale/loyalty flight-risk model: churn concentrates at the bottom, a handful
+ * of blue-chips move each year, not a mass 4-star exodus. Lands league churn in
+ * the design's ~15-25%/year band.
+ */
+const STAR_CHURN: Record<number, number> = { 2: 0.3, 3: 0.22, 4: 0.15, 5: 0.08 };
 
 function archive(p: Player, tid: number, reason: DepartureLine["reason"]): ArchivedPlayer {
   return {
@@ -81,6 +94,7 @@ function allAmericans(state: DynastyState): string[] {
     }
     if (best) {
       out.push(`${g} ${best.p.name} (${state.teams[best.tid].school})`);
+      (best.p.accolades ??= []).push({ season: state.season, award: "First-team All-American" });
       if (best.tid === state.userTid) {
         pushNews(state, `🎖️ ${best.p.name} named first-team All-American.`);
         best.p.morale = clamp(best.p.morale + 5, 0, 100);
@@ -107,7 +121,10 @@ function allConference(state: DynastyState): Record<string, string[]> {
           if (!best || v > best.v) best = { p, tid: team.id, v };
         }
       }
-      if (best) list.push(`${g} ${best.p.name} (${state.teams[best.tid].school})`);
+      if (best) {
+        list.push(`${g} ${best.p.name} (${state.teams[best.tid].school})`);
+        (best.p.accolades ??= []).push({ season: state.season, award: `First-team All-${conf}` });
+      }
     }
     out[conf] = list;
   }
@@ -129,6 +146,7 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
     archive: [],
     signees: [],
     risers: [],
+    droppers: [],
     prestigeChanges: [],
     classRank: 0,
   };
@@ -140,6 +158,7 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
 
   // --- Honors ----------------------------------------------------------------
   const poy = playerOfTheYear(state);
+  if (poy) (poy.player.accolades ??= []).push({ season: state.season, award: "Player of the Year" });
   const userRank = state.poll.findIndex((e) => e.tid === state.userTid);
   state.honors.push({
     season: state.season,
@@ -231,6 +250,17 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
       const p = state.players[pid];
       const from = p.ovr;
       progressPlayer(p, fac, stream(state.seed, "prog", state.season, pid));
+      // Veteran plateau-decline (M1.6): peaked, low-ceiling upperclassmen slip a
+      // little — the source of the recap's "Biggest Droppers". Small + gated so
+      // it doesn't move league OVR (the 50-year soak gates this).
+      if (p.cls >= 3 && p.devTier === 0 && p.ovr >= p.ceil - 2) {
+        const dRng = stream(state.seed, "decline", state.season, pid);
+        if (dRng() < 0.35) {
+          const drop = rangeInt(dRng, 1, 3);
+          p.ovr = clamp(p.ovr - drop, 40, 99);
+          for (const k of Object.keys(p.attrs)) p.attrs[k] = clamp(p.attrs[k] - drop, 40, 99);
+        }
+      }
       // Redshirt rule (v1.4): ≤4 games played banks the year, once.
       const gpLastSeason = p.career[p.career.length - 1]?.gp ?? 0;
       if (!p.rs && gpLastSeason <= 4 && p.cls <= 3) {
@@ -238,12 +268,14 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
       } else {
         p.cls += 1;
       }
-      if (team.id === state.userTid && p.ovr - from >= 4) {
-        report.risers.push({ name: p.name, pos: p.pos, from, to: p.ovr });
+      if (team.id === state.userTid) {
+        if (p.ovr - from >= 4) report.risers.push({ name: p.name, pos: p.pos, from, to: p.ovr });
+        else if (from - p.ovr >= 1) report.droppers.push({ name: p.name, pos: p.pos, from, to: p.ovr });
       }
     }
   }
   report.risers.sort((a, b) => b.to - b.from - (a.to - a.from)).splice(8);
+  report.droppers.sort((a, b) => a.to - a.from - (b.to - b.from)).splice(8);
 
   // --- Flight risk → retention cases (user) / instant AI resolution ------------
   for (const team of state.teams) {
@@ -258,7 +290,10 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
       const flight = 100 - p.morale - p.loyalty / 2 + (frRng() * 20 - 10);
       const benchOut =
         buried.has(pid) && p.cls >= 2 && p.cls <= 3 && benchExits < 6 && frRng() < 0.4;
-      if (flight < 55 && !benchOut) continue;
+      // Tier-based baseline churn (M1.3): even content players move at a rate set
+      // by their star tier, so the portal has real volume every year.
+      const churnOut = p.cls <= 3 && frRng() < (STAR_CHURN[p.stars] ?? 0.2);
+      if (flight < 55 && !benchOut && !churnOut) continue;
       if (benchOut) benchExits++;
       const ask = Math.round((marketValue(p) * (p.ovr >= 76 ? 1.2 : 0.8)) / 500) * 500;
       if (team.id === state.userTid && p.ovr >= 68 && !benchOut) {
@@ -289,7 +324,13 @@ export function runOffseason(state: DynastyState, championTid: number | null): O
   }
   state.retention.sort((a, b) => state.players[b.pid].ovr - state.players[a.pid].ovr).splice(12);
   state.portal.sort((a, b) => state.players[b.pid].ovr - state.players[a.pid].ovr);
-  state.offStage = "retention";
+  // The offseason is now an 8-week calendar (M0.1): week 1 is the report, and
+  // recruiting opens here (the pool is an offseason artifact). Retention becomes
+  // actionable in week 2, the portal runs weeks 3-7, signing day is week 8.
+  generateRecruitPool(state, RECRUIT_POOL);
+  state.offWeek = 1;
+  state.offStage = "report";
+  state.stamina = staminaMax(state);
   return report;
 }
 
@@ -303,11 +344,21 @@ export function resolveRetention(state: DynastyState, paidPids: number[]): void 
     if (!p) continue;
     const paid = paidPids.includes(c.pid) && user.nilBudget >= c.ask;
     const rng = stream(state.seed, "retain", state.season, c.pid);
-    if (paid && rng() < 0.6 + p.loyalty / 200) {
-      user.nilBudget -= c.ask;
-      p.nil = c.ask;
+    // A non-NIL courting effort (M1.4) adds a flat stay-odds bump on its own,
+    // and stacks with a paid deal.
+    const courtBonus = c.courted ? 0.25 : 0;
+    const stay = paid
+      ? rng() < 0.6 + p.loyalty / 200 + courtBonus
+      : c.courted && rng() < 0.35 + p.loyalty / 200;
+    if (stay) {
+      if (paid) {
+        user.nilBudget -= c.ask;
+        p.nil = c.ask;
+        state.portalLog.push(`STAY: ${p.pos} ${p.name} (${p.ovr}) re-signed for ${fmtMoney(c.ask)}`);
+      } else {
+        state.portalLog.push(`STAY: ${p.pos} ${p.name} (${p.ovr}) talked out of the portal`);
+      }
       p.morale = clamp(p.morale + 25, 0, 100);
-      state.portalLog.push(`STAY: ${p.pos} ${p.name} (${p.ovr}) re-signed for ${fmtMoney(c.ask)}`);
       pushNews(state, `🤝 ${p.name} spurns the portal and returns to ${user.school}.`);
     } else {
       user.roster = user.roster.filter((id) => id !== c.pid);
@@ -318,7 +369,7 @@ export function resolveRetention(state: DynastyState, paidPids: number[]): void 
   }
   state.retention = [];
   state.portal.sort((a, b) => state.players[b.pid].ovr - state.players[a.pid].ovr);
-  state.offStage = "portal";
+  state.portalRound = 1;
 }
 
 export interface PortalOffer {
@@ -326,7 +377,29 @@ export interface PortalOffer {
   amount: number;
 }
 
-/** Stage 3 (×3): one bidding round. User offers compete under the same rules. */
+/**
+ * How well a program fits a portal player's (derived) desires, 0..1 (M1.3).
+ * Fit comes from real program signals — title contention/prestige, positional
+ * need (playing time), and being a ranked contender — rather than a stored
+ * weighted profile. Fit discounts the ask (below) AND boosts commit utility, so
+ * a great-fit school can beat a richer bad-fit school.
+ */
+export function portalFit(state: DynastyState, team: Team, g: string): number {
+  const need = teamNeeds(state, team).get(g as never) ?? 0;
+  const contender = state.poll.some((e) => e.tid === team.id) || team.prevW >= 9;
+  const fit =
+    Math.min(0.4, team.prestige * 0.07) + // prestige / title contention
+    Math.min(0.35, need * 0.09) + // positional need = playing time
+    (contender ? 0.15 : 0);
+  return clamp(fit, 0, 1);
+}
+
+/** Effective ask after the fit discount: 40% max off, a 60%-of-ask floor (M1.3). */
+export function effectiveAsk(ask: number, fit: number): number {
+  return Math.round(ask * (1 - 0.4 * fit));
+}
+
+/** One portal bidding round (of five, M1.3). User offers compete under the same rules. */
 export function submitPortalRound(state: DynastyState, userOffers: PortalOffer[]): void {
   if (state.offStage !== "portal") return;
   const rng = stream(state.seed, "portal", state.season, state.portalRound);
@@ -341,21 +414,25 @@ export function submitPortalRound(state: DynastyState, userOffers: PortalOffer[]
       tid: number;
       amount: number;
       utility: number;
+      fit: number;
     }
     const bids: Bid[] = [];
 
     const userOffer = userOffers.find((o) => o.pid === entry.pid);
-    if (
-      userOffer &&
-      userOffer.amount >= entry.ask * 0.9 && // the PRD's 90%-of-valuation rule
-      userOffer.amount <= user.nilBudget &&
-      user.roster.length < ROSTER_CAP + 5
-    ) {
-      bids.push({
-        tid: state.userTid,
-        amount: userOffer.amount,
-        utility: userOffer.amount * (1 + user.prestige * 0.04),
-      });
+    if (userOffer) {
+      const uFit = portalFit(state, user, p.g);
+      if (
+        userOffer.amount >= effectiveAsk(entry.ask, uFit) && // fit-discounted ask, 60% floor
+        userOffer.amount <= user.nilBudget &&
+        user.roster.length < ROSTER_CAP + 5
+      ) {
+        bids.push({
+          tid: state.userTid,
+          amount: userOffer.amount,
+          utility: userOffer.amount * (1 + user.prestige * 0.04) * (1 + uFit * 0.5),
+          fit: uFit,
+        });
+      }
     }
 
     // A seeded sample of AI programs evaluates each portal player.
@@ -363,18 +440,21 @@ export function submitPortalRound(state: DynastyState, userOffers: PortalOffer[]
     for (let i = 0; i < sampleSize; i++) {
       const team = state.teams[Math.floor(rng() * 68)];
       if (!team?.p4 || team.id === state.userTid || team.id === entry.fromTid) continue;
-      if (team.roster.length >= ROSTER_CAP || team.nilBudget < entry.ask) continue;
+      const fit = portalFit(state, team, p.g);
+      const floor = effectiveAsk(entry.ask, fit);
+      if (team.roster.length >= ROSTER_CAP || team.nilBudget < floor) continue;
       const need = teamNeeds(state, team).get(p.g) ?? 0;
       if (need <= 0 && p.ovr < 80 && rng() > 0.2) continue;
       const amount = Math.min(
         team.nilBudget,
-        Math.round((entry.ask * (0.95 + rng() * 0.35 + state.difficulty * 0.08)) / 500) * 500,
+        Math.round((floor * (1.0 + rng() * 0.3 + state.difficulty * 0.08)) / 500) * 500,
       );
-      if (amount < entry.ask * 0.9) continue;
+      if (amount < floor) continue;
       bids.push({
         tid: team.id,
         amount,
-        utility: amount * (1 + team.prestige * 0.04) * (1 + need * 0.03) * (0.9 + rng() * 0.2),
+        utility: amount * (1 + team.prestige * 0.04) * (1 + need * 0.03) * (1 + fit * 0.5) * (0.9 + rng() * 0.2),
+        fit,
       });
     }
 
@@ -384,6 +464,12 @@ export function submitPortalRound(state: DynastyState, userOffers: PortalOffer[]
     }
     bids.sort((a, b) => b.utility - a.utility);
     const win = bids[0];
+    // Commit timing (M1.3): players take 2-4 rounds; a strong fit closes faster.
+    const commitProb = clamp(0.22 + 0.17 * (state.portalRound - 1) + win.fit * 0.2, 0.2, 0.98);
+    if (rng() > commitProb) {
+      remaining.push(entry); // still being courted — no money moves until a commit
+      continue;
+    }
     const team = state.teams[win.tid];
     team.nilBudget -= win.amount;
     team.roster.push(p.id);
@@ -409,7 +495,53 @@ export function submitPortalRound(state: DynastyState, userOffers: PortalOffer[]
       delete state.players[entry.pid];
     }
     state.portal = [];
-    finishOffseason(state);
+  }
+}
+
+/** Decisions the user can attach to a single offseason-week advance (M0.1). */
+export interface OffseasonWeekInput {
+  /** Retention week (2): flight-risk players to pay to keep. */
+  paidPids?: number[];
+  /** Portal weeks (3-7): NIL offers to make this round. */
+  portalOffers?: PortalOffer[];
+}
+
+/**
+ * Advance one offseason week (M0.1). The offseason is an explicit 8-week
+ * calendar: week 1 report, week 2 retention, weeks 3-7 the five portal rounds,
+ * week 8 signing day + close. Each call resolves the CURRENT week's interactive
+ * decision, runs the AI recruiting tick, then rolls the calendar forward. With
+ * no input (auto-sim) the week still resolves — the AI just gets its way.
+ */
+export function advanceOffseasonWeek(state: DynastyState, input: OffseasonWeekInput = {}): void {
+  if (state.phase !== "offseason" || state.offStage === "done") return;
+
+  if (state.offStage === "retention") {
+    resolveRetention(state, input.paidPids ?? []);
+  } else if (state.offStage === "portal") {
+    submitPortalRound(state, input.portalOffers ?? []);
+  } else if (state.offStage === "signing") {
+    signingDay(state); // last-second flips + force fence-sitters
+    finishOffseason(state); // enroll classes, cuts, prestige, budgets → "done"
+    return;
+  }
+
+  // The 67 AI programs work their boards; commits fire; stamina refreshes.
+  offseasonRecruitingTick(state);
+
+  state.offWeek = Math.min(OFFSEASON_WEEKS, state.offWeek + 1);
+  state.offStage =
+    state.offWeek >= 8 ? "signing"
+      : state.offWeek >= 3 ? "portal"
+        : state.offWeek === 2 ? "retention"
+          : "report";
+}
+
+/** Headless: run the whole offseason with no user input (auto-sim / harness). */
+export function autoAdvanceOffseason(state: DynastyState): void {
+  let guard = 0;
+  while (state.phase === "offseason" && state.offStage !== "done" && guard++ < 20) {
+    advanceOffseasonWeek(state);
   }
 }
 
@@ -498,6 +630,10 @@ export function finishOffseason(state: DynastyState): void {
     const diffMult = team.id === state.userTid ? 1 - state.difficulty * 0.15 : 1;
     const mult = (team.id === state.userTid ? mandateMult : 1) * diffMult;
     team.nilBudget = Math.round(nextBudget(team.prestige, team.rec.w, team.id === championTid) * mult);
+    // Staff salaries come out of the same pool (M1.7) — a stud coordinator is
+    // money the portal never sees. Capped so no program starts a cycle broke.
+    const bill = Math.min(staffBill(state, team.id), Math.round(team.nilBudget * 0.35));
+    team.nilBudget -= bill;
     if (team.id === state.userTid && team.rec.w <= 4) {
       pushNews(state, `💰 Boosters slash ${team.school}'s NIL pool after a ${team.rec.w}-win season.`);
     }

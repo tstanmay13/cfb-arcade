@@ -254,9 +254,24 @@ build succeeds**:
   schedules keep their four even pools. Year selector in the new-dynasty flow;
   per-year data lazy-loads. CLAUDE.md + README seam docs updated.
 
-The calibration harness grew from 45 to 55 assertions across the rework
+The calibration harness grew from 45 to 56 assertions across the rework
 (offseason flow, portal timing/fit, staff hire/fire, schemes, droppers,
-mandates coverage, historical universe + realignment) and is green.
+mandates coverage, historical universe + realignment, save migration, an
+end-to-end two-season feature exercise, and a boot+sim sweep over every
+baked year) and is green.
+
+**Benchmark findings (policy grid, post-rework):** the first 104-run grid
+exposed that removing the official visit's home-game gate (a casualty of the
+inversion) made uncapped visit-spam the whole recruiting meta — the
+`recruiter` policy took the **#1 class every year from a 1-star program**.
+Fixed with the real-CFB rule: **one official visit per recruit** (mirrors the
+HC in-home one-shot). Re-measured at class ~#24 from bottom prestige — strong
+but inside prestige gravity, and the harness's class↔prestige correlation
+holds. Pure-recruiting no longer converts to wins on its own because
+tier-churn outflow (~25/yr unmanaged, up from ~16) must be answered in the
+portal — the intended "portal is a battleground" shape; the balanced policy
+is the intended playstyle. The post-rework grid is the new baseline in
+`docs/benchmarks/`.
 
 ## Consequences
 

@@ -12,19 +12,43 @@ import { genName } from "./names.ts";
 import { ovrForStars, rollPos, rollStars } from "./recruits.ts";
 import { recruitMult } from "./coaches.ts";
 
-export const WEEKLY_RAP = 600;
-export const COMMIT_THRESHOLD = 1000;
+/**
+ * Shared weekly stamina pool (M1.4): recruiting, development, morale, retention
+ * and scouting all draw from the SAME 100/week budget across the 8 offseason
+ * weeks — the tradeoff is the point. Coaching staff modifies the cap.
+ */
+export const STAMINA_MAX = 100;
+// Recruiting now runs across 8 offseason weeks (M0.1), not the old ~13 in-season
+// ones, so the commit bar scales down to keep organic commits flowing.
+export const COMMIT_THRESHOLD = 650;
+/** National recruit pool size per cycle (CFB_GM_DESIGN roster ecology). */
+export const RECRUIT_POOL = 1450;
 const MAX_LEADS = 8;
+/** AI programs' abstract weekly recruiting budget (unchanged from v1.1). */
+const AI_BUDGET = 600;
 
 export const RAP_ACTIONS = {
   dm: { cost: 10, pts: 15, label: "DM" },
-  coach: { cost: 25, pts: 40, label: "Position coach" },
-  hc: { cost: 75, pts: 130, label: "HC in-home visit" },
-  visit: { cost: 150, pts: 300, label: "Official visit" },
-  s1: { cost: 30, pts: 0, label: "Scout I" },
-  s2: { cost: 60, pts: 0, label: "Scout II" },
+  coach: { cost: 15, pts: 40, label: "Position coach" },
+  hc: { cost: 25, pts: 130, label: "HC in-home visit" },
+  visit: { cost: 30, pts: 300, label: "Official visit" },
+  s1: { cost: 20, pts: 0, label: "Scout I" },
+  s2: { cost: 20, pts: 0, label: "Scout II" },
 } as const;
 export type RapAction = keyof typeof RAP_ACTIONS;
+
+/** Non-recruiting stamina sinks that share the weekly pool (M1.4). */
+export const STAMINA_COSTS = {
+  develop: 25,
+  moraleTarget: 10,
+  moraleTeam: 30,
+  retain: 20,
+} as const;
+
+/** Staff-modified weekly stamina cap (Recruiting Coordinator adds budget). */
+export function staminaMax(state: DynastyState): number {
+  return STAMINA_MAX + Math.round((recruitMult(state, state.userTid) - 1) * 40);
+}
 
 /** Ceiling band per tier (shared table), shiftable ±1 tier for gems/busts. */
 function ceilingFor(tier: number, ovr: number, rng: Rng): number {
@@ -72,7 +96,6 @@ export function generateRecruitPool(state: DynastyState, count: number): void {
   }
   pool.sort((a, b) => b.stars - a.stars || b.ovr - a.ovr);
   state.recruits = pool;
-  state.pendingVisits = [];
 }
 
 /** Fuzzy displayed OVR band by scouting stage. */
@@ -121,14 +144,15 @@ export function hasHomeGame(state: DynastyState): boolean {
   );
 }
 
-/** Execute a user RAP action. Returns an error string or null on success. */
+/** Execute a user recruiting action. Returns an error string or null on success. */
 export function userAction(state: DynastyState, rid: number, action: RapAction): string | null {
   const r = state.recruits.find((x) => x.id === rid);
   if (!r) return "Unknown recruit";
-  if (state.phase !== "regular") return "Recruiting is closed for the season";
+  // Recruiting is OFFSEASON-only (M0.1): locked out during the season entirely.
+  if (state.phase !== "offseason") return "Recruiting is closed until the offseason";
   if (r.committed !== null && r.committed !== state.userTid) return "Committed elsewhere";
   const def = RAP_ACTIONS[action];
-  if (state.rapLeft < def.cost) return "Not enough RAP this week";
+  if (state.stamina < def.cost) return "Not enough stamina this week";
   const lock = dealBreakerLock(state, r, state.userTid);
   if (lock && action !== "s1" && action !== "s2") return `Locked: ${lock}`;
 
@@ -138,21 +162,66 @@ export function userAction(state: DynastyState, rid: number, action: RapAction):
     r.scouted = 1;
   } else if (action === "s2") {
     if (r.scouted < 1) return "Run Scout I first";
-    if (r.scouted >= 2) return "Fully scouted";
+    if (r.scouted >= 2) return "Fully scouted"; // scout capped at two uses (M1.4)
     r.scouted = 2;
   } else if (action === "hc") {
     if (r.hcUsed) return "HC visit already used on this recruit";
     r.hcUsed = true;
     addInterest(r, state.userTid, staffPts);
-  } else if (action === "visit") {
-    if (!hasHomeGame(state)) return "Official visits need a home game this week";
-    if (state.pendingVisits.includes(rid)) return "Visit already scheduled";
-    state.pendingVisits.push(rid);
-    addInterest(r, state.userTid, staffPts);
   } else {
     addInterest(r, state.userTid, staffPts);
   }
-  state.rapLeft -= def.cost;
+  state.stamina -= def.cost;
+  return null;
+}
+
+/** Remove a prospect from the board — persists for the cycle (M1.4). */
+export function removeFromBoard(state: DynastyState, rid: number): void {
+  const r = state.recruits.find((x) => x.id === rid);
+  if (r && r.committed === null) r.hidden = true;
+}
+
+/** Spend stamina to develop a roster player: a small immediate step to ceiling. */
+export function developPlayer(state: DynastyState, pid: number): string | null {
+  if (state.phase !== "offseason") return "Development is an offseason activity";
+  if (state.stamina < STAMINA_COSTS.develop) return "Not enough stamina this week";
+  const p = state.players[pid];
+  if (!p || !state.teams[state.userTid].roster.includes(pid)) return "Not on your roster";
+  if (p.ovr >= p.ceil) return "Already at ceiling";
+  const gain = clamp(1 + Math.round((p.ceil - p.ovr) * 0.12), 1, 4);
+  p.ovr = clamp(p.ovr + gain, 40, p.ceil);
+  p.morale = clamp(p.morale + 3, 0, 100);
+  state.stamina -= STAMINA_COSTS.develop;
+  return null;
+}
+
+/** Spend stamina on morale: one player (10) or the whole team (30). */
+export function boostMorale(state: DynastyState, pid: number | null): string | null {
+  if (state.phase !== "offseason") return "Morale work is an offseason activity";
+  const cost = pid === null ? STAMINA_COSTS.moraleTeam : STAMINA_COSTS.moraleTarget;
+  if (state.stamina < cost) return "Not enough stamina this week";
+  const team = state.teams[state.userTid];
+  if (pid === null) {
+    for (const id of team.roster) state.players[id].morale = clamp(state.players[id].morale + 6, 0, 100);
+  } else {
+    if (!team.roster.includes(pid)) return "Not on your roster";
+    state.players[pid].morale = clamp(state.players[pid].morale + 18, 0, 100);
+  }
+  state.stamina -= cost;
+  return null;
+}
+
+/** Non-NIL retention effort (M1.4): courts a flight-risk player to stay. */
+export function retainEffort(state: DynastyState, pid: number): string | null {
+  if (state.offStage !== "retention") return "Retention window is closed";
+  if (state.stamina < STAMINA_COSTS.retain) return "Not enough stamina this week";
+  const c = state.retention.find((x) => x.pid === pid);
+  if (!c) return "Not a retention case";
+  if (c.courted) return "Already courted";
+  c.courted = true;
+  const p = state.players[pid];
+  if (p) { p.loyalty = clamp(p.loyalty + 12, 1, 99); p.morale = clamp(p.morale + 8, 0, 100); }
+  state.stamina -= STAMINA_COSTS.retain;
   return null;
 }
 
@@ -199,7 +268,7 @@ function aiWeeklyPoints(state: DynastyState, team: Team, rng: Rng): void {
   // Same 600-RAP budget as the user, converted at blended action efficiency.
   // Higher difficulty sharpens every AI staff.
   let budget = Math.round(
-    WEEKLY_RAP * (1.35 + team.prestige * 0.05) * recruitMult(state, team.id) *
+    AI_BUDGET * (1.35 + team.prestige * 0.05) * recruitMult(state, team.id) *
       (1 + state.difficulty * 0.15),
   );
   for (const { r } of candidates.slice(0, 9)) {
@@ -231,25 +300,19 @@ function commitChecks(state: DynastyState, rng: Rng): void {
   }
 }
 
-/** Weekly recruiting tick — run after the week's games (regular season). */
-export function recruitingTick(state: DynastyState): void {
-  const rng = stream(state.seed, "recruiting", state.season, state.week);
-  // Official-visit game-day bonus: +50 if the visit's host won at home.
-  const userWonHome = state.results.some(
-    (r) => r.week === state.week && r.home === state.userTid && r.hs > r.as,
-  );
-  for (const rid of state.pendingVisits) {
-    const r = state.recruits.find((x) => x.id === rid);
-    if (r && userWonHome) addInterest(r, state.userTid, 50);
-  }
-  state.pendingVisits = [];
-
+/**
+ * One offseason recruiting week (M0.1/M1.4): the 67 AI programs work their
+ * boards, recruits run their commit checks, and the user's shared stamina pool
+ * refreshes for the next week. Keyed by offseason week so it's deterministic.
+ */
+export function offseasonRecruitingTick(state: DynastyState): void {
+  const rng = stream(state.seed, "recruiting", state.season, state.offWeek);
   for (const team of state.teams) {
     if (!team.p4 || team.id === state.userTid) continue;
     aiWeeklyPoints(state, team, rng);
   }
   commitChecks(state, rng);
-  state.rapLeft = WEEKLY_RAP;
+  state.stamina = staminaMax(state);
 }
 
 /** Signing day (after CCGs): last-second flips, then force the fence-sitters. */

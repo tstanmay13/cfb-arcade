@@ -70,8 +70,16 @@ credential beyond the public anon key to this repo.
   `TeamName` text stays ink; screens never hardcode a brand hex),
   `scripts/build-gm.ts` → `public/gm-data.json` (real
   2026 P4 universe: projected rosters + Elo from real 2025 results + real
-  rivalries from 2010-25 matchup history; Supabase-only, anon key). All game
-  "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
+  rivalries from 2010-25 matchup history; Supabase-only, anon key). **Historical
+  starts (ADR-0027)**: the same script takes a year (`npm run build:gm -- 2010`)
+  and bakes `public/gm-data-YYYY.json` for any season 2010–2025 **except 2014
+  and 2023** (unusable served-ratings coverage; the bake fails loudly). It reads
+  season-scoped `cfb_teams`/`cfb_player_ratings`/`cfb_rosters`/`cfb_games` for
+  that year — era-correct conferences included — plus the 2026 team list to fix
+  the 68-team full-sim set (universe rule (a): the 2026 P4 schools full-sim in
+  every era; the league realigns to the modern map at first rollover). One
+  static file per year, lazy-loaded only when that start year is picked. All
+  game "AI" is seeded policy code — zero LLM/network at runtime. Design deltas
   live in `docs/CFB_GM_DESIGN.md` implementation-notes sections.
 
 ## Commands

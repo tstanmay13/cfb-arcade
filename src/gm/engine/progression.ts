@@ -37,3 +37,18 @@ export function declaresForDraft(nationalRank: number, rng: Rng): boolean {
   const p = nationalRank <= 32 ? 0.92 : nationalRank <= 100 ? 0.55 : nationalRank <= 224 ? 0.25 : 0.04;
   return rng() < p;
 }
+
+/**
+ * Live draft projection for the player card (M1.2): where this player's OVR
+ * ranks among all current draft-eligibles, mapped to the same 7×32 slotting
+ * the real offseason draft uses. Null for players nowhere near the board.
+ */
+export function draftProjection(eligibleOvrs: number[], p: Player): string | null {
+  if (p.cls < 2) return null; // too early to project
+  const better = eligibleOvrs.filter((o) => o > p.ovr).length;
+  const rank = better + 1;
+  if (rank > 260) return null;
+  if (rank > 224) return "Priority UDFA";
+  const round = Math.min(7, Math.floor((rank - 1) / 32) + 1);
+  return round === 1 ? "Round 1 talk" : `Round ${round} projection`;
+}

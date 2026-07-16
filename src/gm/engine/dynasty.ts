@@ -16,15 +16,12 @@ import { eloDelta, eloPreseason } from "./elo.ts";
 import { computePoll } from "./poll.ts";
 import { generateSchedule, REG_WEEKS } from "./schedule.ts";
 import { buildPostseason, ccgGames, nextCfpRound, CFP_NC_WEEK } from "./postseason.ts";
-import { resolveRetention, runOffseason, submitPortalRound } from "./offseason.ts";
+import { autoAdvanceOffseason, runOffseason } from "./offseason.ts";
 import { baseBudget, marketValue } from "./nil.ts";
-import { generateRecruitPool, recruitingTick, signingDay, WEEKLY_RAP } from "./recruiting.ts";
-import { boosterTypeFor, gameBonus, genMandates, initCoaches, staffOf } from "./coaches.ts";
+import { boosterTypeFor, gameBonus, genMandates, initCoaches, staffOf, teamScheme } from "./coaches.ts";
+import { applySchemes } from "./schemes.ts";
 import { poyTop } from "./awards.ts";
 import { rangeInt } from "./streams.ts";
-
-/** National recruit pool size per cycle (CFB_GM_DESIGN roster ecology). */
-const RECRUIT_POOL = 1450;
 
 const ROSTER_MINIMUMS: [PosGroup, number][] = [
   ["QB", 3], ["RB", 4], ["WR", 6], ["TE", 3], ["OL", 10],
@@ -105,13 +102,16 @@ export function createDynasty(
   }));
 
   const state: DynastyState = {
-    v: 1,
+    v: 2,
     seed,
     difficulty,
     year: 1,
     season: data.season,
+    startYear: data.season,
     week: 1,
     phase: "regular",
+    offWeek: 0,
+    autoRecruit: false,
     userTid,
     teams,
     players,
@@ -126,8 +126,7 @@ export function createDynasty(
     offseason: null,
     recruits: [],
     nextRid: 1,
-    rapLeft: WEEKLY_RAP,
-    pendingVisits: [],
+    stamina: 0,
     offStage: "done",
     retention: [],
     portal: [],
@@ -152,7 +151,8 @@ export function createDynasty(
       }
     }
   }
-  generateRecruitPool(state, RECRUIT_POOL);
+  // The recruit pool is now an offseason artifact (M0.1): generated when the
+  // first offseason begins (runOffseason), not during the season.
   initCoaches(state);
   genMandates(state);
   return state;
@@ -170,6 +170,9 @@ export function sideFor(state: DynastyState, tid: number): SideInput {
   if (team.p4) {
     lineup = selectLineup(team.roster.map((id) => state.players[id]), team.pins);
     traits = traitsFromLineup(lineup);
+    // Scheme identity (M1.2): reallocate traits + a small scheme-fit bonus.
+    const { off, def } = teamScheme(state, tid);
+    traits = applySchemes(traits, off, def, lineup);
     // Coaching quality shifts execution across the board (v1.3).
     const bonus = gameBonus(state, tid);
     if (bonus !== 0) {
@@ -255,7 +258,10 @@ export function commitOutcome(
   }
   for (const injury of out.injuries) {
     const p = state.players[injury.pid];
-    if (p) p.inj = Math.max(p.inj, injury.weeks);
+    if (p) {
+      p.inj = Math.max(p.inj, injury.weeks);
+      (p.injHist ??= []).push({ season: state.season, weeks: injury.weeks });
+    }
   }
 
   const result: GameResult = {
@@ -362,7 +368,7 @@ function simCurrentWeek(state: DynastyState): void {
   state.poll = computePoll(state.teams, state.poll);
   const newNo1 = state.poll[0]?.tid;
   if (prevNo1 !== undefined && newNo1 !== undefined && prevNo1 !== newNo1) {
-    pushNews(state, `👑 New AP No. 1: ${state.teams[newNo1].school}.`);
+    pushNews(state, `👑 New No. 1: ${state.teams[newNo1].school}.`);
   }
   weeklyStories(state);
 }
@@ -409,7 +415,7 @@ export function advance(state: DynastyState): void {
   simCurrentWeek(state);
 
   if (state.phase === "regular") {
-    recruitingTick(state);
+    // Recruiting no longer runs in-season (M0.1) — it's offseason-only now.
     if (state.week >= REG_WEEKS) {
       const ccgs = ccgGames(state);
       state.schedule.push(...ccgs);
@@ -437,7 +443,6 @@ export function advance(state: DynastyState): void {
       state,
       `📋 CFP field revealed — top seeds: ${slate.field.slice(0, 4).map((tid, i) => `${i + 1}) ${state.teams[tid].school}`).join(", ")}${slate.field.includes(state.userTid) ? `. You're in at seed ${slate.field.indexOf(state.userTid) + 1}!` : "."}`,
     );
-    signingDay(state);
     state.phase = "cfp";
     state.week = slate.games[0]?.week ?? state.week + 1;
     return;
@@ -461,14 +466,9 @@ export function advance(state: DynastyState): void {
   state.week++;
 }
 
-/** Headless offseason: skip retention, make no portal offers (AI still bids). */
+/** Headless offseason: run all 8 weeks with no user input (AI still bids). */
 export function autoOffseason(state: DynastyState): void {
-  if (state.phase !== "offseason") return;
-  if (state.offStage === "retention") resolveRetention(state, []);
-  let guard = 0;
-  while (state.offStage === "portal" && guard++ < 5) {
-    submitPortalRound(state, []);
-  }
+  autoAdvanceOffseason(state);
 }
 
 /** Leave the offseason: regenerate the world for the next season. */
@@ -479,6 +479,9 @@ export function startNextSeason(state: DynastyState): void {
   state.year++;
   state.week = 1;
   state.phase = "regular";
+  state.offWeek = 0;
+  state.offStage = "done";
+  state.stamina = 0;
   state.results = [];
   state.cfp = null;
   state.offseason = null;
@@ -487,21 +490,45 @@ export function startNextSeason(state: DynastyState): void {
     team.rec = { w: 0, l: 0, cw: 0, cl: 0, pf: 0, pa: 0 };
     team.elo = Math.round(eloPreseason(team.elo));
   }
+  // Historical starts (M0.2): year 1 played in era-correct conferences off the
+  // real schedule; from year 2 the league fast-forwards realignment to the
+  // modern structure so generated schedules keep their four even pools.
+  const realigned = state.teams.filter((t) => t.p4 && t.conf2026 && t.conference !== t.conf2026);
+  if (realigned.length > 0) {
+    for (const team of realigned) {
+      team.conference = team.conf2026!;
+      delete team.conf2026;
+    }
+    pushNews(
+      state,
+      `🌊 Realignment wave: ${realigned.length} programs change conferences — the modern P4 map arrives early.`,
+    );
+  }
   const schedule = generateSchedule(state.teams, state.season, state.seed, state.nextGid);
   state.schedule = schedule;
   state.nextGid = Math.max(...schedule.map((g) => g.id)) + 1;
   state.poll = computePoll(state.teams, []);
-  state.rapLeft = WEEKLY_RAP;
-  state.pendingVisits = [];
-  generateRecruitPool(state, RECRUIT_POOL);
+  // No recruit pool during the season — it's generated when the offseason opens.
   genMandates(state);
   pushNews(
     state,
-    `🗞️ ${state.season} preseason AP No. 1: ${state.teams[state.poll[0].tid].school}. Your board wants: ${state.mandates.map((m) => m.text.toLowerCase()).join(" + ") || "patience"}.`,
+    `🗞️ ${state.season} preseason No. 1: ${state.teams[state.poll[0].tid].school}. Your board wants: ${state.mandates.map((m) => m.text.toLowerCase()).join(" + ") || "patience"}.`,
   );
 }
 
-/** Fast-sim helper: advance until the offseason report is up. */
+/**
+ * Simulate Regular Season (M0.1): stop at the end of the regular season, in the
+ * postseason phase with the bracket unplayed — the user still watches/sims CCGs
+ * and the CFP.
+ */
+export function simRegularSeason(state: DynastyState): void {
+  let guard = 0;
+  while (state.phase === "regular" && guard++ < 40) {
+    advance(state);
+  }
+}
+
+/** Simulate Whole Season (M0.1): advance through the postseason into the recap. */
 export function simToSeasonEnd(state: DynastyState): void {
   let guard = 0;
   while (state.phase !== "offseason" && guard++ < 40) {

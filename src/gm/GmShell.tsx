@@ -3,9 +3,9 @@
 // the engine, autosaves, and re-renders. Engines stay UI-free.
 import { useEffect, useState } from "react";
 import type { DynastyState } from "./engine/types.ts";
-import { advance, simToSeasonEnd, startNextSeason } from "./engine/dynasty.ts";
+import { advance, autoOffseason, simRegularSeason, simToSeasonEnd, startNextSeason } from "./engine/dynasty.ts";
 import { commitOutcome, togglePin } from "./engine/dynasty.ts";
-import { cutPlayer, resolveRetention, submitPortalRound, type PortalOffer } from "./engine/offseason.ts";
+import { advanceOffseasonWeek, cutPlayer, type PortalOffer } from "./engine/offseason.ts";
 import { takeJob } from "./engine/coaches.ts";
 import { fmtMoney } from "./engine/nil.ts";
 import type { SimOutcome } from "./engine/game.ts";
@@ -13,7 +13,7 @@ import { loadDynasty, saveDynasty } from "./db.ts";
 import WatchGame from "./WatchGame.tsx";
 import {
   Dashboard, HistoryPanel, OffseasonPanel, RankingsPanel,
-  RosterPanel, SchedulePanel, StandingsPanel,
+  RosterPanel, SchedulePanel, StaffPanel, StandingsPanel,
 } from "./panels.tsx";
 import RecruitingPanel from "./recruitingPanel.tsx";
 import HelpPanel from "./helpPanel.tsx";
@@ -24,12 +24,13 @@ import { TeamMark } from "./ui.tsx";
 const TOUR_DONE_KEY = "cfbgm:tour-done";
 
 type Tab =
-  | "dashboard" | "roster" | "recruiting" | "schedule" | "standings"
+  | "dashboard" | "roster" | "staff" | "recruiting" | "schedule" | "standings"
   | "top25" | "history" | "help" | "offseason";
 
 const TABS: [Tab, string][] = [
   ["dashboard", "Dashboard"],
   ["roster", "Roster"],
+  ["staff", "Staff"],
   ["recruiting", "Recruiting"],
   ["schedule", "Schedule"],
   ["standings", "Standings"],
@@ -198,13 +199,23 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
               >
                 {busy ? "SIMMING…" : advanceLabel}
               </button>
+              {state.phase === "regular" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => runAction(simRegularSeason)}
+                  className="rounded-full border-2 border-paper-edge px-4 py-2 font-display text-[10px] tracking-widest transition hover:border-ink/40 disabled:opacity-40"
+                >
+                  SIM REG SEASON
+                </button>
+              )}
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => runAction(simToSeasonEnd)}
                 className="rounded-full border-2 border-paper-edge px-4 py-2 font-display text-[10px] tracking-widest transition hover:border-ink/40 disabled:opacity-40"
               >
-                SIM TO SEASON END
+                SIM WHOLE SEASON
               </button>
             </>
           ) : state.offStage === "done" ? (
@@ -217,9 +228,20 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
               START {state.season + 1} SEASON
             </button>
           ) : (
-            <span className="rounded-full border-2 border-paper-edge px-4 py-2 font-display text-[10px] tracking-widest opacity-70">
-              OFFSEASON: {state.offStage.toUpperCase()} IN PROGRESS
-            </span>
+            <>
+              <span className="rounded-full border-2 border-paper-edge px-4 py-2 font-display text-[10px] tracking-widest opacity-70">
+                OFFSEASON · WEEK {state.offWeek}/8 · {state.offStage.toUpperCase()}
+              </span>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => runAction(autoOffseason)}
+                className="rounded-full border-2 border-paper-edge px-4 py-2 font-display text-[10px] tracking-widest transition hover:border-ink/40 disabled:opacity-40"
+                title="Auto-resolve the rest of the offseason (recruiting + portal)"
+              >
+                SIM OFFSEASON
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -249,8 +271,10 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
             state={state}
             onCut={(pid) => runAction((s) => void cutPlayer(s, pid))}
             onPin={(pid) => runAction((s) => togglePin(s, pid))}
+            onMutate={mutate}
           />
         )}
+        {tab === "staff" && <StaffPanel state={state} onMutate={mutate} />}
         {tab === "recruiting" && <RecruitingPanel state={state} onMutate={mutate} />}
         {tab === "schedule" && <SchedulePanel state={state} />}
         {tab === "standings" && <StandingsPanel state={state} />}
@@ -260,9 +284,10 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         {tab === "offseason" && state.offseason && (
           <OffseasonPanel
             state={state}
-            onRetention={(pids) => runAction((s) => resolveRetention(s, pids))}
-            onPortal={(offers: PortalOffer[]) => runAction((s) => submitPortalRound(s, offers))}
+            onRetention={(pids) => runAction((s) => advanceOffseasonWeek(s, { paidPids: pids }))}
+            onPortal={(offers: PortalOffer[]) => runAction((s) => advanceOffseasonWeek(s, { portalOffers: offers }))}
             onTakeJob={(tid) => runAction((s) => void takeJob(s, tid))}
+            onAdvanceWeek={() => runAction((s) => advanceOffseasonWeek(s))}
           />
         )}
       </section>

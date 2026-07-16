@@ -5,6 +5,7 @@
 
 import Dexie, { type EntityTable } from "dexie";
 import type { ArchivedPlayer, DynastyState } from "./engine/types.ts";
+import { migrateDynasty } from "./migrate.ts";
 
 export interface SlotRow {
   id: number;
@@ -82,7 +83,7 @@ export async function saveDynasty(
 
 export async function loadDynasty(slotId: number): Promise<DynastyState | null> {
   const row = await db.snapshots.get(slotId);
-  return row?.state ?? null;
+  return row?.state ? migrateDynasty(row.state) : null;
 }
 
 export async function deleteSlot(slotId: number): Promise<void> {
@@ -125,8 +126,9 @@ export async function importDynasty(json: string): Promise<number> {
     throw new Error("Not a CFB-GM dynasty export");
   }
   return db.transaction("rw", db.slots, db.snapshots, db.archive, async () => {
-    const id = (await db.slots.add(slotMeta(file.state) as SlotRow)) as number;
-    await db.snapshots.put({ slotId: id, state: file.state });
+    const state = migrateDynasty(file.state); // old exports predate the save rework
+    const id = (await db.slots.add(slotMeta(state) as SlotRow)) as number;
+    await db.snapshots.put({ slotId: id, state });
     if (file.archive?.length) {
       await db.archive.bulkAdd(
         file.archive.map((a) => ({ slotId: id, season: a.season, player: a.player }) as ArchiveRow),

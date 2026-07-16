@@ -72,6 +72,7 @@ the `cfb_*` tables, append-only on `arcade_results`):
 | ----------------- | --------------------------------------------------------------------- | ----------------------------- |
 | read              | `cfb_teams`, `cfb_rosters`, `cfb_player_ratings`, `cfb_player_season_stats` | `npm run build:data` (bake)   |
 | read              | `cfb_games`, `cfb_teams`, `cfb_player_ratings`                        | `npm run build:seasons` (bake) |
+| read              | `cfb_teams`, `cfb_rosters`, `cfb_player_ratings`, `cfb_games` — season-scoped, **2010–2026** (historical GM starts, ADR-0027; 2014/2023 unusable) | `npm run build:gm [-- year]` (bake) |
 | append            | `arcade_results` (INSERT only; raw reads are RLS/privilege-denied)    | runtime, finishing a round    |
 | read (aggregates) | `arcade_daily_stats(game, puzzle)` RPC                                | runtime, stats sheet          |
 

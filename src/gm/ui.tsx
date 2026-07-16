@@ -176,7 +176,7 @@ export function TeamMark({
 /**
  * A school name with its TeamMark. Color lives in the mark; the name stays
  * ink so lists of teams never read as rainbow text (V1). Bold when it's the
- * leader / user's team. `rank` prefixes an AP number; `mark={false}` drops
+ * leader / user's team. `rank` prefixes a poll number; `mark={false}` drops
  * the badge for tight prose.
  */
 export function TeamName({

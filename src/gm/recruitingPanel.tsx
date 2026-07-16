@@ -4,8 +4,8 @@
 import { useMemo, useState } from "react";
 import type { DynastyState, PosGroup, Recruit } from "./engine/types.ts";
 import {
-  COMMIT_THRESHOLD, dealBreakerLock, hasHomeGame, RAP_ACTIONS, shownOvr, teamNeeds,
-  userAction, userPoints, WEEKLY_RAP, type RapAction,
+  COMMIT_THRESHOLD, dealBreakerLock, RAP_ACTIONS, removeFromBoard, shownOvr, staminaMax,
+  teamNeeds, userAction, userPoints, type RapAction,
 } from "./engine/recruiting.ts";
 import { STAR_POINTS } from "./engine/recruits.ts";
 import { DevBadge } from "./panels.tsx";
@@ -23,7 +23,7 @@ const OUTREACH: { key: RapAction; label: string; blurb: string }[] = [
   { key: "dm", label: "DM", blurb: `+${RAP_ACTIONS.dm.pts} interest` },
   { key: "coach", label: "Position coach", blurb: `+${RAP_ACTIONS.coach.pts} interest` },
   { key: "hc", label: "HC in-home", blurb: `+${RAP_ACTIONS.hc.pts}, once each` },
-  { key: "visit", label: "Official visit", blurb: `+${RAP_ACTIONS.visit.pts}, needs a home game` },
+  { key: "visit", label: "Official visit", blurb: `+${RAP_ACTIONS.visit.pts} interest` },
 ];
 
 export default function RecruitingPanel({
@@ -38,11 +38,12 @@ export default function RecruitingPanel({
   const [view, setView] = useState<ViewFilter>("board");
   const [sort, setSort] = useState<SortKey>("stars");
   const [flash, setFlash] = useState<string | null>(null);
-  const [hidden, setHidden] = useState<Set<number>>(new Set());
   // One open action tray at a time — rows stay quiet until you're working one (V1).
   const [sel, setSel] = useState<number | null>(null);
 
-  const closed = state.phase !== "regular";
+  // Recruiting is offseason-only now (M0.1): the board is CLOSED in-season.
+  const closed = state.phase !== "offseason";
+  const removedCount = useMemo(() => state.recruits.filter((r) => r.hidden).length, [state]);
   const myCommits = useMemo(
     () => state.recruits.filter((r) => r.committed === state.userTid),
     [state],
@@ -50,7 +51,7 @@ export default function RecruitingPanel({
   const classPts = myCommits.reduce((a, r) => a + (STAR_POINTS[r.stars] ?? 0), 0);
 
   const rows = useMemo(() => {
-    let list = state.recruits.filter((r) => !hidden.has(r.id));
+    let list = state.recruits.filter((r) => !r.hidden);
     if (view === "targets") list = list.filter((r) => userPoints(r, state.userTid) > 0 && r.committed === null);
     if (view === "commits") list = list.filter((r) => r.committed === state.userTid);
     if (pos !== "ALL") list = list.filter((r) => r.g === pos);
@@ -63,7 +64,7 @@ export default function RecruitingPanel({
       mine: (a, b) => userPoints(b, state.userTid) - userPoints(a, state.userTid),
     };
     return [...list].sort(cmp[sort]).slice(0, 150);
-  }, [state, pos, minStars, view, sort, hidden]);
+  }, [state, pos, minStars, view, sort]);
 
   const act = (rid: number, a: RapAction) => {
     const err = userAction(state, rid, a);
@@ -83,7 +84,7 @@ export default function RecruitingPanel({
 
   return (
     <Card
-      title={`RECRUITING BOARD${closed ? " · CLOSED (SIGNING DAY PASSED)" : ""}`}
+      title={`RECRUITING BOARD${closed ? " · CLOSED (OFFSEASON ONLY)" : ` · OFFSEASON WEEK ${state.offWeek}/8`}`}
       right={
         <span className="text-sm">
           Commits <span className="font-display">{myCommits.length}</span>
@@ -95,23 +96,23 @@ export default function RecruitingPanel({
       <div className="flex flex-wrap items-center gap-4" data-tour="rap">
         <div className="min-w-[220px] flex-1">
           <div className="flex items-baseline justify-between">
-            <SectionLabel>WEEKLY STAMINA · RAP</SectionLabel>
+            <SectionLabel>WEEKLY STAMINA</SectionLabel>
             <span className="font-display text-sm">
-              {state.rapLeft}<span className="text-ink/45"> / {WEEKLY_RAP}</span>
+              {state.stamina}<span className="text-ink/45"> / {staminaMax(state)}</span>
             </span>
           </div>
           <Meter
-            value={state.rapLeft}
-            max={WEEKLY_RAP}
-            color={state.rapLeft < 100 ? "var(--neg)" : "var(--accent)"}
+            value={state.stamina}
+            max={staminaMax(state)}
+            color={state.stamina < staminaMax(state) * 0.25 ? "var(--neg)" : "var(--accent)"}
             className="mt-1"
             height={10}
           />
-          <p className="mt-1 text-[10px] text-ink/50">Resets every week — spend it or lose it.</p>
+          <p className="mt-1 text-[10px] text-ink/50">
+            One shared pool — recruiting, development &amp; morale. Resets each offseason week.
+          </p>
         </div>
-        {!closed && hasHomeGame(state) && (
-          <Pill tone="pos">🏟 Home game this week — visits available</Pill>
-        )}
+        {!closed && <Pill tone="pos">🏈 Recruiting open — advance weeks in the Offseason tab</Pill>}
       </div>
 
       {/* Action legend — every action written out (V4.2) */}
@@ -120,7 +121,7 @@ export default function RecruitingPanel({
         {OUTREACH.map((o) => (
           <span key={o.key}>
             <span className="font-bold">{o.label}</span>{" "}
-            <span className="text-ink/50">{o.blurb} · {RAP_ACTIONS[o.key].cost} RAP</span>
+            <span className="text-ink/50">{o.blurb} · {RAP_ACTIONS[o.key].cost} stam</span>
           </span>
         ))}
         <span className="flex items-center gap-1">
@@ -160,13 +161,16 @@ export default function RecruitingPanel({
             <option key={s} value={s}>{s}★+</option>
           ))}
         </select>
-        {hidden.size > 0 && (
+        {removedCount > 0 && (
           <button
             type="button"
-            onClick={() => setHidden(new Set())}
+            onClick={() => {
+              for (const r of state.recruits) r.hidden = false;
+              onMutate();
+            }}
             className="rounded-full border border-line px-2.5 py-0.5 font-display tracking-widest hover:border-ink/40"
           >
-            RESTORE {hidden.size} REMOVED
+            RESTORE {removedCount} REMOVED
           </button>
         )}
         {flash && <StatusText tone="neg" className="rounded bg-neg-soft px-2 py-0.5">{flash}</StatusText>}
@@ -196,7 +200,10 @@ export default function RecruitingPanel({
                 act={act}
                 sel={sel === r.id}
                 onSel={() => setSel(sel === r.id ? null : r.id)}
-                onRemove={() => setHidden((h) => new Set(h).add(r.id))}
+                onRemove={() => {
+                  removeFromBoard(state, r.id);
+                  onMutate();
+                }}
               />
             ))}
           </tbody>
@@ -347,14 +354,14 @@ function RecruitRow({
             <div className="flex flex-wrap items-center gap-1.5">
               {!done && (
                 <>
-                  {btn("dm", `✉ DM · ${RAP_ACTIONS.dm.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.dm.cost, "+15 interest")}
-                  {btn("coach", `POSITION COACH · ${RAP_ACTIONS.coach.cost}`, lockActions || state.rapLeft < RAP_ACTIONS.coach.cost, "+40 interest")}
-                  {btn("hc", `HC IN-HOME · ${RAP_ACTIONS.hc.cost}`, lockActions || r.hcUsed || state.rapLeft < RAP_ACTIONS.hc.cost, "+130, once per recruit")}
+                  {btn("dm", `✉ DM · ${RAP_ACTIONS.dm.cost}`, lockActions || state.stamina < RAP_ACTIONS.dm.cost, "+15 interest")}
+                  {btn("coach", `POSITION COACH · ${RAP_ACTIONS.coach.cost}`, lockActions || state.stamina < RAP_ACTIONS.coach.cost, "+40 interest")}
+                  {btn("hc", `HC IN-HOME · ${RAP_ACTIONS.hc.cost}`, lockActions || r.hcUsed || state.stamina < RAP_ACTIONS.hc.cost, "+130, once per recruit")}
                   {btn(
                     "visit",
                     `OFFICIAL VISIT · ${RAP_ACTIONS.visit.cost}`,
-                    lockActions || state.rapLeft < RAP_ACTIONS.visit.cost || !hasHomeGame(state) || state.pendingVisits.includes(r.id),
-                    "+300, needs a home game; +50 if you win it",
+                    lockActions || state.stamina < RAP_ACTIONS.visit.cost,
+                    "+300 interest",
                   )}
                   <span className="mx-1 h-4 w-px bg-line" />
                 </>
@@ -363,7 +370,7 @@ function RecruitRow({
               {nextScout ? (
                 <button
                   type="button"
-                  disabled={closed || state.rapLeft < scoutCost}
+                  disabled={closed || state.stamina < scoutCost}
                   title={r.scouted === 0 ? "Reveal a tighter OVR band" : "Reveal dev tier + gem/bust"}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -388,7 +395,7 @@ function RecruitRow({
               >
                 ✕ REMOVE
               </button>
-              <span className="text-[10px] text-ink/50">RAP left {state.rapLeft}</span>
+              <span className="text-[10px] text-ink/50">Stamina left {state.stamina}</span>
             </div>
           </td>
         </tr>

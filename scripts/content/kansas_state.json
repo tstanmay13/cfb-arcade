@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Bill Snyder",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 73,
-        "stat_2": 0,
-        "stat_3": 1,
-        "stat_4": 55,
-        "stat_5": 215
-      }
+      "stats": { "stat_1": 45, "stat_2": 0, "stat_3": 1, "stat_4": 55, "stat_5": 215 }
+    },
+    {
+      "name": "Bill Snyder",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 215 }
     },
     {
       "name": "Chris Klieman",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 40,
-        "stat_2": 0,
-        "stat_3": 1,
-        "stat_4": 60,
-        "stat_5": 114
-      }
+      "stats": { "stat_1": 40, "stat_2": 0, "stat_3": 1, "stat_4": 60, "stat_5": 114 }
     }
   ],
   "players": []

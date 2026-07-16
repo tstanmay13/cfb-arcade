@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Gary Patterson",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Elite",
-      "stats": {
-        "stat_1": 87,
-        "stat_2": 0,
-        "stat_3": 2,
-        "stat_4": 72,
-        "stat_5": 181
-      }
+      "stats": { "stat_1": 47, "stat_2": 0, "stat_3": 2, "stat_4": 72, "stat_5": 181 }
+    },
+    {
+      "name": "Gary Patterson",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 40, "stat_2": 0, "stat_3": 0, "stat_4": 72, "stat_5": 181 }
     },
     {
       "name": "Sonny Dykes",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 27,
-        "stat_2": 0,
-        "stat_3": 1,
-        "stat_4": 60,
-        "stat_5": 103
-      }
+      "stats": { "stat_1": 27, "stat_2": 0, "stat_3": 1, "stat_4": 60, "stat_5": 103 }
     }
   ],
   "players": []

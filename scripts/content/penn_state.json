@@ -4,7 +4,7 @@
   "name": "Penn State",
   "mascot": "Nittany Lions",
   "powerhouse_eras": ["1980s", "1990s"],
-  "conferences": { "1980s": "Independent", "1990s": "Big Ten", "2000s": "Big Ten", "2010s": "Big Ten" },
+  "conferences": { "1980s": "Independent", "1990s": "Big Ten", "2000s": "Big Ten", "2010-14": "Big Ten", "2015-19": "Big Ten" },
   "coaches": [
     {
       "name": "Joe Paterno",
@@ -13,10 +13,22 @@
       "stats": { "stat_1": 89, "stat_2": 2, "stat_3": 0, "stat_4": 66.7, "stat_5": 409 }
     },
     {
+      "name": "Bill O'Brien",
+      "decade": "2010-14",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 15, "stat_2": 0, "stat_3": 0, "stat_4": 0, "stat_5": 15 }
+    },
+    {
       "name": "James Franklin",
-      "decade": "2020s",
+      "decade": "2015-19",
       "coach_tier": "Great",
-      "stats": { "stat_1": 45, "stat_2": 0, "stat_3": 0, "stat_4": 55.0, "stat_5": 128 }
+      "stats": { "stat_1": 49, "stat_2": 0, "stat_3": 1, "stat_4": 55, "stat_5": 128 }
+    },
+    {
+      "name": "James Franklin",
+      "decade": "2020-25",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 45, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 128 }
     }
   ],
   "players": [
@@ -45,7 +57,7 @@
       "secondary_position": null,
       "decade": "1990s",
       "hidden_ovr": 89,
-      "stats": { "stat_1": 1363, "stat_2": 19, "stat_3": 6.0, "stat_4": 212, "stat_5": 1 }
+      "stats": { "stat_1": 1363, "stat_2": 19, "stat_3": 6, "stat_4": 212, "stat_5": 1 }
     },
     {
       "name": "Bobby Engram",

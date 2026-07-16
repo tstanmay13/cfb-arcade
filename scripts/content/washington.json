@@ -4,7 +4,7 @@
   "name": "Washington",
   "mascot": "Huskies",
   "powerhouse_eras": ["1990s"],
-  "conferences": { "1980s": "Pac-10", "1990s": "Pac-10", "2000s": "Pac-10", "2010s": "Pac-12" },
+  "conferences": { "1980s": "Pac-10", "1990s": "Pac-10", "2000s": "Pac-10", "2010-14": "Pac-12", "2015-19": "Pac-12", "2020-25": "Pac-12" },
   "coaches": [
     {
       "name": "Don James",
@@ -13,10 +13,22 @@
       "stats": { "stat_1": 22, "stat_2": 1, "stat_3": 2, "stat_4": 66.7, "stat_5": 153 }
     },
     {
-      "name": "Jedd Fisch",
-      "decade": "2020s",
+      "name": "Steve Sarkisian",
+      "decade": "2010-14",
       "coach_tier": "Standard",
-      "stats": { "stat_1": 14, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 30 }
+      "stats": { "stat_1": 30, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 84 }
+    },
+    {
+      "name": "Chris Petersen",
+      "decade": "2015-19",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 47, "stat_2": 0, "stat_3": 2, "stat_4": 60, "stat_5": 147 }
+    },
+    {
+      "name": "Jedd Fisch",
+      "decade": "2020-25",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 14, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 30 }
     }
   ],
   "players": [

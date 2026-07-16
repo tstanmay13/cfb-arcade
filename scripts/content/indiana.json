@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Kevin Wilson",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Sub-Par",
-      "stats": {
-        "stat_1": 26,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 35,
-        "stat_5": 26
-      }
+      "stats": { "stat_1": 14, "stat_2": 0, "stat_3": 0, "stat_4": 35, "stat_5": 26 }
+    },
+    {
+      "name": "Kevin Wilson",
+      "decade": "2015-19",
+      "coach_tier": "Sub-Par",
+      "stats": { "stat_1": 12, "stat_2": 0, "stat_3": 0, "stat_4": 35, "stat_5": 26 }
     },
     {
       "name": "Curt Cignetti",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 11,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 130
-      }
+      "stats": { "stat_1": 11, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 130 }
     }
   ],
   "players": []

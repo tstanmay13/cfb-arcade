@@ -8,27 +8,15 @@
   "coaches": [
     {
       "name": "Randy Edsall",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Sub-Par",
-      "stats": {
-        "stat_1": 22,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 40,
-        "stat_5": 96
-      }
+      "stats": { "stat_1": 20, "stat_2": 0, "stat_3": 0, "stat_4": 40, "stat_5": 96 }
     },
     {
       "name": "Mike Locksley",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 30,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 39
-      }
+      "stats": { "stat_1": 30, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 39 }
     }
   ],
   "players": []

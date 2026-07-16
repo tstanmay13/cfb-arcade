@@ -3,18 +3,24 @@
   "cfbd_name": "Ohio State",
   "name": "Ohio State",
   "mascot": "Buckeyes",
-  "powerhouse_eras": ["1990s", "2000s", "2010s", "2020s"],
+  "powerhouse_eras": ["1990s", "2000s", "2010-14", "2015-19", "2020-25"],
   "conferences": {},
   "coaches": [
     {
       "name": "Urban Meyer",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 83, "stat_2": 1, "stat_3": 3, "stat_4": 75.0, "stat_5": 187 }
+      "stats": { "stat_1": 37, "stat_2": 1, "stat_3": 1, "stat_4": 75, "stat_5": 187 }
+    },
+    {
+      "name": "Urban Meyer",
+      "decade": "2015-19",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 46, "stat_2": 0, "stat_3": 2, "stat_4": 75, "stat_5": 187 }
     },
     {
       "name": "Ryan Day",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Elite",
       "stats": { "stat_1": 70, "stat_2": 1, "stat_3": 2, "stat_4": 66.7, "stat_5": 70 }
     }
@@ -25,7 +31,7 @@
       "jersey_number": "5",
       "primary_position": "QB",
       "secondary_position": "WR",
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 91,
       "stats": { "stat_1": 2094, "stat_2": 24, "stat_3": 7, "stat_4": 1068, "stat_5": 63.5 }
     },
@@ -34,7 +40,7 @@
       "jersey_number": "16",
       "primary_position": "QB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 89,
       "stats": { "stat_1": 2834, "stat_2": 34, "stat_3": 10, "stat_4": 938, "stat_5": 64.7 }
     },
@@ -43,7 +49,7 @@
       "jersey_number": "15",
       "primary_position": "RB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 95,
       "stats": { "stat_1": 1821, "stat_2": 23, "stat_3": 6.3, "stat_4": 206, "stat_5": 0 }
     },
@@ -52,7 +58,7 @@
       "jersey_number": "3",
       "primary_position": "WR",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 90,
       "stats": { "stat_1": 56, "stat_2": 781, "stat_3": 9, "stat_4": 13.9, "stat_5": 50 }
     },
@@ -61,7 +67,7 @@
       "jersey_number": "9",
       "primary_position": "WR",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 88,
       "stats": { "stat_1": 33, "stat_2": 931, "stat_3": 12, "stat_4": 28.2, "stat_5": 80 }
     },
@@ -70,7 +76,7 @@
       "jersey_number": "4",
       "primary_position": "WR",
       "secondary_position": "RB",
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 89,
       "stats": { "stat_1": 74, "stat_2": 865, "stat_3": 7, "stat_4": 11.7, "stat_5": 79 }
     },
@@ -79,7 +85,7 @@
       "jersey_number": "97",
       "primary_position": "DL",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 95,
       "stats": { "stat_1": 51, "stat_2": 21, "stat_3": 13.5, "stat_4": 4, "stat_5": 2 }
     },
@@ -88,7 +94,7 @@
       "jersey_number": "2",
       "primary_position": "DL",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 96,
       "stats": { "stat_1": 46, "stat_2": 21, "stat_3": 16.5, "stat_4": 6, "stat_5": 3 }
     },
@@ -97,7 +103,7 @@
       "jersey_number": "10",
       "primary_position": "LB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 92,
       "stats": { "stat_1": 134, "stat_2": 22.5, "stat_3": 6, "stat_4": 0, "stat_5": 4 }
     },
@@ -106,7 +112,7 @@
       "jersey_number": "5",
       "primary_position": "LB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 88,
       "stats": { "stat_1": 119, "stat_2": 5, "stat_3": 2, "stat_4": 0, "stat_5": 1 }
     },
@@ -115,7 +121,7 @@
       "jersey_number": "2",
       "primary_position": "CB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 92,
       "stats": { "stat_1": 41, "stat_2": 4, "stat_3": 9, "stat_4": 1, "stat_5": 1 }
     },
@@ -124,7 +130,7 @@
       "jersey_number": "12",
       "primary_position": "CB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 91,
       "stats": { "stat_1": 37, "stat_2": 2, "stat_3": 15, "stat_4": 0, "stat_5": 1 }
     },
@@ -133,7 +139,7 @@
       "jersey_number": "24",
       "primary_position": "S",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 93,
       "stats": { "stat_1": 74, "stat_2": 7, "stat_3": 4, "stat_4": 0, "stat_5": 1 }
     },
@@ -142,7 +148,7 @@
       "jersey_number": "11",
       "primary_position": "S",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 89,
       "stats": { "stat_1": 65, "stat_2": 2, "stat_3": 5, "stat_4": 1, "stat_5": 2 }
     }

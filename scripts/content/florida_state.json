@@ -3,20 +3,32 @@
   "cfbd_name": "Florida State",
   "name": "Florida State",
   "mascot": "Seminoles",
-  "powerhouse_eras": ["1980s", "1990s", "2010s"],
-  "conferences": { "1980s": "Independent", "1990s": "ACC", "2000s": "ACC", "2010s": "ACC" },
+  "powerhouse_eras": ["1980s", "1990s", "2010-14", "2015-19"],
+  "conferences": { "1980s": "Independent", "1990s": "ACC", "2000s": "ACC", "2010-14": "ACC", "2015-19": "ACC" },
   "coaches": [
     {
       "name": "Bobby Bowden",
       "decade": "1990s",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 109, "stat_2": 2, "stat_3": 8, "stat_4": 80.0, "stat_5": 377 }
+      "stats": { "stat_1": 109, "stat_2": 2, "stat_3": 8, "stat_4": 80, "stat_5": 377 }
+    },
+    {
+      "name": "Jimbo Fisher",
+      "decade": "2010-14",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 58, "stat_2": 1, "stat_3": 3, "stat_4": 70, "stat_5": 128 }
+    },
+    {
+      "name": "Jimbo Fisher",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 27, "stat_2": 0, "stat_3": 0, "stat_4": 70, "stat_5": 128 }
     },
     {
       "name": "Mike Norvell",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 71 }
+      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 71 }
     }
   ],
   "players": [
@@ -72,7 +84,7 @@
       "secondary_position": null,
       "decade": "1990s",
       "hidden_ovr": 85,
-      "stats": { "stat_1": 43, "stat_2": 730, "stat_3": 5, "stat_4": 17.0, "stat_5": 62 }
+      "stats": { "stat_1": 43, "stat_2": 730, "stat_3": 5, "stat_4": 17, "stat_5": 62 }
     },
     {
       "name": "Derrick Brooks",

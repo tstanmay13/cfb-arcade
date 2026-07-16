@@ -3,14 +3,26 @@
   "cfbd_name": "Georgia",
   "name": "Georgia",
   "mascot": "Bulldogs",
-  "powerhouse_eras": ["1980s", "2010s", "2020s"],
+  "powerhouse_eras": ["1980s", "2010-14", "2015-19", "2020-25"],
   "conferences": {},
   "coaches": [
     {
+      "name": "Mark Richt",
+      "decade": "2010-14",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 46, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 171 }
+    },
+    {
       "name": "Kirby Smart",
-      "decade": "2020s",
+      "decade": "2015-19",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 55, "stat_2": 2, "stat_3": 2, "stat_4": 75.0, "stat_5": 105 }
+      "stats": { "stat_1": 44, "stat_2": 0, "stat_3": 1, "stat_4": 75, "stat_5": 105 }
+    },
+    {
+      "name": "Kirby Smart",
+      "decade": "2020-25",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 55, "stat_2": 2, "stat_3": 2, "stat_4": 75, "stat_5": 105 }
     }
   ],
   "players": [

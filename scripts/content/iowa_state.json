@@ -8,27 +8,15 @@
   "coaches": [
     {
       "name": "Matt Campbell",
-      "decade": "2010s",
+      "decade": "2015-19",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 26,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 97
-      }
+      "stats": { "stat_1": 26, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 97 }
     },
     {
       "name": "Matt Campbell",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 38,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 97
-      }
+      "stats": { "stat_1": 38, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 97 }
     }
   ],
   "players": []

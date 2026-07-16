@@ -15,7 +15,7 @@ import { fullCell, mkCoach, mkData, mkPlayer, mkTeam } from "./fixtures.ts";
 
 function board(ovr = 90): PlayerSlots {
   const slots = emptyPlayerSlots();
-  const ps = fullCell("x", "2020s", { ovr });
+  const ps = fullCell("x", "2020-25", { ovr });
   [slots.QB, slots.RB, slots.WR1, slots.WR2, slots.DL, slots.LB, slots.CB, slots.S] = ps;
   return slots;
 }
@@ -51,7 +51,7 @@ describe("stat fluff (§7.1)", () => {
   });
 
   it("computedModifier is the max across the 5 stats", () => {
-    const p = mkPlayer({ primary_position: "QB", school_id: "x", decade: "2020s" });
+    const p = mkPlayer({ primary_position: "QB", school_id: "x", decade: "2020-25" });
     const f = fluffPlayerStats(p, mulberry32(7));
     expect(f.computedModifier).toBeGreaterThanOrEqual(0.98); // max of 5 draws is ~never the floor
     expect(f.computedModifier).toBeLessThanOrEqual(1.35);
@@ -223,14 +223,14 @@ describe("All-Americans (§7.3)", () => {
 
 describe("resolveSeason (SIM_RESOLVE)", () => {
   const data = mkData({
-    teams: [mkTeam({ school_id: "x", eras_present: ["2020s"] })],
+    teams: [mkTeam({ school_id: "x", eras_present: ["2020-25"] })],
     players: [],
     coaches: [],
   });
 
   it("is fully deterministic from one seed", () => {
     const slots = board(92);
-    const coach = mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Great" });
+    const coach = mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Great" });
     const a = resolveSeason(slots, coach, data, mulberry32(1234));
     const b = resolveSeason(slots, coach, data, mulberry32(1234));
     expect(a).toEqual(b);
@@ -238,7 +238,7 @@ describe("resolveSeason (SIM_RESOLVE)", () => {
 
   it("wires power → tier → schedule → awards coherently", () => {
     const slots = board(97); // 97 avg, Elite coach → capped 100 → Tier0
-    const coach = mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Elite" });
+    const coach = mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Elite" });
     const r = resolveSeason(slots, coach, data, mulberry32(2));
     expect(r.power).toBe(100);
     expect(r.tier).toBe("Tier0");

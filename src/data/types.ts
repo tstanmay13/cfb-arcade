@@ -1,9 +1,18 @@
 // Data model per design doc §4. data.json is the game's ONLY data source
 // (static, baked at build time by scripts/build-data.ts — design pillar #4).
 
-export type Decade = "1980s" | "1990s" | "2000s" | "2010s" | "2020s";
+/**
+ * Eras (ADR-0028): the live game runs on 5-year windows — real dynasty cores,
+ * not decade mush — while the dormant authored decades keep their strings.
+ * Forward rule: half-decade grid, and the trailing grid window absorbs the
+ * partial half-decade until it holds ≥3 real seasons (so the 2027 bake splits
+ * "2020-25" into "2020-24" + "2025-29"). The raw string IS the display label
+ * everywhere (wheel, chips, share card) — there is no formatting layer.
+ * Entity fields are still named `decade` (schema history, ADR-0028).
+ */
+export type Era = "1980s" | "1990s" | "2000s" | "2010-14" | "2015-19" | "2020-25";
 
-export const DECADES: Decade[] = ["1980s", "1990s", "2000s", "2010s", "2020s"];
+export const ERAS: Era[] = ["1980s", "1990s", "2000s", "2010-14", "2015-19", "2020-25"];
 
 /** Player position vocabulary (WR fills either WR1 or WR2 board slot). */
 export type GamePosition = "QB" | "RB" | "WR" | "DL" | "LB" | "CB" | "S";
@@ -83,7 +92,7 @@ export interface Player {
   secondary_position: GamePosition | null;
   school: string;
   school_id: string;
-  decade: Decade;
+  decade: Era;
   /** Display flavor only (decision #11 — no conference filtering). */
   historical_conference: string;
   /** Drives 80s/90s eligibility + 3× spin weighting (§5.3). */
@@ -110,7 +119,7 @@ export interface Coach {
   display_short: string;
   school: string;
   school_id: string;
-  decade: Decade;
+  decade: Era;
   historical_conference: string;
   /** Maps to the power-score multiplier (§6.1). */
   coach_tier: CoachTier;
@@ -124,11 +133,11 @@ export interface Team {
   mainHex: string;
   accentHex: string;
   /** Lets the spin engine skip empty team/era cells cheaply (§4.4). */
-  eras_present: Decade[];
+  eras_present: Era[];
   is_historic_powerhouse: boolean;
   /** Which eras this program was dominant in — source of the per-player
       is_historic_powerhouse flag and per-cell spin weighting. */
-  powerhouse_eras: Decade[];
+  powerhouse_eras: Era[];
 }
 
 export interface GameData {

@@ -4,7 +4,7 @@
   "name": "USC",
   "mascot": "Trojans",
   "powerhouse_eras": ["2000s"],
-  "conferences": { "1980s": "Pac-10", "1990s": "Pac-10", "2000s": "Pac-10", "2010s": "Pac-12" },
+  "conferences": { "1980s": "Pac-10", "1990s": "Pac-10", "2000s": "Pac-10", "2010-14": "Pac-12", "2015-19": "Pac-12", "2020-25": "Pac-12" },
   "coaches": [
     {
       "name": "Pete Carroll",
@@ -13,8 +13,20 @@
       "stats": { "stat_1": 97, "stat_2": 2, "stat_3": 7, "stat_4": 77.8, "stat_5": 97 }
     },
     {
+      "name": "Lane Kiffin",
+      "decade": "2010-14",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 105 }
+    },
+    {
+      "name": "Clay Helton",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 42, "stat_2": 0, "stat_3": 1, "stat_4": 60, "stat_5": 46 }
+    },
+    {
       "name": "Lincoln Riley",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
       "stats": { "stat_1": 26, "stat_2": 0, "stat_3": 0, "stat_4": 33.3, "stat_5": 81 }
     }
@@ -72,7 +84,7 @@
       "secondary_position": null,
       "decade": "2000s",
       "hidden_ovr": 90,
-      "stats": { "stat_1": 91, "stat_2": 1274, "stat_3": 13, "stat_4": 14.0, "stat_5": 62 }
+      "stats": { "stat_1": 91, "stat_2": 1274, "stat_3": 13, "stat_4": 14, "stat_5": 62 }
     },
     {
       "name": "Steve Smith",

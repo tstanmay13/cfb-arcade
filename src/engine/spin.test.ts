@@ -22,20 +22,20 @@ import { fullCell, mkCoach, mkData, mkPlayer, mkTeam } from "./fixtures.ts";
 // - modern: 2020s only, not a powerhouse
 // - relic:  1990s players but NOT a powerhouse -> its 90s cell must not exist
 const dynasty90s = fullCell("dynasty", "1990s", { powerhouse: true, ovr: 95 });
-const dynasty20s = fullCell("dynasty", "2020s", { powerhouse: true, ovr: 90 });
-const modern20s = fullCell("modern", "2020s", { ovr: 82 });
+const dynasty20s = fullCell("dynasty", "2020-25", { powerhouse: true, ovr: 90 });
+const modern20s = fullCell("modern", "2020-25", { ovr: 82 });
 const relic90s = fullCell("relic", "1990s", { ovr: 80 }); // powerhouse: false
 
 const data = mkData({
   teams: [
-    mkTeam({ school_id: "dynasty", powerhouse_eras: ["1990s", "2020s"], eras_present: ["1990s", "2020s"] }),
-    mkTeam({ school_id: "modern", eras_present: ["2020s"] }),
+    mkTeam({ school_id: "dynasty", powerhouse_eras: ["1990s", "2020-25"], eras_present: ["1990s", "2020-25"] }),
+    mkTeam({ school_id: "modern", eras_present: ["2020-25"] }),
     mkTeam({ school_id: "relic", eras_present: ["1990s"] }),
   ],
   players: [...dynasty90s, ...dynasty20s, ...modern20s, ...relic90s],
   coaches: [
     mkCoach({ school_id: "dynasty", decade: "1990s", coach_tier: "Elite" }),
-    mkCoach({ school_id: "modern", decade: "2020s", coach_tier: "Standard" }),
+    mkCoach({ school_id: "modern", decade: "2020-25", coach_tier: "Standard" }),
   ],
 });
 
@@ -44,11 +44,11 @@ describe("playerCells (§5.3)", () => {
     const cells = playerCells(data);
     const keys = cells.map((c) => `${c.teamId}|${c.era}`).sort();
     // relic|1990s excluded: 80s/90s are powerhouse-only
-    expect(keys).toEqual(["dynasty|1990s", "dynasty|2020s", "modern|2020s"]);
+    expect(keys).toEqual(["dynasty|1990s", "dynasty|2020-25", "modern|2020-25"]);
   });
 
   it("filters by decade", () => {
-    const cells = playerCells(data, { decade: "2020s" });
+    const cells = playerCells(data, { decade: "2020-25" });
     expect(cells.map((c) => c.teamId).sort()).toEqual(["dynasty", "modern"]);
   });
 
@@ -65,7 +65,7 @@ describe("spin weighting (§5.3)", () => {
     const rng = mulberry32(42);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 8000; i++) {
-      const s = spin(data, rng, { decade: "2020s" });
+      const s = spin(data, rng, { decade: "2020-25" });
       counts[s.teamId] = (counts[s.teamId] ?? 0) + 1;
     }
     const ratio = counts.dynasty / counts.modern;
@@ -76,8 +76,8 @@ describe("spin weighting (§5.3)", () => {
   it("applies the marquee brand bump on top of talent", () => {
     // Two identical-talent cells; only one team is marquee → ~MARQUEE_BUMP more.
     const cells = [
-      { teamId: "alabama", players: fullCell("alabama", "2020s", { ovr: 85 }) },
-      { teamId: "modern", players: fullCell("modern", "2020s", { ovr: 85 }) },
+      { teamId: "alabama", players: fullCell("alabama", "2020-25", { ovr: 85 }) },
+      { teamId: "modern", players: fullCell("modern", "2020-25", { ovr: 85 }) },
     ];
     const wMarquee = cellSpinWeight(cells[0], cells);
     const wPlain = cellSpinWeight(cells[1], cells);
@@ -100,17 +100,17 @@ describe("spin weighting (§5.3)", () => {
 
 describe("re-spins (§5.2)", () => {
   it("team re-spin keeps the era and changes the cell", () => {
-    const current = { teamId: "dynasty", era: "2020s" as const, pool: dynasty20s };
+    const current = { teamId: "dynasty", era: "2020-25" as const, pool: dynasty20s };
     const rng = mulberry32(3);
     for (let i = 0; i < 50; i++) {
       const s = teamRespin(data, rng, current);
-      expect(s.era).toBe("2020s");
+      expect(s.era).toBe("2020-25");
       expect(s.teamId).toBe("modern"); // only other 2020s cell
     }
   });
 
   it("era re-spin keeps the team and changes the era", () => {
-    const current = { teamId: "dynasty", era: "2020s" as const, pool: dynasty20s };
+    const current = { teamId: "dynasty", era: "2020-25" as const, pool: dynasty20s };
     const s = eraRespin(data, mulberry32(5), current);
     expect(s).not.toBeNull();
     expect(s!.teamId).toBe("dynasty");
@@ -118,7 +118,7 @@ describe("re-spins (§5.2)", () => {
   });
 
   it("era re-spin returns null when the team has no other era", () => {
-    const current = { teamId: "modern", era: "2020s" as const, pool: modern20s };
+    const current = { teamId: "modern", era: "2020-25" as const, pool: modern20s };
     expect(eraRespin(data, mulberry32(5), current)).toBeNull();
   });
 
@@ -127,9 +127,9 @@ describe("re-spins (§5.2)", () => {
     // cell so you draft another player off the same roster.
     const rng = mulberry32(13);
     for (let i = 0; i < 80; i++) {
-      const s = spin(data, rng, { teamId: "dynasty", decade: "2020s" });
+      const s = spin(data, rng, { teamId: "dynasty", decade: "2020-25" });
       expect(s.teamId).toBe("dynasty");
-      expect(s.era).toBe("2020s");
+      expect(s.era).toBe("2020-25");
     }
   });
 });
@@ -137,14 +137,14 @@ describe("re-spins (§5.2)", () => {
 describe("eligibility + duplicates (§5.4)", () => {
   it("offers primary and secondary position slots", () => {
     const slots = emptyPlayerSlots();
-    const dual = mkPlayer({ primary_position: "CB", secondary_position: "WR", school_id: "x", decade: "2020s" });
+    const dual = mkPlayer({ primary_position: "CB", secondary_position: "WR", school_id: "x", decade: "2020-25" });
     expect(eligibleOpenSlots(dual, slots).sort()).toEqual(["CB", "WR1", "WR2"]);
   });
 
   it("WR fills either WR slot; a filled slot disappears", () => {
     const slots = emptyPlayerSlots();
-    const wr1 = mkPlayer({ primary_position: "WR", school_id: "x", decade: "2020s" });
-    const wr2 = mkPlayer({ primary_position: "WR", school_id: "x", decade: "2020s" });
+    const wr1 = mkPlayer({ primary_position: "WR", school_id: "x", decade: "2020-25" });
+    const wr2 = mkPlayer({ primary_position: "WR", school_id: "x", decade: "2020-25" });
     expect(eligibleOpenSlots(wr1, slots)).toEqual(["WR1", "WR2"]);
     slots.WR1 = wr1;
     expect(eligibleOpenSlots(wr2, slots)).toEqual(["WR2"]);
@@ -155,7 +155,7 @@ describe("eligibility + duplicates (§5.4)", () => {
     const young = mkPlayer({ name: "Vince Young", primary_position: "QB", school_id: "texas", decade: "2000s" });
     slots.QB = young;
     expect(isDuplicate(young, slots)).toBe(true);
-    const youngOtherEra = mkPlayer({ name: "Vince Young", primary_position: "QB", school_id: "texas", decade: "2010s" });
+    const youngOtherEra = mkPlayer({ name: "Vince Young", primary_position: "QB", school_id: "texas", decade: "2010-14" });
     expect(isDuplicate(youngOtherEra, slots)).toBe(true);
     expect(eligibleOpenSlots(youngOtherEra, slots)).toEqual([]);
     const otherHuman = mkPlayer({ name: "Vince Young", primary_position: "QB", school_id: "usc", decade: "2000s" });
@@ -164,9 +164,9 @@ describe("eligibility + duplicates (§5.4)", () => {
 
   it("isPoolUsable detects a dead pool (§5.6 case 2)", () => {
     const slots = emptyPlayerSlots();
-    const qb = mkPlayer({ primary_position: "QB", school_id: "x", decade: "2020s" });
+    const qb = mkPlayer({ primary_position: "QB", school_id: "x", decade: "2020-25" });
     slots.QB = qb;
-    const onlyQBs = [mkPlayer({ primary_position: "QB", school_id: "y", decade: "2020s" })];
+    const onlyQBs = [mkPlayer({ primary_position: "QB", school_id: "y", decade: "2020-25" })];
     expect(isPoolUsable(onlyQBs, slots)).toBe(false);
     slots.QB = null;
     expect(isPoolUsable(onlyQBs, slots)).toBe(true);

@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Mark Dantonio",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Elite",
-      "stats": {
-        "stat_1": 92,
-        "stat_2": 0,
-        "stat_3": 3,
-        "stat_4": 70,
-        "stat_5": 132
-      }
+      "stats": { "stat_1": 53, "stat_2": 0, "stat_3": 2, "stat_4": 70, "stat_5": 132 }
+    },
+    {
+      "name": "Mark Dantonio",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 39, "stat_2": 0, "stat_3": 1, "stat_4": 70, "stat_5": 132 }
     },
     {
       "name": "Mel Tucker",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 20,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 45,
-        "stat_5": 25
-      }
+      "stats": { "stat_1": 20, "stat_2": 0, "stat_3": 0, "stat_4": 45, "stat_5": 25 }
     }
   ],
   "players": []

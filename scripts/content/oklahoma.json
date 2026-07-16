@@ -3,8 +3,8 @@
   "cfbd_name": "Oklahoma",
   "name": "Oklahoma",
   "mascot": "Sooners",
-  "powerhouse_eras": ["1980s", "2000s", "2010s"],
-  "conferences": { "1980s": "Big 8", "1990s": "Big 8", "2000s": "Big 12", "2010s": "Big 12" },
+  "powerhouse_eras": ["1980s", "2000s", "2010-14", "2015-19"],
+  "conferences": { "1980s": "Big 8", "1990s": "Big 8", "2000s": "Big 12", "2010-14": "Big 12", "2015-19": "Big 12", "2020-25": "Big 12" },
   "coaches": [
     {
       "name": "Barry Switzer",
@@ -13,10 +13,28 @@
       "stats": { "stat_1": 83, "stat_2": 1, "stat_3": 6, "stat_4": 62.5, "stat_5": 157 }
     },
     {
+      "name": "Bob Stoops",
+      "decade": "2010-14",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 51, "stat_2": 0, "stat_3": 2, "stat_4": 50, "stat_5": 191 }
+    },
+    {
+      "name": "Bob Stoops",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 2, "stat_4": 50, "stat_5": 191 }
+    },
+    {
+      "name": "Lincoln Riley",
+      "decade": "2015-19",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 36, "stat_2": 0, "stat_3": 3, "stat_4": 33.3, "stat_5": 81 }
+    },
+    {
       "name": "Brent Venables",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 25 }
+      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 25 }
     }
   ],
   "players": [
@@ -45,7 +63,7 @@
       "secondary_position": null,
       "decade": "1980s",
       "hidden_ovr": 90,
-      "stats": { "stat_1": 861, "stat_2": 9, "stat_3": 4, "stat_4": 862, "stat_5": 54.0 }
+      "stats": { "stat_1": 861, "stat_2": 9, "stat_3": 4, "stat_4": 862, "stat_5": 54 }
     },
     {
       "name": "Spencer Tillman",
@@ -54,7 +72,7 @@
       "secondary_position": null,
       "decade": "1980s",
       "hidden_ovr": 87,
-      "stats": { "stat_1": 1047, "stat_2": 11, "stat_3": 6.0, "stat_4": 78, "stat_5": 1 }
+      "stats": { "stat_1": 1047, "stat_2": 11, "stat_3": 6, "stat_4": 78, "stat_5": 1 }
     },
     {
       "name": "Tony Casillas",

@@ -8,27 +8,15 @@
   "coaches": [
     {
       "name": "James Franklin",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 24,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 60,
-        "stat_5": 128
-      }
+      "stats": { "stat_1": 24, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 128 }
     },
     {
       "name": "Clark Lea",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Sub-Par",
-      "stats": {
-        "stat_1": 16,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 40,
-        "stat_5": 16
-      }
+      "stats": { "stat_1": 16, "stat_2": 0, "stat_3": 0, "stat_4": 40, "stat_5": 16 }
     }
   ],
   "players": []

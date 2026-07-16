@@ -64,9 +64,9 @@ export const SIM_MATRIX: Record<TierKey, TierRow> = {
   // the owner before it ever shipped — a title must stay rare even for elite
   // boards; ADR-0026 records the reversal and the design that replaced it.
   Tier0: { min: 97, natty: 1.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
-  Tier1: { min: 91, natty: 0.1025, semis: 0.315, major: 0.37625, minor: 0.20625, loss: 0.0, dynastyChance: 0.0 },
-  Tier2: { min: 85, natty: 0.055, semis: 0.32, major: 0.4, minor: 0.225, loss: 0.0, dynastyChance: 0.0 },
-  Tier3: { min: 78, natty: 0.05, semis: 0.25, major: 0.45, minor: 0.25, loss: 0.0, dynastyChance: 0.0 },
+  Tier1: { min: 91, natty: 0.17125, semis: 0.28825, major: 0.34775, minor: 0.19275, loss: 0.0, dynastyChance: 0.0 },
+  Tier2: { min: 85, natty: 0.052, semis: 0.321, major: 0.401, minor: 0.226, loss: 0.0, dynastyChance: 0.0 },
+  Tier3: { min: 78, natty: 0.038, semis: 0.253, major: 0.456, minor: 0.253, loss: 0.0, dynastyChance: 0.0 },
   Tier4: { min: 70, natty: 0.05, semis: 0.1, major: 0.45, minor: 0.35, loss: 0.05, dynastyChance: 0.0 },
   Tier5: { min: 60, natty: 0.0, semis: 0.05, major: 0.15, minor: 0.6, loss: 0.2, dynastyChance: 0.0 },
   Tier6: { min: 45, natty: 0.0, semis: 0.0, major: 0.0, minor: 0.3, loss: 0.7, dynastyChance: 0.0 },
@@ -86,23 +86,28 @@ const oddsOf = (r: {
 }): OutcomeOdds => ({ natty: r.natty, semis: r.semis, major: r.major, minor: r.minor, loss: r.loss });
 
 /**
- * ADR-0026 ramp: outcome odds for power 78–96.9 interpolate linearly between
- * these anchors instead of stepping at tier boundaries — every point of power
- * moves the odds and there is no mid-range cliff. The curve is tuned RARE
- * (owner call, ADR-0026): against the 2026-07-15 balance audit on the shipped
- * 68-team pool (20k drafts/policy, real engines + data.json), skilled
- * stat-reading play wins 16-0 ~7.7%, oracle-optimal ~12.5%, random ~5.1%.
- * The final [97] row is an interpolation
- * TARGET only — at ≥97 outcomeOdds returns Tier0's row, so the summit snap to
- * a guaranteed title (the Tier0 fantasy) is the one deliberate cliff, exactly
- * as in every prior dial set. Retune only with scripts/balance.ts in hand.
+ * ADR-0026 ramp, re-heighted by ADR-0029 for the 5-year era pool (ADR-0028):
+ * outcome odds for power 78–96.9 interpolate linearly between these anchors —
+ * every point of power moves the odds and there is no mid-range cliff. The
+ * shape is flat through ~90 and steep 94→97 ON PURPOSE: skilled stat-reading
+ * boards mass at power 84–91 while oracle-grade boards mass at 90–96, so the
+ * top leg is what separates mastery from mere competence (the owner's ladder:
+ * skilled ≥2× random, oracle ≥2.2× skilled). Each anchor's non-natty mass
+ * keeps ADR-0026's semis/major/minor proportions — the record-variety
+ * structure is untouched. Measured on the 2026-07-16 rebucketed bake
+ * (20k drafts/policy, scripts/balance.ts, exact outcome accounting):
+ * random 4.7%, skilled 10.0%, oracle-optimal 23.0% — ladder 2.1× / 2.3×.
+ * The final [97] row is an interpolation TARGET only — at ≥97 outcomeOdds
+ * returns Tier0's row, so the summit snap to a guaranteed title (the Tier0
+ * fantasy) is the one deliberate cliff, exactly as in every prior dial set.
+ * Retune only with scripts/balance.ts in hand.
  */
 const RAMP_ANCHORS: [number, OutcomeOdds][] = [
   [SIM_MATRIX.Tier3.min, oddsOf(SIM_MATRIX.Tier3)],
   [SIM_MATRIX.Tier2.min, oddsOf(SIM_MATRIX.Tier2)],
-  [90, { natty: 0.09, semis: 0.3, major: 0.385, minor: 0.225, loss: 0.0 }],
-  [94, { natty: 0.14, semis: 0.36, major: 0.35, minor: 0.15, loss: 0.0 }],
-  [SIM_MATRIX.Tier0.min, { natty: 0.25, semis: 0.42, major: 0.27, minor: 0.06, loss: 0.0 }],
+  [90, { natty: 0.125, semis: 0.288, major: 0.37, minor: 0.217, loss: 0.0 }],
+  [94, { natty: 0.31, semis: 0.289, major: 0.281, minor: 0.12, loss: 0.0 }],
+  [SIM_MATRIX.Tier0.min, { natty: 0.52, semis: 0.269, major: 0.173, minor: 0.038, loss: 0.0 }],
 ];
 
 const OUTCOME_KEYS: Outcome[] = ["natty", "semis", "major", "minor", "loss"];

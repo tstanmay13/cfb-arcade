@@ -213,6 +213,8 @@ export interface Recruit {
   scouted: 0 | 1 | 2;
   /** User's one in-home HC visit spent. */
   hcUsed: boolean;
+  /** User's one official visit hosted (M1.4: one per recruit, like real CFB). */
+  visited?: boolean;
   /** User removed this prospect from their board (persists; M1.4). */
   hidden?: boolean;
 }
@@ -370,11 +372,10 @@ export interface DynastyState {
   /**
    * Offseason week 1..8 (0 outside the offseason). Recruiting + the portal run
    * ONLY across these weeks (M0.1). Week 1 report, 2 retention, 3-7 the five
-   * portal rounds, 8 signing day + close.
+   * portal rounds, 8 signing day + close. The zero-input path is the SIM
+   * OFFSEASON action (autoAdvanceOffseason), not a persisted toggle.
    */
   offWeek: number;
-  /** When on, the engine auto-resolves the user's recruiting/portal each week. */
-  autoRecruit: boolean;
   userTid: number;
   teams: Team[];
   players: Record<number, Player>;

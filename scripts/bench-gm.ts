@@ -78,9 +78,13 @@ function recruitWeek(state: DynastyState, breadth: number): void {
     .sort((a, b) => b.score - a.score)
     .slice(0, breadth);
 
+  // Depth beats breadth under the stamina economy: the one-shot official
+  // visit and HC in-home carry the best interest-per-stamina, then coach.
   for (const { r, mine } of cands) {
     if (state.stamina < 10) break;
-    if (!r.hcUsed && state.stamina >= 25 && mine >= 50) {
+    if (!r.visited && state.stamina >= 30) {
+      userAction(state, r.id, "visit");
+    } else if (!r.hcUsed && state.stamina >= 25 && mine >= 50) {
       userAction(state, r.id, "hc");
     } else if (state.stamina >= 15) {
       userAction(state, r.id, "coach");

@@ -268,7 +268,7 @@ function LastResult({ state, r, onBox }: { state: DynastyState; r: GameResult; o
           {r.name ? ` · ${r.name}` : ""}
         </p>
       </div>
-      {/* Star-player-of-the-game stat line (mechanical PR fills richer data). */}
+      {/* Star-player-of-the-game stat line (M1.1). */}
       {r.star && (
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-line/70 bg-surface-sunken/60 p-2.5">
           <span className="text-lg leading-none">⭐</span>
@@ -1017,8 +1017,8 @@ function DepthChart({
         {band("SPECIAL TEAMS", SPECIAL)}
       </div>
       <p className="px-4 py-2 text-[11px] text-ink/55">
-        Program-colored chips are this week's starters (📌 pins override OVR). Tap any player for their card.
-        Depth-chart editing arrives with the mechanical update.
+        Program-colored chips are this week's starters — 📌 pin any player in the roster table below to
+        promote them over a higher OVR; the sim starts exactly who you see here. Tap any player for their card.
       </p>
     </Card>
   );

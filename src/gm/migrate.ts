@@ -9,7 +9,6 @@ export function migrateDynasty(state: DynastyState): DynastyState {
   if ((s.v ?? 1) < 2) {
     s.startYear ??= s.season;
     s.offWeek ??= s.phase === "offseason" ? 1 : 0;
-    s.autoRecruit ??= false;
     s.stamina ??= 0;
     delete s.rapLeft;
     delete s.pendingVisits;

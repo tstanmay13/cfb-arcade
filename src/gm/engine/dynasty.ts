@@ -111,7 +111,6 @@ export function createDynasty(
     week: 1,
     phase: "regular",
     offWeek: 0,
-    autoRecruit: false,
     userTid,
     teams,
     players,

@@ -23,7 +23,7 @@ const OUTREACH: { key: RapAction; label: string; blurb: string }[] = [
   { key: "dm", label: "DM", blurb: `+${RAP_ACTIONS.dm.pts} interest` },
   { key: "coach", label: "Position coach", blurb: `+${RAP_ACTIONS.coach.pts} interest` },
   { key: "hc", label: "HC in-home", blurb: `+${RAP_ACTIONS.hc.pts}, once each` },
-  { key: "visit", label: "Official visit", blurb: `+${RAP_ACTIONS.visit.pts} interest` },
+  { key: "visit", label: "Official visit", blurb: `+${RAP_ACTIONS.visit.pts}, once each` },
 ];
 
 export default function RecruitingPanel({
@@ -211,7 +211,6 @@ export default function RecruitingPanel({
         {rows.length === 150 && (
           <p className="mt-1 text-xs text-ink/55">Showing top 150 — narrow with the filters.</p>
         )}
-        <p className="mt-1 text-[10px] text-ink/40">Distance &amp; NIL-ask columns arrive with the mechanical update.</p>
       </div>
     </Card>
   );
@@ -360,8 +359,8 @@ function RecruitRow({
                   {btn(
                     "visit",
                     `OFFICIAL VISIT · ${RAP_ACTIONS.visit.cost}`,
-                    lockActions || state.stamina < RAP_ACTIONS.visit.cost,
-                    "+300 interest",
+                    lockActions || r.visited || state.stamina < RAP_ACTIONS.visit.cost,
+                    "+300 interest, once per recruit",
                   )}
                   <span className="mx-1 h-4 w-px bg-line" />
                 </>

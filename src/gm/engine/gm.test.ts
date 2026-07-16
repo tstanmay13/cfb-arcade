@@ -285,6 +285,8 @@ describe("recruiting (M0.1: offseason-gated)", () => {
     expect(userAction(state, open.id, "s2")).toBeNull();
     expect(open.scouted).toBe(2);
     expect(userAction(state, open.id, "s1")).toBeTruthy(); // scout capped at two uses
+    expect(userAction(state, open.id, "visit")).toBeNull();
+    expect(userAction(state, open.id, "visit")).toBeTruthy(); // one official visit each
 
     const locked = state.recruits.find((r) => dealBreakerLock(state, r, USER_TID));
     if (locked) {
@@ -956,14 +958,13 @@ describe("save migration (v1 → v2)", () => {
     const old = state as DynastyState & { rapLeft?: number; pendingVisits?: number[] };
     old.v = 1;
     // @ts-expect-error — simulating a v1 save that predates these fields
-    delete old.startYear; delete old.offWeek; delete old.autoRecruit; delete old.stamina;
+    delete old.startYear; delete old.offWeek; delete old.stamina;
     old.rapLeft = 600;
     old.pendingVisits = [1, 2];
     const migrated = migrateDynasty(old) as typeof old;
     expect(migrated.v).toBe(2);
     expect(migrated.startYear).toBe(migrated.season);
     expect(migrated.offWeek).toBe(0);
-    expect(migrated.autoRecruit).toBe(false);
     expect(migrated.stamina).toBe(0);
     expect(migrated.rapLeft).toBeUndefined();
     expect(migrated.pendingVisits).toBeUndefined();

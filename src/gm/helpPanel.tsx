@@ -80,7 +80,7 @@ export default function HelpPanel({ onStartTour }: { onStartTour?: () => void })
           <li><span className="font-display">DM {RAP_ACTIONS.dm.cost}</span> — +{RAP_ACTIONS.dm.pts} interest, cheap pressure.</li>
           <li><span className="font-display">PC {RAP_ACTIONS.coach.cost}</span> — position coach, +{RAP_ACTIONS.coach.pts}.</li>
           <li><span className="font-display">HC {RAP_ACTIONS.hc.cost}</span> — in-home head-coach visit, +{RAP_ACTIONS.hc.pts}, once per recruit.</li>
-          <li><span className="font-display">VIS {RAP_ACTIONS.visit.cost}</span> — official visit, +{RAP_ACTIONS.visit.pts}.</li>
+          <li><span className="font-display">VIS {RAP_ACTIONS.visit.cost}</span> — official visit, +{RAP_ACTIONS.visit.pts}, once per recruit.</li>
           <li><span className="font-display">S1/S2</span> — scouting, capped at two per recruit: S1 tightens the OVR guess; S2 reveals the dev badge and 💎/⚠️.</li>
           <li><span className="font-display">DEVELOP 25 / 1-ON-1 10 / TEAM TALK 30</span> — on the Roster tab: coach a player toward his ceiling or lift morale, from the same pool.</li>
         </ul>

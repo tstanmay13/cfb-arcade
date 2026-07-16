@@ -168,6 +168,12 @@ export function userAction(state: DynastyState, rid: number, action: RapAction):
     if (r.hcUsed) return "HC visit already used on this recruit";
     r.hcUsed = true;
     addInterest(r, state.userTid, staffPts);
+  } else if (action === "visit") {
+    // One official visit per recruit (real-CFB rule) — otherwise its
+    // interest-per-stamina makes visit-spam the whole meta.
+    if (r.visited) return "Already hosted their official visit";
+    r.visited = true;
+    addInterest(r, state.userTid, staffPts);
   } else {
     addInterest(r, state.userTid, staffPts);
   }

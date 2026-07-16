@@ -105,20 +105,27 @@ body {
   opacity: 0.5;
 }
 
-/* Jersey bubble node */
+/* Jersey bubble node — the DRAFTED player, in program colors */
 .jersey-bubble {
   background: radial-gradient(circle at 35% 30%, var(--bubble-main, #fff), var(--bubble-main, #fff) 62%, color-mix(in srgb, var(--bubble-main, #fff) 78%, black) 100%);
   color: var(--bubble-accent, var(--ink));
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 }
 
-/* Chalk dashes around an eligible open slot */
-@keyframes chalk-pulse {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.06); }
+/* Empty slot node — a flat off-white disc (no gradient), minimal on the turf */
+.jersey-empty {
+  background: #f4f0e6;
+}
+
+/* Eligible open slot — a single crisp chalk ring that gently breathes in
+   opacity. No scale, no glow bloom: minimal, in-theme, and box-shadow-only so
+   it never triggers layout. */
+@keyframes slot-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(238, 244, 233, 0.6); }
+  50% { box-shadow: 0 0 0 3px rgba(255, 255, 255, 1), 0 0 12px 3px rgba(238, 244, 233, 0.55); }
 }
 .slot-eligible {
-  animation: chalk-pulse 1.1s ease-in-out infinite;
+  animation: slot-pulse 1.6s ease-in-out infinite;
 }
 
 /* Chalk ring draw-on when a slot is filled */

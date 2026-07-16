@@ -41,9 +41,9 @@ function SlotNode({
       className={`group relative flex w-14 flex-col items-center gap-1 sm:w-20 ${eligible ? "cursor-pointer" : "cursor-default"}`}
     >
       <span
-        className={`jersey-bubble relative flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-base sm:h-16 sm:w-16 sm:text-xl
-          ${player ? "border-chalk/90 shadow-lg" : "border-dashed border-chalk/70 bg-transparent text-chalk/90"}
-          ${eligible ? "slot-eligible border-chalk" : ""}`}
+        className={`relative flex h-12 w-12 items-center justify-center rounded-full border font-display text-base sm:h-16 sm:w-16 sm:text-xl
+          ${player ? "jersey-bubble border-chalk/90 shadow-lg" : "jersey-empty border-chalk/50 text-ink/45"}
+          ${eligible ? "slot-eligible" : ""}`}
         style={
           player
             ? ({

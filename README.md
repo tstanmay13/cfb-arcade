@@ -123,3 +123,5 @@ node --no-warnings scripts/screenshot-guess.ts  <baseUrl> <outDir>  # drive a Gu
 `screenshot-guess.ts` plays a full win (it reads `seasons.json` + the engine's
 daily pick to know the answer) and a full loss, asserts the share text reaches
 the clipboard, and fails on any console error.
+
+<!-- trivial touch: 2026-07-15 -->

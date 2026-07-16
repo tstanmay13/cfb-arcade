@@ -4,31 +4,19 @@
   "name": "Houston",
   "mascot": "",
   "powerhouse_eras": [],
-  "conferences": {},
+  "conferences": { "2020-25": "Big 12" },
   "coaches": [
     {
       "name": "Tom Herman",
-      "decade": "2010s",
+      "decade": "2015-19",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 22,
-        "stat_2": 0,
-        "stat_3": 1,
-        "stat_4": 60,
-        "stat_5": 66
-      }
+      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 1, "stat_4": 60, "stat_5": 66 }
     },
     {
       "name": "Dana Holgorsen",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 27,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 96
-      }
+      "stats": { "stat_1": 27, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 96 }
     }
   ],
   "players": []

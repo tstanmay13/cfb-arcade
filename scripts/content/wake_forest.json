@@ -8,27 +8,15 @@
   "coaches": [
     {
       "name": "Dave Clawson",
-      "decade": "2010s",
+      "decade": "2015-19",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 36,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 131
-      }
+      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 131 }
     },
     {
       "name": "Dave Clawson",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 31,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 131
-      }
+      "stats": { "stat_1": 31, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 131 }
     }
   ],
   "players": []

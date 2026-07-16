@@ -2,7 +2,7 @@
 import type {
   Coach,
   CoachTier,
-  Decade,
+  Era,
   GameData,
   GamePosition,
   Player,
@@ -15,14 +15,14 @@ export function mkPlayer(over: Partial<Player> & { primary_position: GamePositio
   n += 1;
   const name = over.name ?? `Player ${n}`;
   return {
-    player_id: over.player_id ?? `${over.primary_position.toLowerCase()}_p${n}_${over.school_id ?? "aaa"}_${over.decade ?? "2020s"}`,
+    player_id: over.player_id ?? `${over.primary_position.toLowerCase()}_p${n}_${over.school_id ?? "aaa"}_${over.decade ?? "2020-25"}`,
     name,
     display_short: over.display_short ?? name,
     jersey_number: over.jersey_number ?? String((n % 99) + 1),
     secondary_position: over.secondary_position ?? null,
     school: over.school ?? over.school_id ?? "AAA",
     school_id: over.school_id ?? "aaa",
-    decade: over.decade ?? "2020s",
+    decade: over.decade ?? "2020-25",
     historical_conference: over.historical_conference ?? "Test",
     is_historic_powerhouse: over.is_historic_powerhouse ?? false,
     hidden_ovr: over.hidden_ovr ?? 85,
@@ -31,7 +31,7 @@ export function mkPlayer(over: Partial<Player> & { primary_position: GamePositio
   };
 }
 
-export function mkCoach(over: Partial<Coach> & { school_id: string; decade: Decade }): Coach {
+export function mkCoach(over: Partial<Coach> & { school_id: string; decade: Era }): Coach {
   n += 1;
   const name = over.name ?? `Coach ${n}`;
   return {
@@ -53,7 +53,7 @@ export function mkTeam(over: Partial<Team> & { school_id: string }): Team {
     mascot: over.mascot ?? "Testers",
     mainHex: over.mainHex ?? "#112233",
     accentHex: over.accentHex ?? "#ffffff",
-    eras_present: over.eras_present ?? ["2020s"],
+    eras_present: over.eras_present ?? ["2020-25"],
     is_historic_powerhouse: over.is_historic_powerhouse ?? (over.powerhouse_eras ?? []).length > 0,
     powerhouse_eras: over.powerhouse_eras ?? [],
     ...{ school_id: over.school_id },
@@ -63,7 +63,7 @@ export function mkTeam(over: Partial<Team> & { school_id: string }): Team {
 /** A full-position roster for one {team, era} cell. */
 export function fullCell(
   schoolId: string,
-  decade: Decade,
+  decade: Era,
   opts: { powerhouse?: boolean; ovr?: number } = {},
 ): Player[] {
   const positions: GamePosition[] = ["QB", "RB", "WR", "WR", "DL", "LB", "CB", "S"];

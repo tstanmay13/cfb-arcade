@@ -4,19 +4,31 @@
   "name": "Miami",
   "mascot": "Hurricanes",
   "powerhouse_eras": ["1980s", "1990s", "2000s"],
-  "conferences": { "1980s": "Independent", "1990s": "Big East", "2000s": "Big East", "2010s": "ACC" },
+  "conferences": { "1980s": "Independent", "1990s": "Big East", "2000s": "Big East", "2010-14": "ACC", "2015-19": "ACC" },
   "coaches": [
     {
       "name": "Jimmy Johnson",
       "decade": "1980s",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 52, "stat_2": 1, "stat_3": 0, "stat_4": 60.0, "stat_5": 81 }
+      "stats": { "stat_1": 52, "stat_2": 1, "stat_3": 0, "stat_4": 60, "stat_5": 81 }
+    },
+    {
+      "name": "Al Golden",
+      "decade": "2010-14",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 0, "stat_4": 40, "stat_5": 59 }
+    },
+    {
+      "name": "Mark Richt",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 26, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 171 }
     },
     {
       "name": "Mario Cristobal",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": { "stat_1": 30, "stat_2": 0, "stat_3": 0, "stat_4": 40.0, "stat_5": 77 }
+      "stats": { "stat_1": 30, "stat_2": 0, "stat_3": 0, "stat_4": 40, "stat_5": 77 }
     }
   ],
   "players": [

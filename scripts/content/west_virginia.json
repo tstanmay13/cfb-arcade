@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Dana Holgorsen",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 61,
-        "stat_2": 0,
-        "stat_3": 1,
-        "stat_4": 50,
-        "stat_5": 96
-      }
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 1, "stat_4": 50, "stat_5": 96 }
+    },
+    {
+      "name": "Dana Holgorsen",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 96 }
     },
     {
       "name": "Neal Brown",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 32,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 72
-      }
+      "stats": { "stat_1": 32, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 72 }
     }
   ],
   "players": []

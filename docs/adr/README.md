@@ -33,6 +33,8 @@ understand the *why* without needing platform access.
 | [0025](0025-bake-reads-warehouse.md) | The data.json bake reads the warehouse directly; Supabase heads toward stats-only | Accepted |
 | [0026](0026-outcome-odds-ramp.md) | 16-0 odds ramp + varied records: no mid-range cliffs, loss counts drawn per outcome (ten live records) — 16-0 stays rare (skilled ~8%, oracle ~12%, random ~5%) | Accepted |
 | [0027](0027-gm-mode-mechanical-rework.md) | CFB-GM mechanical rework (PR 2): offseason-gated recruiting/portal, shared stamina pool, fit-discounted portal NIL, 5-role staff, scheme-fit layer, historical 2010+ starts (revises design-doc calendar + 5-champ CFP) | Accepted |
+| [0028](0028-five-year-era-windows.md) | 16-0 eras re-bucketed to 5-year windows (2010-14 / 2015-19 / 2020-25): dynasty-core rosters, tenure-scoped coaches, era re-spin no longer a solved flip | Accepted |
+| [0029](0029-skill-ladder-retune.md) | 16-0 skill ladder: permanent 3-policy balance harness + flat-then-steep odds ramp — random ~4.7%, skilled ~10%, oracle ~23% (≥2× / ≥2.2× ratio gates) | Accepted |
 
 ## Historical arcade decisions (in the platform repo, owner-side)
 

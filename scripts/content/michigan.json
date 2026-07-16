@@ -3,20 +3,32 @@
   "cfbd_name": "Michigan",
   "name": "Michigan",
   "mascot": "Wolverines",
-  "powerhouse_eras": ["1980s", "1990s", "2020s"],
+  "powerhouse_eras": ["1980s", "1990s", "2020-25"],
   "conferences": {},
   "coaches": [
-    {
-      "name": "Jim Harbaugh",
-      "decade": "2020s",
-      "coach_tier": "Elite",
-      "stats": { "stat_1": 34, "stat_2": 1, "stat_3": 3, "stat_4": 66.7, "stat_5": 89 }
-    },
     {
       "name": "Lloyd Carr",
       "decade": "1990s",
       "coach_tier": "Great",
-      "stats": { "stat_1": 48, "stat_2": 1, "stat_3": 2, "stat_4": 60.0, "stat_5": 122 }
+      "stats": { "stat_1": 48, "stat_2": 1, "stat_3": 2, "stat_4": 60, "stat_5": 122 }
+    },
+    {
+      "name": "Brady Hoke",
+      "decade": "2010-14",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 31, "stat_2": 0, "stat_3": 0, "stat_4": 33, "stat_5": 78 }
+    },
+    {
+      "name": "Jim Harbaugh",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 47, "stat_2": 0, "stat_3": 0, "stat_4": 40, "stat_5": 89 }
+    },
+    {
+      "name": "Jim Harbaugh",
+      "decade": "2020-25",
+      "coach_tier": "Elite",
+      "stats": { "stat_1": 34, "stat_2": 1, "stat_3": 3, "stat_4": 66.7, "stat_5": 89 }
     }
   ],
   "players": [

@@ -11,7 +11,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from "react";
-import type { Coach, Decade, GameData, Player, SlotId, Team } from "../data/types.ts";
+import type { Coach, Era, GameData, Player, SlotId, Team } from "../data/types.ts";
 import { mulberry32, newSeed, type Rng } from "../engine/rng.ts";
 import { resolveSeason, type Resolved } from "../engine/resolve.ts";
 import { recordRun } from "./storage.ts";
@@ -55,7 +55,7 @@ export interface RunState {
   keepArmed: boolean;
   /** Set at placement while keepArmed — the next spin is forced onto this exact
       {team, era} cell so you draft another player from the same roster. */
-  stickyCell: { teamId: string; era: Decade } | null;
+  stickyCell: { teamId: string; era: Era } | null;
   seed: number;
   /** Bumps every spin so the ticker animation can re-key. */
   spinCounter: number;

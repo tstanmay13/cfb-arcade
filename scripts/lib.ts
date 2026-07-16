@@ -1,6 +1,6 @@
 // Pure helpers for the data bake (scripts/build-data.ts). No I/O here — these
 // are unit-tested by lib.test.ts.
-import type { Decade, GamePosition, StatBlock } from "../src/data/types.ts";
+import type { Era, GamePosition, StatBlock } from "../src/data/types.ts";
 
 /** "Vince Young" -> "vince_young" (player_id convention, §4.1). */
 export function slugify(name: string): string {
@@ -28,12 +28,12 @@ export function playerId(
   pos: GamePosition,
   name: string,
   schoolId: string,
-  decade: Decade,
+  decade: Era,
 ): string {
   return `${pos.toLowerCase()}_${slugify(name)}_${schoolId}_${decade}`;
 }
 
-export function coachId(name: string, schoolId: string, decade: Decade): string {
+export function coachId(name: string, schoolId: string, decade: Era): string {
   return `hc_${slugify(name)}_${schoolId}_${decade}`;
 }
 

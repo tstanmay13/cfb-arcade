@@ -4,31 +4,25 @@
   "name": "Arizona State",
   "mascot": "",
   "powerhouse_eras": [],
-  "conferences": {},
+  "conferences": { "2020-25": "Pac-12" },
   "coaches": [
     {
       "name": "Todd Graham",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 46,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 93
-      }
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 93 }
+    },
+    {
+      "name": "Todd Graham",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 18, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 93 }
     },
     {
       "name": "Kenny Dillingham",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 14,
-        "stat_2": 0,
-        "stat_3": 1,
-        "stat_4": 55,
-        "stat_5": 14
-      }
+      "stats": { "stat_1": 14, "stat_2": 0, "stat_3": 1, "stat_4": 55, "stat_5": 14 }
     }
   ],
   "players": []

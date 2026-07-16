@@ -16,7 +16,7 @@ import { fullCell, mkCoach } from "./fixtures.ts";
 
 function boardOf(ovr: number): PlayerSlots {
   const slots = emptyPlayerSlots();
-  const players = fullCell("x", "2020s", { ovr });
+  const players = fullCell("x", "2020-25", { ovr });
   slots.QB = players[0];
   slots.RB = players[1];
   slots.WR1 = players[2];
@@ -31,13 +31,13 @@ function boardOf(ovr: number): PlayerSlots {
 describe("powerScore (§6.1)", () => {
   it("is the mean of the 8 players times the coach multiplier", () => {
     const slots = boardOf(90);
-    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Standard" }))).toBe(90);
-    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Elite" }))).toBeCloseTo(94.5);
-    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Great" }))).toBeCloseTo(91.8);
-    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Sub-Par" }))).toBeCloseTo(87.3);
+    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Standard" }))).toBe(90);
+    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Elite" }))).toBeCloseTo(94.5);
+    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Great" }))).toBeCloseTo(91.8);
+    expect(powerScore(slots, mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Sub-Par" }))).toBeCloseTo(87.3);
   });
   it("caps at 100 (Elite coach on a 96-avg roster)", () => {
-    expect(powerScore(boardOf(98), mkCoach({ school_id: "x", decade: "2020s", coach_tier: "Elite" }))).toBe(100);
+    expect(powerScore(boardOf(98), mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Elite" }))).toBe(100);
   });
 });
 
@@ -81,7 +81,7 @@ describe("resolveOutcome (§6.2)", () => {
     }
   });
 
-  it("a Team OVR 90 board wins sometimes — but 16-0 stays rare (ADR-0026)", () => {
+  it("a Team OVR 90 board wins sometimes — but 16-0 stays rare (ADR-0029)", () => {
     const rng = mulberry32(90);
     let natty = 0;
     for (let i = 0; i < 6000; i++) {
@@ -90,30 +90,30 @@ describe("resolveOutcome (§6.2)", () => {
       expect(r.isDynasty).toBe(false);
       if (r.outcome === "natty") natty++;
     }
-    expect(natty / 6000).toBeGreaterThan(0.07); // ramp pins 9% at the 90 anchor
-    expect(natty / 6000).toBeLessThan(0.11);
+    expect(natty / 6000).toBeGreaterThan(0.1); // ramp pins 12.5% at the 90 anchor
+    expect(natty / 6000).toBeLessThan(0.15);
   });
 
-  it("mid-ramp frequencies interpolate between anchors (power 92, ADR-0026)", () => {
-    // halfway between the 90 anchor (natty .09) and the 94 knee (natty .14)
+  it("mid-ramp frequencies interpolate between anchors (power 92, ADR-0029)", () => {
+    // halfway between the 90 anchor (natty .125) and the 94 knee (natty .31)
     const rng = mulberry32(77);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 6000; i++) {
       const r = resolveOutcome(92, rng);
       counts[r.outcome] = (counts[r.outcome] ?? 0) + 1;
     }
-    expect(counts.natty / 6000).toBeCloseTo(0.115, 1);
-    expect(counts.semis / 6000).toBeCloseTo(0.33, 1);
+    expect(counts.natty / 6000).toBeCloseTo(0.2175, 1);
+    expect(counts.semis / 6000).toBeCloseTo(0.29, 1);
     expect(counts.minor / 6000).toBeGreaterThan(0.1); // deep boards still stumble
   });
 });
 
 describe("outcomeOdds ramp (ADR-0026)", () => {
   it("hits the anchors exactly, and SIM_MATRIX rows mirror the ramp at their min", () => {
-    expect(outcomeOdds(78)).toEqual({ natty: 0.05, semis: 0.25, major: 0.45, minor: 0.25, loss: 0 });
-    expect(outcomeOdds(85)).toEqual({ natty: 0.055, semis: 0.32, major: 0.4, minor: 0.225, loss: 0 });
-    expect(outcomeOdds(90).natty).toBeCloseTo(0.09, 10);
-    expect(outcomeOdds(94).natty).toBeCloseTo(0.14, 10);
+    expect(outcomeOdds(78)).toEqual({ natty: 0.038, semis: 0.253, major: 0.456, minor: 0.253, loss: 0 });
+    expect(outcomeOdds(85)).toEqual({ natty: 0.052, semis: 0.321, major: 0.401, minor: 0.226, loss: 0 });
+    expect(outcomeOdds(90).natty).toBeCloseTo(0.125, 10);
+    expect(outcomeOdds(94).natty).toBeCloseTo(0.31, 10);
     // Tier1-3's informational rows must stay equal to outcomeOdds(min)
     for (const tier of ["Tier1", "Tier2", "Tier3"] as const) {
       const row = SIM_MATRIX[tier];
@@ -131,12 +131,13 @@ describe("outcomeOdds ramp (ADR-0026)", () => {
       const sum = odds.natty + odds.semis + odds.major + odds.minor + odds.loss;
       expect(sum).toBeCloseTo(1, 9);
       expect(odds.natty).toBeGreaterThanOrEqual(prev - 1e-9);
-      // steepest leg is 94→97: (.25-.14)/3 ≈ 3.7% per +1.0 power
-      expect(odds.natty - prev).toBeLessThan(0.005);
+      // steepest leg is 94→97: (.52-.31)/3 = 7% per +1.0 power (ADR-0029's
+      // deliberate mastery leg — skilled boards mass below 91, oracle above)
+      expect(odds.natty - prev).toBeLessThan(0.008);
       prev = odds.natty;
     }
     // the summit snap at 97 is the one deliberate cliff: the Tier0 guarantee
-    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.2463, 3);
+    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.513, 3);
     expect(outcomeOdds(97)).toEqual({ natty: 1, semis: 0, major: 0, minor: 0, loss: 0 });
   });
 

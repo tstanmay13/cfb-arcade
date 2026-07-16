@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Dan Mullen",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 65,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 103
-      }
+      "stats": { "stat_1": 41, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 103 }
+    },
+    {
+      "name": "Dan Mullen",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 24, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 103 }
     },
     {
       "name": "Mike Leach",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 20,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 158
-      }
+      "stats": { "stat_1": 20, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 158 }
     }
   ],
   "players": []

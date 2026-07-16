@@ -8,27 +8,15 @@
   "coaches": [
     {
       "name": "Dino Babers",
-      "decade": "2010s",
+      "decade": "2015-19",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 23,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 45,
-        "stat_5": 79
-      }
+      "stats": { "stat_1": 23, "stat_2": 0, "stat_3": 0, "stat_4": 45, "stat_5": 79 }
     },
     {
       "name": "Fran Brown",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 10,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 10
-      }
+      "stats": { "stat_1": 10, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 10 }
     }
   ],
   "players": []

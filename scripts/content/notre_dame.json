@@ -4,7 +4,7 @@
   "name": "Notre Dame",
   "mascot": "Fighting Irish",
   "powerhouse_eras": ["1980s", "1990s"],
-  "conferences": { "1980s": "Independent", "1990s": "Independent", "2000s": "Independent", "2010s": "Independent" },
+  "conferences": { "1980s": "Independent", "1990s": "Independent", "2000s": "Independent", "2010-14": "Independent", "2015-19": "Independent" },
   "coaches": [
     {
       "name": "Lou Holtz",
@@ -13,10 +13,22 @@
       "stats": { "stat_1": 37, "stat_2": 1, "stat_3": 0, "stat_4": 66.7, "stat_5": 249 }
     },
     {
-      "name": "Marcus Freeman",
-      "decade": "2020s",
+      "name": "Brian Kelly",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 60.0, "stat_5": 33 }
+      "stats": { "stat_1": 45, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 290 }
+    },
+    {
+      "name": "Brian Kelly",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 47, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 290 }
+    },
+    {
+      "name": "Marcus Freeman",
+      "decade": "2020-25",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 33, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 33 }
     }
   ],
   "players": [

@@ -1,6 +1,6 @@
 // Trophy room persistence (§9): localStorage, wrapped in try/catch so private
 // mode / disabled storage degrades to in-memory-only gracefully.
-import type { Coach, Decade, GamePosition, SlotId } from "../data/types.ts";
+import type { Coach, Era, GamePosition, SlotId } from "../data/types.ts";
 import { PLAYER_SLOTS } from "../data/types.ts";
 import { POSITION_AWARD_LABELS } from "../engine/awards.ts";
 import type { Resolved } from "../engine/resolve.ts";
@@ -14,7 +14,7 @@ export interface RunPlayer {
   name: string;
   position: GamePosition; // primary_position → drives STAT_LABELS
   school: string;
-  decade: Decade;
+  decade: Era;
   stats: [number, number, number, number, number]; // fluffed season line
   heisman?: boolean;
   allAmerican?: boolean;

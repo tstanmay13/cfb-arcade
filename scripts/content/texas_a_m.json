@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Kevin Sumlin",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 51,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 55,
-        "stat_5": 95
-      }
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 95 }
+    },
+    {
+      "name": "Kevin Sumlin",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 23, "stat_2": 0, "stat_3": 0, "stat_4": 55, "stat_5": 95 }
     },
     {
       "name": "Jimbo Fisher",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 28,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 128
-      }
+      "stats": { "stat_1": 28, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 128 }
     }
   ],
   "players": []

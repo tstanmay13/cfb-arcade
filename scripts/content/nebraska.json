@@ -4,19 +4,31 @@
   "name": "Nebraska",
   "mascot": "Cornhuskers",
   "powerhouse_eras": ["1980s", "1990s"],
-  "conferences": { "1980s": "Big 8", "1990s": "Big 8", "2000s": "Big 12", "2010s": "Big Ten" },
+  "conferences": { "1980s": "Big 8", "1990s": "Big 8", "2000s": "Big 12", "2010-14": "Big Ten", "2015-19": "Big Ten" },
   "coaches": [
     {
       "name": "Tom Osborne",
       "decade": "1990s",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 83, "stat_2": 3, "stat_3": 7, "stat_4": 71.0, "stat_5": 255 }
+      "stats": { "stat_1": 83, "stat_2": 3, "stat_3": 7, "stat_4": 71, "stat_5": 255 }
+    },
+    {
+      "name": "Bo Pelini",
+      "decade": "2010-14",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 47, "stat_2": 0, "stat_3": 0, "stat_4": 43, "stat_5": 101 }
+    },
+    {
+      "name": "Mike Riley",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 19, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 93 }
     },
     {
       "name": "Matt Rhule",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": { "stat_1": 19, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 66 }
+      "stats": { "stat_1": 19, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 66 }
     }
   ],
   "players": [
@@ -27,7 +39,7 @@
       "secondary_position": null,
       "decade": "1990s",
       "hidden_ovr": 96,
-      "stats": { "stat_1": 1362, "stat_2": 17, "stat_3": 4, "stat_4": 604, "stat_5": 56.0 }
+      "stats": { "stat_1": 1362, "stat_2": 17, "stat_3": 4, "stat_4": 604, "stat_5": 56 }
     },
     {
       "name": "Scott Frost",
@@ -90,7 +102,7 @@
       "secondary_position": null,
       "decade": "1980s",
       "hidden_ovr": 90,
-      "stats": { "stat_1": 1516, "stat_2": 20, "stat_3": 4, "stat_4": 531, "stat_5": 58.0 }
+      "stats": { "stat_1": 1516, "stat_2": 20, "stat_3": 4, "stat_4": 531, "stat_5": 58 }
     },
     {
       "name": "Broderick Thomas",

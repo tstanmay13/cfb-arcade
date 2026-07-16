@@ -10,19 +10,31 @@
       "name": "Steve Spurrier",
       "decade": "1990s",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 102, "stat_2": 1, "stat_3": 5, "stat_4": 60.0, "stat_5": 228 }
+      "stats": { "stat_1": 102, "stat_2": 1, "stat_3": 5, "stat_4": 60, "stat_5": 228 }
     },
     {
       "name": "Urban Meyer",
       "decade": "2000s",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 57, "stat_2": 2, "stat_3": 2, "stat_4": 80.0, "stat_5": 187 }
+      "stats": { "stat_1": 57, "stat_2": 2, "stat_3": 2, "stat_4": 80, "stat_5": 187 }
+    },
+    {
+      "name": "Will Muschamp",
+      "decade": "2010-14",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 29, "stat_2": 0, "stat_3": 0, "stat_4": 33, "stat_5": 56 }
+    },
+    {
+      "name": "Dan Mullen",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 21, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 103 }
     },
     {
       "name": "Billy Napier",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Sub-Par",
-      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 0, "stat_4": 50.0, "stat_5": 62 }
+      "stats": { "stat_1": 22, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 62 }
     }
   ],
   "players": [
@@ -87,7 +99,7 @@
       "secondary_position": null,
       "decade": "1990s",
       "hidden_ovr": 88,
-      "stats": { "stat_1": 72, "stat_2": 1293, "stat_3": 18, "stat_4": 18.0, "stat_5": 68 }
+      "stats": { "stat_1": 72, "stat_2": 1293, "stat_3": 18, "stat_4": 18, "stat_5": 68 }
     },
     {
       "name": "Jevon Kearse",

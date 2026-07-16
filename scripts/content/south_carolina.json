@@ -8,27 +8,15 @@
   "coaches": [
     {
       "name": "Steve Spurrier",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": {
-        "stat_1": 51,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 62,
-        "stat_5": 228
-      }
+      "stats": { "stat_1": 49, "stat_2": 0, "stat_3": 0, "stat_4": 62, "stat_5": 228 }
     },
     {
       "name": "Shane Beamer",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 29,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 50,
-        "stat_5": 29
-      }
+      "stats": { "stat_1": 29, "stat_2": 0, "stat_3": 0, "stat_4": 50, "stat_5": 29 }
     }
   ],
   "players": []

@@ -115,8 +115,13 @@ anon key to this repo.
   Vite-side code follows the same style for consistency.
 - WR1/WR2 are board slots, not player types — players have position `WR`.
   Both slots resolve to `STAT_LABELS.WR`.
+- Live eras are **5-year windows** (ADR-0028: `2010-14` / `2015-19` /
+  `2020-25`; the trailing grid window absorbs the partial half-decade until it
+  holds ≥3 real seasons). Dormant pre-2010 content stays decade-keyed. The
+  `Era` union string IS the display label — no formatting layer.
 - Historical content: keep players era-correct (a 2009 Heisman is the 2000s
-  decade, not the 2010s) and never author a kicker/TE/OL into a board position.
+  decade, not a 2010s window) and never author a kicker/TE/OL into a board
+  position. Coaches are authored per window with tenure-scoped era wins.
 - Spin landing weight is **talent-driven and lives IN code** (§5.3,
   `src/engine/spin.ts`, ADR-0024): a cell's top-3-avg-OVR percentile on a gentle
   `[MIN_CELL_WEIGHT=1.5, MAX_CELL_WEIGHT=3.0]` curve, a `MARQUEE_BUMP=1.25` for the

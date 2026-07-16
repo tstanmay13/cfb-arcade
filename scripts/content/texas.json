@@ -3,20 +3,32 @@
   "cfbd_name": "Texas",
   "name": "Texas",
   "mascot": "Longhorns",
-  "powerhouse_eras": ["2000s", "2020s"],
-  "conferences": { "1980s": "SWC", "1990s": "SWC", "2000s": "Big 12", "2010s": "Big 12" },
+  "powerhouse_eras": ["2000s", "2020-25"],
+  "conferences": { "1980s": "SWC", "1990s": "SWC", "2000s": "Big 12", "2010-14": "Big 12", "2015-19": "Big 12", "2020-25": "Big 12" },
   "coaches": [
     {
       "name": "Mack Brown",
       "decade": "2000s",
       "coach_tier": "Elite",
-      "stats": { "stat_1": 110, "stat_2": 1, "stat_3": 2, "stat_4": 70.0, "stat_5": 244 }
+      "stats": { "stat_1": 110, "stat_2": 1, "stat_3": 2, "stat_4": 70, "stat_5": 244 }
+    },
+    {
+      "name": "Mack Brown",
+      "decade": "2010-14",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 30, "stat_2": 0, "stat_3": 0, "stat_4": 45, "stat_5": 288 }
+    },
+    {
+      "name": "Tom Herman",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 25, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 66 }
     },
     {
       "name": "Steve Sarkisian",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": { "stat_1": 38, "stat_2": 0, "stat_3": 1, "stat_4": 50.0, "stat_5": 84 }
+      "stats": { "stat_1": 38, "stat_2": 0, "stat_3": 1, "stat_4": 50, "stat_5": 84 }
     }
   ],
   "players": [

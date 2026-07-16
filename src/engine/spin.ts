@@ -4,7 +4,7 @@
 import type {
   Coach,
   CoachTier,
-  Decade,
+  Era,
   GameData,
   Player,
   SlotId,
@@ -41,25 +41,25 @@ export const MARQUEE_TEAMS = new Set<string>([
   // marquee brands among the expansion
   "clemson", "colorado", "texas_a_m", "wisconsin", "ucla", "michigan_state",
 ]);
-const POWERHOUSE_ONLY_DECADES: Decade[] = ["1980s", "1990s"]; // §5.3 era authenticity
+const POWERHOUSE_ONLY_ERAS: Era[] = ["1980s", "1990s"]; // §5.3 era authenticity
 
 export type PlayerSlots = Record<Exclude<SlotId, "HC">, Player | null>;
 
 export interface SpinResult {
   teamId: string;
-  era: Decade;
+  era: Era;
   pool: Player[];
 }
 
 export interface CoachSpinResult {
   teamId: string;
-  era: Decade;
+  era: Era;
   pool: Coach[];
 }
 
 interface Cell {
   teamId: string;
-  era: Decade;
+  era: Era;
   powerhouse: boolean;
   players: Player[];
 }
@@ -72,14 +72,14 @@ interface Cell {
 // ---------------------------------------------------------------------------
 export function playerCells(
   data: GameData,
-  opts: { decade?: Decade | null; teamId?: string | null } = {},
+  opts: { decade?: Era | null; teamId?: string | null } = {},
 ): Cell[] {
   const cells = new Map<string, Cell>();
   for (const p of data.players) {
     if (opts.decade && p.decade !== opts.decade) continue;
     if (opts.teamId && p.school_id !== opts.teamId) continue;
     // Era authenticity: 80s/90s cells exist only for historic powerhouses.
-    if (POWERHOUSE_ONLY_DECADES.includes(p.decade) && !p.is_historic_powerhouse) continue;
+    if (POWERHOUSE_ONLY_ERAS.includes(p.decade) && !p.is_historic_powerhouse) continue;
     const key = `${p.school_id}|${p.decade}`;
     const cell = cells.get(key) ?? {
       teamId: p.school_id,
@@ -140,8 +140,8 @@ function weightedCell(cells: Cell[], rng: Rng): Cell {
 }
 
 const notCell =
-  (teamId: string, era: Decade) =>
-  (c: { teamId: string; era: Decade }): boolean =>
+  (teamId: string, era: Era) =>
+  (c: { teamId: string; era: Era }): boolean =>
     !(c.teamId === teamId && c.era === era);
 
 /** Default spin (§5.1): any era unless a decade filter is passed. A teamId
@@ -149,7 +149,7 @@ const notCell =
 export function spin(
   data: GameData,
   rng: Rng,
-  opts: { decade?: Decade | null; teamId?: string | null; exclude?: SpinResult | null } = {},
+  opts: { decade?: Era | null; teamId?: string | null; exclude?: SpinResult | null } = {},
 ): SpinResult {
   let cells = playerCells(data, { decade: opts.decade, teamId: opts.teamId });
   if (opts.exclude) {
@@ -260,10 +260,10 @@ export function expandedFallbackSpin(
 // ---------------------------------------------------------------------------
 function coachCells(
   data: GameData,
-  opts: { decade?: Decade | null; teamId?: string | null } = {},
-): { teamId: string; era: Decade; powerhouse: boolean; coaches: Coach[] }[] {
+  opts: { decade?: Era | null; teamId?: string | null } = {},
+): { teamId: string; era: Era; powerhouse: boolean; coaches: Coach[] }[] {
   const powerhouseEras = new Map(data.teams.map((t) => [t.school_id, t.powerhouse_eras]));
-  const cells = new Map<string, { teamId: string; era: Decade; powerhouse: boolean; coaches: Coach[] }>();
+  const cells = new Map<string, { teamId: string; era: Era; powerhouse: boolean; coaches: Coach[] }>();
   for (const c of data.coaches) {
     if (opts.decade && c.decade !== opts.decade) continue;
     if (opts.teamId && c.school_id !== opts.teamId) continue;
@@ -289,7 +289,7 @@ export function spinCoach(
   data: GameData,
   rng: Rng,
   opts: {
-    decade?: Decade | null;
+    decade?: Era | null;
     teamId?: string | null;
     exclude?: CoachSpinResult | null;
   } = {},

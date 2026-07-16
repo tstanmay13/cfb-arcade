@@ -3,20 +3,20 @@
   "cfbd_name": "LSU",
   "name": "LSU",
   "mascot": "Tigers",
-  "powerhouse_eras": ["2000s", "2010s"],
+  "powerhouse_eras": ["2000s", "2010-14", "2015-19"],
   "conferences": {},
   "coaches": [
     {
       "name": "Ed Orgeron",
-      "decade": "2010s",
+      "decade": "2015-19",
       "coach_tier": "Great",
       "stats": { "stat_1": 40, "stat_2": 1, "stat_3": 1, "stat_4": 71.4, "stat_5": 60 }
     },
     {
       "name": "Brian Kelly",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Great",
-      "stats": { "stat_1": 29, "stat_2": 0, "stat_3": 0, "stat_4": 60.0, "stat_5": 290 }
+      "stats": { "stat_1": 29, "stat_2": 0, "stat_3": 0, "stat_4": 60, "stat_5": 290 }
     }
   ],
   "players": [
@@ -25,7 +25,7 @@
       "jersey_number": "9",
       "primary_position": "QB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 99,
       "stats": { "stat_1": 5671, "stat_2": 60, "stat_3": 6, "stat_4": 368, "stat_5": 76.3 }
     },
@@ -34,7 +34,7 @@
       "jersey_number": "1",
       "primary_position": "WR",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 96,
       "stats": { "stat_1": 84, "stat_2": 1780, "stat_3": 20, "stat_4": 21.2, "stat_5": 78 }
     },
@@ -43,7 +43,7 @@
       "jersey_number": "2",
       "primary_position": "WR",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 93,
       "stats": { "stat_1": 111, "stat_2": 1540, "stat_3": 18, "stat_4": 13.9, "stat_5": 71 }
     },
@@ -52,7 +52,7 @@
       "jersey_number": "3",
       "primary_position": "WR",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 92,
       "stats": { "stat_1": 59, "stat_2": 1152, "stat_3": 8, "stat_4": 19.5, "stat_5": 82 }
     },
@@ -61,7 +61,7 @@
       "jersey_number": "7",
       "primary_position": "RB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 95,
       "stats": { "stat_1": 1953, "stat_2": 22, "stat_3": 6.5, "stat_4": 253, "stat_5": 1 }
     },
@@ -70,7 +70,7 @@
       "jersey_number": "7",
       "primary_position": "CB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 95,
       "stats": { "stat_1": 40, "stat_2": 4, "stat_3": 13, "stat_4": 1, "stat_5": 1 }
     },
@@ -79,7 +79,7 @@
       "jersey_number": "7",
       "primary_position": "S",
       "secondary_position": "CB",
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 93,
       "stats": { "stat_1": 76, "stat_2": 2, "stat_3": 9, "stat_4": 5, "stat_5": 8 }
     },
@@ -88,7 +88,7 @@
       "jersey_number": "40",
       "primary_position": "LB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 92,
       "stats": { "stat_1": 123, "stat_2": 12, "stat_3": 3, "stat_4": 1, "stat_5": 3 }
     },
@@ -97,7 +97,7 @@
       "jersey_number": "49",
       "primary_position": "DL",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 89,
       "stats": { "stat_1": 56, "stat_2": 14.5, "stat_3": 12, "stat_4": 2, "stat_5": 1 }
     },

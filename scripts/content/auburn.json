@@ -3,20 +3,26 @@
   "cfbd_name": "Auburn",
   "name": "Auburn",
   "mascot": "Tigers",
-  "powerhouse_eras": ["1980s", "2010s"],
+  "powerhouse_eras": ["1980s", "2010-14", "2015-19"],
   "conferences": {},
   "coaches": [
     {
       "name": "Gus Malzahn",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Great",
-      "stats": { "stat_1": 68, "stat_2": 0, "stat_3": 2, "stat_4": 50.0, "stat_5": 77 }
+      "stats": { "stat_1": 20, "stat_2": 0, "stat_3": 1, "stat_4": 50, "stat_5": 77 }
+    },
+    {
+      "name": "Gus Malzahn",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 42, "stat_2": 0, "stat_3": 1, "stat_4": 50, "stat_5": 77 }
     },
     {
       "name": "Hugh Freeze",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": { "stat_1": 16, "stat_2": 0, "stat_3": 0, "stat_4": 40.0, "stat_5": 85 }
+      "stats": { "stat_1": 16, "stat_2": 0, "stat_3": 0, "stat_4": 40, "stat_5": 85 }
     }
   ],
   "players": [
@@ -25,7 +31,7 @@
       "jersey_number": "2",
       "primary_position": "QB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 99,
       "stats": { "stat_1": 2854, "stat_2": 30, "stat_3": 7, "stat_4": 1473, "stat_5": 66.1 }
     },
@@ -43,7 +49,7 @@
       "jersey_number": "21",
       "primary_position": "RB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 90,
       "stats": { "stat_1": 1816, "stat_2": 23, "stat_3": 5.7, "stat_4": 163, "stat_5": 1 }
     },
@@ -52,7 +58,7 @@
       "jersey_number": "18",
       "primary_position": "WR",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 87,
       "stats": { "stat_1": 42, "stat_2": 902, "stat_3": 7, "stat_4": 21.5, "stat_5": 68 }
     },
@@ -61,7 +67,7 @@
       "jersey_number": "90",
       "primary_position": "DL",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 94,
       "stats": { "stat_1": 60, "stat_2": 24, "stat_3": 11.5, "stat_4": 2, "stat_5": 1 }
     },
@@ -70,7 +76,7 @@
       "jersey_number": "95",
       "primary_position": "DL",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 88,
       "stats": { "stat_1": 32, "stat_2": 14.5, "stat_3": 10.5, "stat_4": 2, "stat_5": 1 }
     },
@@ -88,7 +94,7 @@
       "jersey_number": "6",
       "primary_position": "CB",
       "secondary_position": null,
-      "decade": "2010s",
+      "decade": "2015-19",
       "hidden_ovr": 88,
       "stats": { "stat_1": 55, "stat_2": 2, "stat_3": 11, "stat_4": 0, "stat_5": 2 }
     },
@@ -97,7 +103,7 @@
       "jersey_number": "6",
       "primary_position": "CB",
       "secondary_position": "S",
-      "decade": "2010s",
+      "decade": "2010-14",
       "hidden_ovr": 83,
       "stats": { "stat_1": 62, "stat_2": 3, "stat_3": 8, "stat_4": 0, "stat_5": 2 }
     }

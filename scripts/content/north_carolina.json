@@ -8,27 +8,21 @@
   "coaches": [
     {
       "name": "Larry Fedora",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 45,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 45,
-        "stat_5": 79
-      }
+      "stats": { "stat_1": 21, "stat_2": 0, "stat_3": 0, "stat_4": 45, "stat_5": 79 }
+    },
+    {
+      "name": "Larry Fedora",
+      "decade": "2015-19",
+      "coach_tier": "Standard",
+      "stats": { "stat_1": 24, "stat_2": 0, "stat_3": 0, "stat_4": 45, "stat_5": 79 }
     },
     {
       "name": "Mack Brown",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Standard",
-      "stats": {
-        "stat_1": 37,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 45,
-        "stat_5": 288
-      }
+      "stats": { "stat_1": 37, "stat_2": 0, "stat_3": 0, "stat_4": 45, "stat_5": 288 }
     }
   ],
   "players": []

@@ -25,14 +25,14 @@ import { fileURLToPath } from "node:url";
 import type {
   Coach,
   CoachTier,
-  Decade,
+  Era,
   GameData,
   GamePosition,
   Player,
   StatBlock,
   Team,
 } from "../src/data/types.ts";
-import { DECADES } from "../src/data/types.ts";
+import { ERAS } from "../src/data/types.ts";
 import {
   OVR_FLOOR,
   TOP_N,
@@ -53,21 +53,30 @@ const OUT_PATH = join(HERE, "..", "public", "data.json");
 
 // Seasons with clean real player data (stats + positions + rosters). CFBD has
 // a hard cliff below 2010: 2006-09 stats are thin and rosters carry no
-// positions; 2005 and earlier is scores-only. So 2010s + 2020s are REAL eras
-// and everything older stays authored (§4.5 / ADR-0014).
+// positions; 2005 and earlier is scores-only. So 2010+ are the REAL eras and
+// everything older stays authored (§4.5 / ADR-0014).
 const FIRST_REAL_SEASON = 2010;
 const LAST_REAL_SEASON = 2025;
 const MODERN_SEASONS = Array.from(
   { length: LAST_REAL_SEASON - FIRST_REAL_SEASON + 1 },
   (_, i) => FIRST_REAL_SEASON + i,
 );
-const decadeOf = (season: number): Decade => (season >= 2020 ? "2020s" : "2010s");
+/**
+ * Era assignment (ADR-0028): 5-year windows on the half-decade grid, so eras
+ * are real dynasty cores instead of decade mush. Forward rule: the trailing
+ * grid window absorbs the partial half-decade until it holds ≥3 real seasons —
+ * that's why 2025 lives in "2020-25" today. When LAST_REAL_SEASON reaches
+ * 2027, split the trailing window ("2020-24" + "2025-29"), add the new value
+ * to the Era union in types.ts, and migrate the content files' era keys.
+ */
+const eraOf = (season: number): Era =>
+  season >= 2020 ? "2020-25" : season >= 2015 ? "2015-19" : "2010-14";
 
 // Eras removed from the shipped game (authored-only, no real data behind
 // them — user decision: real data only). Content files keep their rows as
 // dormant source — deleting a decade from this set brings it back at the
 // next bake.
-const EXCLUDED_DECADES = new Set<Decade>(["1980s", "1990s", "2000s"]);
+const EXCLUDED_ERAS = new Set<Era>(["1980s", "1990s", "2000s"]);
 
 
 // ---------------------------------------------------------------------------
@@ -78,13 +87,13 @@ interface ContentPlayer {
   jersey_number: string;
   primary_position: GamePosition;
   secondary_position: GamePosition | null;
-  decade: Decade;
+  decade: Era;
   hidden_ovr: number;
   stats: StatBlock;
 }
 interface ContentCoach {
   name: string;
-  decade: Decade;
+  decade: Era;
   coach_tier: CoachTier;
   stats: StatBlock;
 }
@@ -93,8 +102,8 @@ interface ProgramContent {
   cfbd_name: string;
   name: string;
   mascot: string;
-  powerhouse_eras: Decade[];
-  conferences: Partial<Record<Decade, string>>;
+  powerhouse_eras: Era[];
+  conferences: Partial<Record<Era, string>>;
   coaches: ContentCoach[];
   players: ContentPlayer[];
 }
@@ -206,7 +215,7 @@ function fetchModernPlayers(programs: ProgramContent[]): {
   for (const r of best.values()) {
     const mapped = mapDbPosition(r.pos_group, r.position);
     if (!mapped) continue;
-    const key = `${r.team}|${decadeOf(r.season)}|${mapped.primary}`;
+    const key = `${r.team}|${eraOf(r.season)}|${mapped.primary}`;
     const list = byCellPos.get(key) ?? [];
     list.push({ ...r, ...mapped });
     byCellPos.set(key, list);
@@ -268,7 +277,7 @@ function fetchModernPlayers(programs: ProgramContent[]): {
   const players: Player[] = [];
   for (const k of kept) {
     const program = byName.get(k.team)!;
-    const decade = decadeOf(k.season);
+    const decade = eraOf(k.season);
     const pivot = pivots.get(`${k.athlete_id}|${k.season}`) ?? {};
     players.push({
       player_id: playerId(k.primary, k.player, program.school_id, decade),
@@ -303,7 +312,7 @@ function fetchModernPlayers(programs: ProgramContent[]): {
 function contentPlayers(programs: ProgramContent[]): Player[] {
   return programs.flatMap((program) => {
     return program.players
-      .filter((p) => !EXCLUDED_DECADES.has(p.decade))
+      .filter((p) => !EXCLUDED_ERAS.has(p.decade))
       .map((p) => ({
       player_id: playerId(p.primary_position, p.name, program.school_id, p.decade),
       name: p.name,
@@ -328,7 +337,7 @@ function contentCoaches(
 ): Coach[] {
   return programs.flatMap((program) =>
     program.coaches
-      .filter((c) => !EXCLUDED_DECADES.has(c.decade))
+      .filter((c) => !EXCLUDED_ERAS.has(c.decade))
       .map((c) => ({
       coach_id: coachId(c.name, program.school_id, c.decade),
       name: c.name,
@@ -338,7 +347,7 @@ function contentCoaches(
       decade: c.decade,
       historical_conference:
         program.conferences[c.decade] ??
-        (c.decade === "2020s" ? modernConfs.get(program.cfbd_name) ?? "FBS" : "FBS"),
+        (c.decade === "2020-25" ? modernConfs.get(program.cfbd_name) ?? "FBS" : "FBS"),
       coach_tier: c.coach_tier,
       stats: c.stats,
     })),
@@ -352,7 +361,7 @@ function validate(data: GameData): string[] {
     if (seen.has(p.player_id)) problems.push(`duplicate player_id ${p.player_id}`);
     seen.add(p.player_id);
     if (p.hidden_ovr < 0 || p.hidden_ovr > 100) problems.push(`${p.player_id}: ovr ${p.hidden_ovr}`);
-    if (!DECADES.includes(p.decade)) problems.push(`${p.player_id}: bad decade ${p.decade}`);
+    if (!ERAS.includes(p.decade)) problems.push(`${p.player_id}: bad decade ${p.decade}`);
   }
   for (const c of data.coaches) {
     if (seen.has(c.coach_id)) problems.push(`duplicate coach_id ${c.coach_id}`);
@@ -442,7 +451,7 @@ function main(): void {
 
   const teams: Team[] = programs.map((program) => {
     const b = branding.get(program.cfbd_name);
-    const eras = DECADES.filter((d) =>
+    const eras = ERAS.filter((d) =>
       players.some((p) => p.school_id === program.school_id && p.decade === d),
     );
     return {
@@ -453,8 +462,8 @@ function main(): void {
       accentHex: b?.alternate_color ?? "#ffffff",
       eras_present: eras,
       is_historic_powerhouse:
-        program.powerhouse_eras.filter((d) => !EXCLUDED_DECADES.has(d)).length > 0,
-      powerhouse_eras: program.powerhouse_eras.filter((d) => !EXCLUDED_DECADES.has(d)),
+        program.powerhouse_eras.filter((d) => !EXCLUDED_ERAS.has(d)).length > 0,
+      powerhouse_eras: program.powerhouse_eras.filter((d) => !EXCLUDED_ERAS.has(d)),
     };
   });
 

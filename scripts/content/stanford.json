@@ -4,31 +4,25 @@
   "name": "Stanford",
   "mascot": "",
   "powerhouse_eras": [],
-  "conferences": {},
+  "conferences": { "2020-25": "Pac-12" },
   "coaches": [
     {
       "name": "David Shaw",
-      "decade": "2010s",
+      "decade": "2010-14",
       "coach_tier": "Elite",
-      "stats": {
-        "stat_1": 86,
-        "stat_2": 0,
-        "stat_3": 3,
-        "stat_4": 72,
-        "stat_5": 96
-      }
+      "stats": { "stat_1": 42, "stat_2": 0, "stat_3": 2, "stat_4": 72, "stat_5": 96 }
+    },
+    {
+      "name": "David Shaw",
+      "decade": "2015-19",
+      "coach_tier": "Great",
+      "stats": { "stat_1": 44, "stat_2": 0, "stat_3": 1, "stat_4": 72, "stat_5": 96 }
     },
     {
       "name": "Troy Taylor",
-      "decade": "2020s",
+      "decade": "2020-25",
       "coach_tier": "Sub-Par",
-      "stats": {
-        "stat_1": 6,
-        "stat_2": 0,
-        "stat_3": 0,
-        "stat_4": 25,
-        "stat_5": 36
-      }
+      "stats": { "stat_1": 6, "stat_2": 0, "stat_3": 0, "stat_4": 25, "stat_5": 36 }
     }
   ],
   "players": []

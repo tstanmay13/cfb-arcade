@@ -18,6 +18,7 @@ function mkResolved(outcome: Outcome, over: Partial<Resolved> = {}): Resolved {
     fluffedStats: {},
     playerPerformance: {},
     heisman: null,
+    positionAwards: [],
     allAmericans: [],
     ...over,
   };

@@ -1,6 +1,11 @@
 // Spin / draft engine (§5): weighted {team, era} cell selection, re-spins,
 // dual-position eligibility, duplicate block, and the §5.6 edge cases.
 // Pure functions over GameData — no React, no globals, rng injected.
+//
+// ADR-0031: spins are placeability-aware. Every player spin takes the board's
+// slots and only lands cells holding ≥1 player you can actually place, so
+// §5.6 case 2 ("pool full of people who fit nothing") is structurally
+// impossible rather than re-rolled away. Re-spins stay pure taste tools.
 import type {
   Coach,
   CoachTier,
@@ -144,44 +149,111 @@ const notCell =
   (c: { teamId: string; era: Era }): boolean =>
     !(c.teamId === teamId && c.era === era);
 
-/** Default spin (§5.1): any era unless a decade filter is passed. A teamId
-    filter locks the spin to one program (used by the "keep team" token, §5.2). */
+/** ADR-0031: a cell is landable iff someone in it fits an open slot. No slots
+    passed (pre-draft callers, tests) = no filter. */
+const hasPlaceable = (players: Player[], slots?: PlayerSlots | null): boolean =>
+  !slots || players.some((p) => eligibleOpenSlots(p, slots).length > 0);
+
+/**
+ * Default spin (§5.1): any era unless a decade filter is passed. A teamId
+ * filter locks the spin to one program (used by the "keep team" token, §5.2).
+ * Pass `slots` (ADR-0031) to exclude cells with nobody placeable; a locked
+ * spin widens its era before it will ever land a dead pool — placeability
+ * outranks the lock.
+ */
 export function spin(
   data: GameData,
   rng: Rng,
-  opts: { decade?: Era | null; teamId?: string | null; exclude?: SpinResult | null } = {},
+  opts: {
+    decade?: Era | null;
+    teamId?: string | null;
+    exclude?: SpinResult | null;
+    slots?: PlayerSlots | null;
+  } = {},
 ): SpinResult {
-  let cells = playerCells(data, { decade: opts.decade, teamId: opts.teamId });
-  if (opts.exclude) {
-    const filtered = cells.filter(notCell(opts.exclude.teamId, opts.exclude.era));
-    if (filtered.length > 0) cells = filtered;
+  const placeable = (c: Cell) => hasPlaceable(c.players, opts.slots);
+  const excluded = opts.exclude
+    ? notCell(opts.exclude.teamId, opts.exclude.era)
+    : () => true;
+  // Widen ladder, most-specific candidate set first: as locked, era lock
+  // dropped, team lock dropped. The exclude rides every rung so a paid
+  // re-spin widens instead of re-serving the identical cell.
+  const rungs: (() => Cell[])[] = [
+    () => playerCells(data, { decade: opts.decade, teamId: opts.teamId }),
+  ];
+  if (opts.decade) rungs.push(() => playerCells(data, { teamId: opts.teamId }));
+  if (opts.teamId) rungs.push(() => playerCells(data, {}));
+  for (const rung of rungs) {
+    const cells = rung().filter(placeable).filter(excluded);
+    if (cells.length > 0) {
+      const cell = weightedCell(cells, rng);
+      return { teamId: cell.teamId, era: cell.era, pool: cell.players };
+    }
   }
+  // No placeable alternative anywhere: re-serving the current cell beats a
+  // dead pool (only reachable when the data can't fill the open slots at all).
+  for (const rung of rungs) {
+    const cells = rung().filter(placeable);
+    if (cells.length > 0) {
+      const cell = weightedCell(cells, rng);
+      return { teamId: cell.teamId, era: cell.era, pool: cell.players };
+    }
+  }
+  // Safety net (never crash): with a placeable cell nowhere in the data the
+  // draft is unfinishable anyway — fall back to the pre-0031 behavior.
+  let cells = playerCells(data, { decade: opts.decade, teamId: opts.teamId });
+  const filtered = cells.filter(excluded);
+  if (filtered.length > 0) cells = filtered;
   const cell = weightedCell(cells, rng);
   return { teamId: cell.teamId, era: cell.era, pool: cell.players };
 }
 
-/** Team re-spin (§5.2): keep the era, re-roll the team. */
-export function teamRespin(data: GameData, rng: Rng, current: SpinResult): SpinResult {
-  return spin(data, rng, { decade: current.era, exclude: current });
+/** Team re-spin (§5.2): keep the era, re-roll the team (placeable cells only
+    when `slots` is passed — ADR-0031). */
+export function teamRespin(
+  data: GameData,
+  rng: Rng,
+  current: SpinResult,
+  slots?: PlayerSlots | null,
+): SpinResult {
+  return spin(data, rng, { decade: current.era, exclude: current, slots });
+}
+
+function eraRespinCells(
+  data: GameData,
+  current: { teamId: string; era: Era },
+  slots?: PlayerSlots | null,
+): Cell[] {
+  return playerCells(data, { teamId: current.teamId })
+    .filter(notCell(current.teamId, current.era))
+    .filter((c) => hasPlaceable(c.players, slots));
 }
 
 /**
  * Era re-spin (§5.2): keep the team, re-roll the era (within eras_present;
- * 80s/90s only if the program was a powerhouse then). Returns null when the
- * team has no other eligible era — the UI must disable the button, and a null
- * here never costs a re-spin.
+ * 80s/90s only if the program was a powerhouse then; placeable cells only —
+ * ADR-0031). Returns null when the team has no other eligible era — the UI
+ * disables the button via canEraRespin, and a null never costs a re-spin.
  */
 export function eraRespin(
   data: GameData,
   rng: Rng,
   current: SpinResult,
+  slots?: PlayerSlots | null,
 ): SpinResult | null {
-  const cells = playerCells(data, { teamId: current.teamId }).filter(
-    notCell(current.teamId, current.era),
-  );
+  const cells = eraRespinCells(data, current, slots);
   if (cells.length === 0) return null;
   const cell = weightedCell(cells, rng);
   return { teamId: cell.teamId, era: cell.era, pool: cell.players };
+}
+
+/** UI contract for the ERA ↻ button (player phase): false ⇒ disabled. */
+export function canEraRespin(
+  data: GameData,
+  current: { teamId: string; era: Era },
+  slots?: PlayerSlots | null,
+): boolean {
+  return eraRespinCells(data, current, slots).length > 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,8 +375,18 @@ export function spinCoach(
   }
   if (cells.length === 0) return null;
   if (opts.exclude) {
-    const filtered = cells.filter(notCell(opts.exclude.teamId, opts.exclude.era));
-    if (filtered.length > 0) cells = filtered;
+    let filtered = cells.filter(notCell(opts.exclude.teamId, opts.exclude.era));
+    // Era-locked re-spin with no same-era alternative: widen the era (mirror
+    // of the player ladder) instead of re-serving the identical cell.
+    if (filtered.length === 0 && opts.decade) {
+      filtered = coachCells(data, { teamId: opts.teamId }).filter(
+        notCell(opts.exclude.teamId, opts.exclude.era),
+      );
+    }
+    // No alternative cell anywhere → null, and the caller must not charge a
+    // re-spin (charging for the same pool again was ADR-0031's coach bug).
+    if (filtered.length === 0) return null;
+    cells = filtered;
   }
   // Coaches carry no OVR, so weight the cell by its best coach's tier (with the
   // same marquee brand bump the player spin uses) — parallel to talent weighting.
@@ -315,6 +397,27 @@ export function spinCoach(
   );
   const cell = pickWeighted(cells, weights, rng);
   return { teamId: cell.teamId, era: cell.era, pool: cell.coaches };
+}
+
+/** UI contract for TEAM ↻ in the coach phase: false ⇒ disabled. The coach
+    team re-spin widens its era when cornered, so any other coach cell works. */
+export function canCoachTeamRespin(
+  data: GameData,
+  current: { teamId: string; era: Era },
+): boolean {
+  return coachCells(data, {}).filter(notCell(current.teamId, current.era)).length > 0;
+}
+
+/** UI contract for ERA ↻ in the coach phase: false ⇒ disabled (the program
+    has coaches in no other era — a re-spin could only re-serve this cell). */
+export function canCoachEraRespin(
+  data: GameData,
+  current: { teamId: string; era: Era },
+): boolean {
+  return (
+    coachCells(data, { teamId: current.teamId }).filter(notCell(current.teamId, current.era))
+      .length > 0
+  );
 }
 
 /** All player slots filled? → advance to COACH_SPIN (§2 state machine). */

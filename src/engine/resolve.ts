@@ -60,7 +60,7 @@ export function resolveSeason(
   const power = powerScore(slots, coach);
   const { tier, outcome, isDynasty } = resolveOutcome(power, rng);
   const opponents = [...data.teams.map((t) => t.name), ...FILLER_OPPONENTS];
-  const schedule = generateSchedule(outcome, rng, opponents);
+  const schedule = generateSchedule(outcome, rng, opponents, power); // ADR-0032 record tilt
 
   const fluffedStats: Record<string, StatBlock> = {};
   const playerPerformance: Record<string, PerformanceCategory> = {};

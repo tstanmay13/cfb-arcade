@@ -13,6 +13,7 @@ import {
   POS_SLOTS,
 } from "../data/types.ts";
 import {
+  blockedReason,
   canCoachEraRespin,
   canCoachTeamRespin,
   canEraRespin,
@@ -126,13 +127,18 @@ function PlayerRow({ player }: { player: Player }) {
           </span>
         </div>
         {state.mode === "Classic" && <StatLine pos={player.primary_position} stats={player.stats} />}
-        {dead && (
-          <p className="mt-1 text-[10px] uppercase tracking-wide opacity-60">
-            {Object.values(state.slots).some((s) => s?.name === player.name && s.school_id === player.school_id)
-              ? "Already on your roster"
-              : "No open position"}
-          </p>
-        )}
+        {dead && (() => {
+          const reason = blockedReason(player, state.slots);
+          return (
+            <p className="mt-1 text-[10px] uppercase tracking-wide opacity-60">
+              {reason?.kind === "duplicate"
+                ? "Already on your roster"
+                : reason
+                  ? `${reason.slots.join(" + ")} already filled`
+                  : "No open position"}
+            </p>
+          );
+        })()}
       </button>
     </li>
   );
@@ -189,6 +195,11 @@ export default function DraftBoard() {
   const revealing = useSpinReveal();
   const [sortBy, setSortBy] = useState<SortKey>("position");
   const [posFilter, setPosFilter] = useState<GamePosition | "ALL">("ALL");
+  // Blocked rows fold away by default (§8.5 rework): mid-draft most of a pool
+  // can be unplaceable, and a wall of greyed players read as a bug. Collapse
+  // resets on every new spin.
+  const [showBlocked, setShowBlocked] = useState(false);
+  useEffect(() => setShowBlocked(false), [state.spinCounter]);
 
   const coachPhase = state.phase === "COACH_SPIN";
   const cell = coachPhase ? state.currentCoachSpin : state.currentSpin;
@@ -239,11 +250,18 @@ export default function DraftBoard() {
     !coachPhase && !needSpin && !revealing && openPlayerSlots > 1 &&
     (state.keepArmed || (state.respins.keepTeam > 0 && available.length > 1));
 
-  // Position filter chips: only positions you still have an open slot for (a
-  // position whose slots are all filled drops off — you can't draft it anyway).
+  // Position filter chips: only positions you still have an open slot for AND
+  // that exist in this landed pool — a chip that filters to an empty list is a
+  // dead-end tap (thin cells, esp. 2010-14, often carry no defenders at all).
   // Slots never un-fill mid-draft, so a stale filter just falls back to ALL.
-  const neededPositions = POS_ORDER.filter((pos) =>
-    POS_SLOTS[pos].some((slot) => state.slots[slot] === null),
+  const poolPositions = new Set<GamePosition>();
+  for (const p of pool) {
+    poolPositions.add(p.primary_position);
+    if (p.secondary_position) poolPositions.add(p.secondary_position);
+  }
+  const neededPositions = POS_ORDER.filter(
+    (pos) =>
+      POS_SLOTS[pos].some((slot) => state.slots[slot] === null) && poolPositions.has(pos),
   );
   const activeFilter =
     posFilter !== "ALL" && neededPositions.includes(posFilter) ? posFilter : "ALL";
@@ -414,20 +432,27 @@ export default function DraftBoard() {
               )}
               {shownUnavailable.length > 0 && (
                 <>
-                  {shownAvailable.length > 0 && (
-                    <div className="my-3 flex items-center gap-2" aria-hidden>
-                      <span className="h-px flex-1 bg-paper-edge" />
-                      <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">
-                        Can't place
-                      </span>
-                      <span className="h-px flex-1 bg-paper-edge" />
-                    </div>
+                  {/* Blocked rows fold behind a labeled divider — the count
+                      stays visible, the grey wall doesn't. */}
+                  <button
+                    type="button"
+                    onClick={() => setShowBlocked((v) => !v)}
+                    aria-expanded={showBlocked}
+                    className="my-3 flex w-full items-center gap-2"
+                  >
+                    <span className="h-px flex-1 bg-paper-edge" aria-hidden />
+                    <span className="text-[10px] uppercase tracking-[0.15em] opacity-55">
+                      {shownUnavailable.length} can't place · {showBlocked ? "hide ▴" : "show ▾"}
+                    </span>
+                    <span className="h-px flex-1 bg-paper-edge" aria-hidden />
+                  </button>
+                  {showBlocked && (
+                    <ul className="space-y-2">
+                      {shownUnavailable.map((p) => (
+                        <PlayerRow key={p.player_id} player={p} />
+                      ))}
+                    </ul>
                   )}
-                  <ul className="space-y-2">
-                    {shownUnavailable.map((p) => (
-                      <PlayerRow key={p.player_id} player={p} />
-                    ))}
-                  </ul>
                 </>
               )}
               {shownAvailable.length === 0 && shownUnavailable.length === 0 && (

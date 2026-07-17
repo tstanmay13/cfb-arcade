@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mulberry32 } from "./rng.ts";
 import {
+  blockedReason,
   allPlayerSlotsFilled,
   canCoachEraRespin,
   canCoachTeamRespin,
@@ -163,6 +164,28 @@ describe("eligibility + duplicates (§5.4)", () => {
     expect(eligibleOpenSlots(youngOtherEra, slots)).toEqual([]);
     const otherHuman = mkPlayer({ name: "Vince Young", primary_position: "QB", school_id: "usc", decade: "2000s" });
     expect(isDuplicate(otherHuman, slots)).toBe(false);
+  });
+
+  it("blockedReason names the filled slots vs a rostered duplicate", () => {
+    const slots = emptyPlayerSlots();
+    const rb = mkPlayer({ primary_position: "RB", school_id: "x", decade: "2020-25" });
+    slots.RB = rb;
+    const otherRB = mkPlayer({ primary_position: "RB", school_id: "y", decade: "2020-25" });
+    expect(blockedReason(otherRB, slots)).toEqual({ kind: "filled", slots: ["RB"] });
+    expect(blockedReason(rb, slots)).toEqual({ kind: "duplicate" });
+    const qb = mkPlayer({ primary_position: "QB", school_id: "y", decade: "2020-25" });
+    expect(blockedReason(qb, slots)).toBeNull();
+    // Dual-position: blocked only when every candidate slot is filled.
+    slots.WR1 = mkPlayer({ primary_position: "WR", school_id: "z", decade: "2020-25" });
+    slots.WR2 = mkPlayer({ primary_position: "WR", school_id: "w", decade: "2020-25" });
+    slots.CB = mkPlayer({ primary_position: "CB", school_id: "v", decade: "2020-25" });
+    const dual = mkPlayer({
+      primary_position: "CB",
+      secondary_position: "WR",
+      school_id: "u",
+      decade: "2020-25",
+    });
+    expect(blockedReason(dual, slots)).toEqual({ kind: "filled", slots: ["CB", "WR1", "WR2"] });
   });
 
   it("isPoolUsable detects a dead pool (§5.6 case 2)", () => {

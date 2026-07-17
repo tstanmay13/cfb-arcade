@@ -287,6 +287,22 @@ export function isPoolUsable(pool: Player[], slots: PlayerSlots): boolean {
   return pool.some((p) => eligibleOpenSlots(p, slots).length > 0);
 }
 
+/** Why a pool row is blocked (§8.5 greying) — null when placeable. Gives the
+    board a concrete caption ("RB already filled", "Already on your roster")
+    instead of a mystery grey-out. */
+export function blockedReason(
+  player: Player,
+  slots: PlayerSlots,
+): { kind: "duplicate" } | { kind: "filled"; slots: Exclude<SlotId, "HC">[] } | null {
+  if (eligibleOpenSlots(player, slots).length > 0) return null;
+  if (isDuplicate(player, slots)) return { kind: "duplicate" };
+  const candidates = new Set<Exclude<SlotId, "HC">>([
+    ...(POS_SLOTS[player.primary_position] ?? []),
+    ...(player.secondary_position ? POS_SLOTS[player.secondary_position] : []),
+  ]);
+  return { kind: "filled", slots: [...candidates] };
+}
+
 /**
  * §5.6 case 3: re-spins exhausted and the current pool is unusable — guarantee
  * a placeable option instead of soft-locking. Relaxation ladder: any cell

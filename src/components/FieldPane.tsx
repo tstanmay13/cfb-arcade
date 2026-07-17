@@ -38,11 +38,15 @@ function SlotNode({
       disabled={!eligible}
       onClick={() => pending && placePlayer(pending, slot)}
       aria-label={player ? `${slot}: ${player.name}` : `${slot} open`}
-      className={`group relative flex w-14 flex-col items-center gap-1 sm:w-20 ${eligible ? "cursor-pointer" : "cursor-default"}`}
+      className={`group relative flex w-16 flex-col items-center gap-1 sm:w-24 ${eligible ? "cursor-pointer" : "cursor-default"}`}
     >
+      {/* jersey-bubble (the solid team-color ball) applies ONLY when filled —
+          as an unlayered class its background/color always beat the Tailwind
+          utilities, so putting it on empty slots painted white balls over the
+          designed chalk-dashed outlines. */}
       <span
-        className={`jersey-bubble relative flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-base sm:h-16 sm:w-16 sm:text-xl
-          ${player ? "border-chalk/90 shadow-lg" : "border-dashed border-chalk/70 bg-transparent text-chalk/90"}
+        className={`relative flex h-12 w-12 items-center justify-center rounded-full border-2 font-display text-base sm:h-16 sm:w-16 sm:text-xl
+          ${player ? "jersey-bubble border-chalk/90 shadow-lg" : "border-dashed border-chalk/70 bg-transparent text-chalk/90"}
           ${eligible ? "slot-eligible border-chalk" : ""}`}
         style={
           player
@@ -69,13 +73,14 @@ function SlotNode({
           </svg>
         )}
       </span>
-      <span className="min-h-8 text-center font-display text-[11px] leading-tight text-chalk drop-shadow">
-        {player ? player.display_short : " "}
-        {player && (
-          <span className="block text-[9px] font-body opacity-80">
-            {player.school} · {player.decade}
-          </span>
-        )}
+      {/* Caption: one truncated line per row so a long name or "school · era"
+          can never wrap into the next section on a phone (§8.4). The school
+          line only exists at sm+ — on mobile the recap list carries it. */}
+      <span className="w-full min-w-0 text-center font-display text-[10px] leading-4 text-chalk drop-shadow sm:text-[11px]">
+        <span className="block truncate">{player ? player.display_short : " "}</span>
+        <span className="hidden truncate font-body text-[9px] opacity-80 sm:block">
+          {player ? `${player.school} · ${player.decade}` : " "}
+        </span>
       </span>
     </button>
   );

@@ -4,8 +4,21 @@
 // result is already in state before it plays.
 import { useEffect, useRef, useState } from "react";
 import type { Coach, GamePosition, Player } from "../data/types.ts";
-import { STAT_LABELS, COACH_STAT_LABELS, PLAYER_SLOTS, POS_SLOTS } from "../data/types.ts";
-import { eligibleOpenSlots } from "../engine/spin.ts";
+import {
+  STAT_LABELS,
+  STAT_LABELS_SHORT,
+  COACH_STAT_LABELS,
+  COACH_STAT_LABELS_SHORT,
+  PLAYER_SLOTS,
+  POS_SLOTS,
+} from "../data/types.ts";
+import {
+  blockedReason,
+  canCoachEraRespin,
+  canCoachTeamRespin,
+  canEraRespin,
+  eligibleOpenSlots,
+} from "../engine/spin.ts";
 import { useGame, useGameActions } from "../state/store.tsx";
 import TeamMark, { softTeamFill } from "./TeamMark.tsx";
 
@@ -64,12 +77,18 @@ function Ticker() {
 
 function StatLine({ pos, stats }: { pos: GamePosition; stats: Player["stats"] }) {
   const labels = STAT_LABELS[pos];
+  const short = STAT_LABELS_SHORT[pos];
   const values = [stats.stat_1, stats.stat_2, stats.stat_3, stats.stat_4, stats.stat_5];
   return (
     <dl className="mt-1 grid grid-cols-5 gap-1 text-[10px] leading-tight">
       {labels.map((label, i) => (
         <div key={label}>
-          <dt className="truncate uppercase tracking-wide opacity-50">{label}</dt>
+          {/* Full label needs ~110px per column; below sm it truncates into
+              identical prefixes, so tight screens get the short form. */}
+          <dt className="truncate uppercase tracking-wide opacity-50">
+            <span className="sm:hidden">{short[i]}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </dt>
           <dd className="font-display text-xs">{values[i]}</dd>
         </div>
       ))}
@@ -108,13 +127,18 @@ function PlayerRow({ player }: { player: Player }) {
           </span>
         </div>
         {state.mode === "Classic" && <StatLine pos={player.primary_position} stats={player.stats} />}
-        {dead && (
-          <p className="mt-1 text-[10px] uppercase tracking-wide opacity-60">
-            {Object.values(state.slots).some((s) => s?.name === player.name && s.school_id === player.school_id)
-              ? "Already on your roster"
-              : "No open position"}
-          </p>
-        )}
+        {dead && (() => {
+          const reason = blockedReason(player, state.slots);
+          return (
+            <p className="mt-1 text-[10px] uppercase tracking-wide opacity-60">
+              {reason?.kind === "duplicate"
+                ? "Already on your roster"
+                : reason
+                  ? `${reason.slots.join(" + ")} already filled`
+                  : "No open position"}
+            </p>
+          );
+        })()}
       </button>
     </li>
   );
@@ -143,7 +167,10 @@ function CoachRow({ coach }: { coach: Coach }) {
           <dl className="mt-1 grid grid-cols-5 gap-1 text-[10px] leading-tight">
             {COACH_STAT_LABELS.map((label, i) => (
               <div key={label}>
-                <dt className="truncate uppercase tracking-wide opacity-50">{label}</dt>
+                <dt className="truncate uppercase tracking-wide opacity-50">
+                  <span className="sm:hidden">{COACH_STAT_LABELS_SHORT[i]}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                </dt>
                 <dd className="font-display text-xs">{values[i]}</dd>
               </div>
             ))}
@@ -168,6 +195,11 @@ export default function DraftBoard() {
   const revealing = useSpinReveal();
   const [sortBy, setSortBy] = useState<SortKey>("position");
   const [posFilter, setPosFilter] = useState<GamePosition | "ALL">("ALL");
+  // Blocked rows fold away by default (§8.5 rework): mid-draft most of a pool
+  // can be unplaceable, and a wall of greyed players read as a bug. Collapse
+  // resets on every new spin.
+  const [showBlocked, setShowBlocked] = useState(false);
+  useEffect(() => setShowBlocked(false), [state.spinCounter]);
 
   const coachPhase = state.phase === "COACH_SPIN";
   const cell = coachPhase ? state.currentCoachSpin : state.currentSpin;
@@ -186,9 +218,15 @@ export default function DraftBoard() {
   const stickyTeam = state.stickyCell
     ? data.teams.find((t) => t.school_id === state.stickyCell!.teamId)
     : null;
-  const canKeepTeam =
-    !coachPhase && !needSpin && !revealing && openPlayerSlots > 1 &&
-    (state.keepArmed || state.respins.keepTeam > 0);
+
+  // Re-spin availability (ADR-0031): a button that could only re-serve the
+  // same cell — or land nothing placeable — is disabled, never a paid no-op.
+  const eraRespinAvailable = coachPhase
+    ? state.currentCoachSpin !== null && canCoachEraRespin(data, state.currentCoachSpin)
+    : state.currentSpin !== null && canEraRespin(data, state.currentSpin, state.slots);
+  const teamRespinAvailable = coachPhase
+    ? state.currentCoachSpin !== null && canCoachTeamRespin(data, state.currentCoachSpin)
+    : true; // player team re-spin widens its era before it can ever dead-end
 
   // Split the spin's roster into who you can still draft vs. who's blocked
   // (position already filled, or a duplicate of someone rostered), then sort
@@ -197,18 +235,41 @@ export default function DraftBoard() {
   const pool = !coachPhase && state.currentSpin ? state.currentSpin.pool : [];
   const available: Player[] = [];
   const unavailable: Player[] = [];
+  const rostered = new Set(
+    Object.values(state.slots).flatMap((s) => (s ? [s.player_id] : [])),
+  );
   for (const p of pool) {
+    // A player already on the board isn't a missed opportunity — hide him
+    // entirely (a keep-team re-serve otherwise lists the guy you JUST drafted
+    // as a greyed "can't place" row). Cross-era rows of the same human still
+    // show, with their "Already on your roster" caption.
+    if (rostered.has(p.player_id)) continue;
     (eligibleOpenSlots(p, state.slots).length > 0 ? available : unavailable).push(p);
   }
   const cmp = POOL_COMPARATORS[sortBy];
   available.sort(cmp);
   unavailable.sort(cmp);
 
-  // Position filter chips: only positions you still have an open slot for (a
-  // position whose slots are all filled drops off — you can't draft it anyway).
+  // Arm KEEP only when the cell can plausibly serve a SECOND pick (≥2
+  // placeable right now); the reducer still refunds the token if the actual
+  // pick dead-ends the lock (ADR-0031). Stays enabled while armed so the
+  // toggle-off refund is always reachable.
+  const canKeepTeam =
+    !coachPhase && !needSpin && !revealing && openPlayerSlots > 1 &&
+    (state.keepArmed || (state.respins.keepTeam > 0 && available.length > 1));
+
+  // Position filter chips: only positions you still have an open slot for AND
+  // that exist in this landed pool — a chip that filters to an empty list is a
+  // dead-end tap (thin cells, esp. 2010-14, often carry no defenders at all).
   // Slots never un-fill mid-draft, so a stale filter just falls back to ALL.
-  const neededPositions = POS_ORDER.filter((pos) =>
-    POS_SLOTS[pos].some((slot) => state.slots[slot] === null),
+  const poolPositions = new Set<GamePosition>();
+  for (const p of pool) {
+    poolPositions.add(p.primary_position);
+    if (p.secondary_position) poolPositions.add(p.secondary_position);
+  }
+  const neededPositions = POS_ORDER.filter(
+    (pos) =>
+      POS_SLOTS[pos].some((slot) => state.slots[slot] === null) && poolPositions.has(pos),
   );
   const activeFilter =
     posFilter !== "ALL" && neededPositions.includes(posFilter) ? posFilter : "ALL";
@@ -379,20 +440,27 @@ export default function DraftBoard() {
               )}
               {shownUnavailable.length > 0 && (
                 <>
-                  {shownAvailable.length > 0 && (
-                    <div className="my-3 flex items-center gap-2" aria-hidden>
-                      <span className="h-px flex-1 bg-paper-edge" />
-                      <span className="text-[10px] uppercase tracking-[0.15em] opacity-45">
-                        Can't place
-                      </span>
-                      <span className="h-px flex-1 bg-paper-edge" />
-                    </div>
+                  {/* Blocked rows fold behind a labeled divider — the count
+                      stays visible, the grey wall doesn't. */}
+                  <button
+                    type="button"
+                    onClick={() => setShowBlocked((v) => !v)}
+                    aria-expanded={showBlocked}
+                    className="my-3 flex w-full items-center gap-2"
+                  >
+                    <span className="h-px flex-1 bg-paper-edge" aria-hidden />
+                    <span className="text-[10px] uppercase tracking-[0.15em] opacity-55">
+                      {shownUnavailable.length} can't place · {showBlocked ? "hide ▴" : "show ▾"}
+                    </span>
+                    <span className="h-px flex-1 bg-paper-edge" aria-hidden />
+                  </button>
+                  {showBlocked && (
+                    <ul className="space-y-2">
+                      {shownUnavailable.map((p) => (
+                        <PlayerRow key={p.player_id} player={p} />
+                      ))}
+                    </ul>
                   )}
-                  <ul className="space-y-2">
-                    {shownUnavailable.map((p) => (
-                      <PlayerRow key={p.player_id} player={p} />
-                    ))}
-                  </ul>
                 </>
               )}
               {shownAvailable.length === 0 && shownUnavailable.length === 0 && (
@@ -470,7 +538,7 @@ export default function DraftBoard() {
         </button>
         <button
           type="button"
-          disabled={needSpin || revealing || state.respins.team <= 0}
+          disabled={needSpin || revealing || state.respins.team <= 0 || !teamRespinAvailable}
           onClick={doTeamRespin}
           className="rounded-lg border-2 border-ink/70 px-3 py-3 font-display text-xs tracking-wider transition enabled:hover:bg-ink/5 disabled:opacity-35"
           title="Keep the era, re-roll the team"
@@ -479,7 +547,7 @@ export default function DraftBoard() {
         </button>
         <button
           type="button"
-          disabled={needSpin || revealing || state.respins.era <= 0}
+          disabled={needSpin || revealing || state.respins.era <= 0 || !eraRespinAvailable}
           onClick={doEraRespin}
           className="rounded-lg border-2 border-ink/70 px-3 py-3 font-display text-xs tracking-wider transition enabled:hover:bg-ink/5 disabled:opacity-35"
           title="Keep the team, re-roll the era"

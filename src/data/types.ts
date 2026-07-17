@@ -71,6 +71,20 @@ export const STAT_LABELS: Record<GamePosition, [string, string, string, string, 
   S: ["Total Tackles", "Interceptions", "Pass Deflections", "Forced Fumbles", "Tackles for Loss"],
 };
 
+/** Compact stat labels for narrow layouts (§8.4 mobile pass) — same order as
+    STAT_LABELS. The full labels above stay the source of truth; a five-column
+    grid at phone width truncated them into identical prefixes ("RUSHING…"
+    twice), so tight screens swap to these. */
+export const STAT_LABELS_SHORT: Record<GamePosition, [string, string, string, string, string]> = {
+  QB: ["Pass Yds", "Pass TD", "INT", "Rush Yds", "Comp %"],
+  RB: ["Rush Yds", "Rush TD", "Yds/Car", "Rec Yds", "Rec TD"],
+  WR: ["Rec", "Rec Yds", "Rec TD", "Yds/Rec", "Long"],
+  DL: ["Tackles", "TFL", "Sacks", "FF", "PD"],
+  LB: ["Tackles", "TFL", "Sacks", "INT", "FF"],
+  CB: ["Tackles", "INT", "PD", "Def TD", "TFL"],
+  S: ["Tackles", "INT", "PD", "FF", "TFL"],
+};
+
 /** Coach stat labels (§4.3). */
 export const COACH_STAT_LABELS: [string, string, string, string, string] = [
   "Era Wins",
@@ -78,6 +92,15 @@ export const COACH_STAT_LABELS: [string, string, string, string, string] = [
   "Conference Titles",
   "Bowl Win %",
   "Total Career Wins",
+];
+
+/** Compact coach labels — same order as COACH_STAT_LABELS (§8.4). */
+export const COACH_STAT_LABELS_SHORT: [string, string, string, string, string] = [
+  "Era W",
+  "Titles",
+  "Conf",
+  "Bowl %",
+  "Career W",
 ];
 
 export interface Player {

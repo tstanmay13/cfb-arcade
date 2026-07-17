@@ -129,6 +129,10 @@ anon key to this repo.
   runtime-tweakable constants (retune = one-line edit, no data re-bake;
   `cellSpinWeight` is exported for tuning/tests). `powerhouse_eras` in
   `scripts/content/*.json` now only gates 80s/90s era authenticity, not weight.
+- Spins are **placeability-filtered** (ADR-0031): every player spin takes the
+  board's slots and only lands cells with ≥1 placeable player, so a dead pool
+  (§5.6 case 2) can't land — don't add a spin path that skips the `slots` arg.
+  Locked spins (era/keep-team) widen before they'd land a dead pool.
 - **ADRs share one global sequence across both repos** (see `docs/adr/`).
   Historical 0001–0021 stay in the private platform repo (owner-side); this
   repo owns **0022 onward** and is where new arcade decisions go. Numbers mean

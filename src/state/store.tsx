@@ -146,16 +146,26 @@ export function reducer(state: RunState, action: Action): RunState {
       // {team, era} cell so you draft another player off the same roster.
       const slots = { ...state.slots, [action.slot]: action.player };
       const done = allPlayerSlotsFilled(slots);
+      // ADR-0031: honor the lock only if the cell still holds a placeable
+      // player AFTER this pick — a lock that could only land a dead pool is
+      // broken and the token refunded instead.
+      const remaining = (state.currentSpin?.pool ?? []).filter(
+        (p) => p.player_id !== action.player.player_id,
+      );
+      const keepHonored = state.keepArmed && !done && isPoolUsable(remaining, slots);
+      const refundKeep = state.keepArmed && !keepHonored;
       return {
         ...state,
         slots,
         pendingPick: null,
         currentSpin: null,
         keepArmed: false,
-        stickyCell:
-          state.keepArmed && !done
-            ? { teamId: action.player.school_id, era: action.player.decade }
-            : null,
+        respins: refundKeep
+          ? { ...state.respins, keepTeam: state.respins.keepTeam + 1 }
+          : state.respins,
+        stickyCell: keepHonored
+          ? { teamId: action.player.school_id, era: action.player.decade }
+          : null,
         phase: done ? "COACH_SPIN" : state.phase,
       };
     }
@@ -241,15 +251,23 @@ export function useGameActions() {
     // Fresh spin between picks is free only via the §5.6 dead-pool path; the
     // primary flow is: spin once, pick, spin again. A new SPIN after placing
     // costs nothing (it's the next of the 8 draft spins). If a keep-team token
-    // locked the next spin to a {team, era} cell, honor it (§5.2).
+    // locked the next spin to a {team, era} cell, honor it (§5.2). All player
+    // spins pass the board (ADR-0031) so a dead pool can never land.
     if (state.stickyCell) {
       dispatch({
         type: "SPIN_RESULT",
-        spin: spin(data, runRng, { teamId: state.stickyCell.teamId, decade: state.stickyCell.era }),
+        spin: spin(data, runRng, {
+          teamId: state.stickyCell.teamId,
+          decade: state.stickyCell.era,
+          slots: state.slots,
+        }),
       });
       return;
     }
-    dispatch({ type: "SPIN_RESULT", spin: spin(data, runRng, { exclude: state.currentSpin }) });
+    dispatch({
+      type: "SPIN_RESULT",
+      spin: spin(data, runRng, { exclude: state.currentSpin, slots: state.slots }),
+    });
   };
 
   /** Keep-team token (§5.2): arm/disarm locking your NEXT spin to the same
@@ -271,7 +289,7 @@ export function useGameActions() {
     if (!state.currentSpin) return;
     dispatch({
       type: "SPIN_RESULT",
-      spin: teamRespin(data, runRng, state.currentSpin),
+      spin: teamRespin(data, runRng, state.currentSpin, state.slots),
       cost: "team",
     });
   };
@@ -285,7 +303,7 @@ export function useGameActions() {
       return;
     }
     if (!state.currentSpin) return;
-    const next = eraRespin(data, runRng, state.currentSpin);
+    const next = eraRespin(data, runRng, state.currentSpin, state.slots);
     if (next) dispatch({ type: "SPIN_RESULT", spin: next, cost: "era" });
   };
 

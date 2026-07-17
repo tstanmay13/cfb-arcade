@@ -4,7 +4,7 @@
 // controls above the list, and auto-selects the player's last-played team.
 import { useEffect, useMemo, useState } from "react";
 import type { Team } from "../data/types.ts";
-import { STAT_LABELS } from "../data/types.ts";
+import { STAT_LABELS, STAT_LABELS_SHORT } from "../data/types.ts";
 import { CONFERENCE_ORDER, conferenceOf, type ConferenceKey } from "../data/conferences.ts";
 import { applyTeamTheme, useGame, useGameActions, type Mode } from "../state/store.tsx";
 import { compareBuilds, loadLastTeam, loadTrophyRoom, saveLastTeam, type RunPlayer, type RunSummary } from "../state/storage.ts";
@@ -62,11 +62,15 @@ function RunRow({ run, onOpen }: { run: RunSummary; onOpen: (r: RunSummary) => v
 
 function StatGrid({ player }: { player: RunPlayer }) {
   const labels = STAT_LABELS[player.position];
+  const short = STAT_LABELS_SHORT[player.position];
   return (
     <dl className="mt-1 grid grid-cols-5 gap-1 text-[10px] leading-tight">
       {labels.map((label, i) => (
         <div key={label}>
-          <dt className="truncate uppercase tracking-wide opacity-50">{label}</dt>
+          <dt className="truncate uppercase tracking-wide opacity-50">
+            <span className="sm:hidden">{short[i]}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </dt>
           <dd className="font-display text-xs">{player.stats[i]}</dd>
         </div>
       ))}

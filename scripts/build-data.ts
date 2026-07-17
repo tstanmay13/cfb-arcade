@@ -273,12 +273,44 @@ function fetchModernPlayers(programs: ProgramContent[]): {
   }
   db.close();
 
+  // 4.5 Stat-season fallback (§12): a kept athlete whose chosen season has no
+  // stat rows (thin coverage, esp. 2010-14 defense) borrows the line from
+  // their best OTHER rated season in the SAME window — a real line from a
+  // real season beats an all-zero card that lies about the OVR. Cross-window
+  // borrowing stays forbidden (era-correctness), so uncovered players keep
+  // zeros and the census below reports them.
+  const seasonsByAthlete = new Map<string, RatingRow[]>();
+  for (const r of ratingRows) {
+    if (!r.athlete_id) continue;
+    const list = seasonsByAthlete.get(r.athlete_id) ?? [];
+    list.push(r);
+    seasonsByAthlete.set(r.athlete_id, list);
+  }
+  const hasStats = (p: StatPivot | undefined): p is StatPivot =>
+    p !== undefined && Object.keys(p).length > 0;
+  let borrowedStatLines = 0;
+  const pivotFor = (k: RatingRow): StatPivot => {
+    const own = pivots.get(`${k.athlete_id}|${k.season}`);
+    if (hasStats(own)) return own;
+    const alts = (seasonsByAthlete.get(k.athlete_id) ?? [])
+      .filter((r) => r.season !== k.season && eraOf(r.season) === eraOf(k.season))
+      .sort((a, b) => b.overall - a.overall || b.season - a.season);
+    for (const alt of alts) {
+      const p = pivots.get(`${k.athlete_id}|${alt.season}`);
+      if (hasStats(p)) {
+        borrowedStatLines += 1;
+        return p;
+      }
+    }
+    return own ?? {};
+  };
+
   // 5. Assemble Player objects (decade = decade of the athlete's best season).
   const players: Player[] = [];
   for (const k of kept) {
     const program = byName.get(k.team)!;
     const decade = eraOf(k.season);
-    const pivot = pivots.get(`${k.athlete_id}|${k.season}`) ?? {};
+    const pivot = pivotFor(k);
     players.push({
       player_id: playerId(k.primary, k.player, program.school_id, decade),
       name: k.player,
@@ -303,7 +335,17 @@ function fetchModernPlayers(programs: ProgramContent[]): {
     const prev = byId.get(p.player_id);
     if (!prev || p.hidden_ovr > prev.hidden_ovr) byId.set(p.player_id, p);
   }
-  return { players: [...byId.values()], conferences, branding };
+  const deduped = [...byId.values()];
+  const stillZero = deduped.filter((p) =>
+    [p.stats.stat_1, p.stats.stat_2, p.stats.stat_3, p.stats.stat_4, p.stats.stat_5].every(
+      (v) => v === 0,
+    ),
+  ).length;
+  console.log(
+    `  stat lines: ${borrowedStatLines} borrowed from another same-window season · ` +
+      `${stillZero} still all-zero (no stats any season in-window)`,
+  );
+  return { players: deduped, conferences, branding };
 }
 
 // ---------------------------------------------------------------------------
@@ -489,6 +531,40 @@ function main(): void {
   }
   console.log(`  cells: ${cells.size} (${players.length} players, ${coaches.length} coaches)`);
   for (const [cell, n] of [...cells].sort()) console.log(`    ${cell.padEnd(22)} ${n}`);
+
+  // Position-coverage census (ADR-0031). The spin engine placeability-filters
+  // incomplete cells away at runtime, so they can't strand a player anymore —
+  // but every hole still shrinks the wheel whenever that position is the only
+  // open slot. Warn loudly (never silently backfilled, per the warehouse
+  // contract above); closing the holes is platform-side ratings coverage work.
+  const POSITIONS: GamePosition[] = ["QB", "RB", "WR", "DL", "LB", "CB", "S"];
+  const cellPlayers = new Map<string, Player[]>();
+  for (const p of players) {
+    const key = `${p.school_id}|${p.decade}`;
+    (cellPlayers.get(key) ?? cellPlayers.set(key, []).get(key)!).push(p);
+  }
+  const incomplete = new Map<Era, string[]>();
+  for (const [key, ps] of cellPlayers) {
+    const missing = POSITIONS.filter(
+      (pos) => !ps.some((p) => p.primary_position === pos || p.secondary_position === pos),
+    );
+    if (missing.length > 0) {
+      const era = key.split("|")[1] as Era;
+      (incomplete.get(era) ?? incomplete.set(era, []).get(era)!).push(
+        `${key.split("|")[0]}: no ${missing.join("/")}`,
+      );
+    }
+  }
+  const incompleteTotal = [...incomplete.values()].reduce((a, v) => a + v.length, 0);
+  if (incompleteTotal > 0) {
+    console.warn(
+      `  WARN ADR-0031: ${incompleteTotal}/${cellPlayers.size} cells are missing ≥1 position — ` +
+        `the spin filter hides them when that slot is all that's open, thinning the wheel:`,
+    );
+    for (const [era, rows] of [...incomplete].sort()) {
+      console.warn(`    ${era}: ${rows.length} incomplete — e.g. ${rows.slice(0, 4).join("; ")}`);
+    }
+  }
 
   writeFileSync(OUT_PATH, JSON.stringify(data));
   console.log(`  wrote ${OUT_PATH} (${(JSON.stringify(data).length / 1024).toFixed(0)} KB)`);

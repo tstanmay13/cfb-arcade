@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { mulberry32 } from "./rng.ts";
 import {
+  blockedReason,
   allPlayerSlotsFilled,
+  canCoachEraRespin,
+  canCoachTeamRespin,
+  canEraRespin,
   cellSpinWeight,
   eligibleOpenSlots,
   emptyPlayerSlots,
@@ -162,6 +166,28 @@ describe("eligibility + duplicates (§5.4)", () => {
     expect(isDuplicate(otherHuman, slots)).toBe(false);
   });
 
+  it("blockedReason names the filled slots vs a rostered duplicate", () => {
+    const slots = emptyPlayerSlots();
+    const rb = mkPlayer({ primary_position: "RB", school_id: "x", decade: "2020-25" });
+    slots.RB = rb;
+    const otherRB = mkPlayer({ primary_position: "RB", school_id: "y", decade: "2020-25" });
+    expect(blockedReason(otherRB, slots)).toEqual({ kind: "filled", slots: ["RB"] });
+    expect(blockedReason(rb, slots)).toEqual({ kind: "duplicate" });
+    const qb = mkPlayer({ primary_position: "QB", school_id: "y", decade: "2020-25" });
+    expect(blockedReason(qb, slots)).toBeNull();
+    // Dual-position: blocked only when every candidate slot is filled.
+    slots.WR1 = mkPlayer({ primary_position: "WR", school_id: "z", decade: "2020-25" });
+    slots.WR2 = mkPlayer({ primary_position: "WR", school_id: "w", decade: "2020-25" });
+    slots.CB = mkPlayer({ primary_position: "CB", school_id: "v", decade: "2020-25" });
+    const dual = mkPlayer({
+      primary_position: "CB",
+      secondary_position: "WR",
+      school_id: "u",
+      decade: "2020-25",
+    });
+    expect(blockedReason(dual, slots)).toEqual({ kind: "filled", slots: ["CB", "WR1", "WR2"] });
+  });
+
   it("isPoolUsable detects a dead pool (§5.6 case 2)", () => {
     const slots = emptyPlayerSlots();
     const qb = mkPlayer({ primary_position: "QB", school_id: "x", decade: "2020-25" });
@@ -196,6 +222,113 @@ describe("expandedFallbackSpin (§5.6 case 3)", () => {
     }
     expect(allPlayerSlotsFilled(slots)).toBe(true);
     expect(expandedFallbackSpin(data, mulberry32(1), slots)).toBeNull();
+  });
+});
+
+describe("placeability filter (ADR-0031)", () => {
+  // alpha: QB-only cell · beta/gamma: full rosters in different eras. With the
+  // QB slot filled, alpha holds nobody placeable and must never land.
+  const alphaQBs = [
+    mkPlayer({ primary_position: "QB", school_id: "alpha", decade: "2020-25" }),
+    mkPlayer({ primary_position: "QB", school_id: "alpha", decade: "2020-25" }),
+  ];
+  const beta20s = fullCell("beta", "2020-25");
+  const gamma10s = fullCell("gamma", "2010-14");
+  const fData = mkData({
+    teams: [
+      mkTeam({ school_id: "alpha", eras_present: ["2020-25"] }),
+      mkTeam({ school_id: "beta", eras_present: ["2020-25"] }),
+      mkTeam({ school_id: "gamma", eras_present: ["2010-14"] }),
+    ],
+    players: [...alphaQBs, ...beta20s, ...gamma10s],
+  });
+  const qbFilledSlots = () => {
+    const slots = emptyPlayerSlots();
+    slots.QB = mkPlayer({ primary_position: "QB", school_id: "zzz", decade: "2020-25" });
+    return slots;
+  };
+
+  it("never lands a cell with nobody placeable", () => {
+    const slots = qbFilledSlots();
+    const rng = mulberry32(21);
+    for (let i = 0; i < 300; i++) {
+      const s = spin(fData, rng, { slots });
+      expect(s.teamId).not.toBe("alpha");
+      expect(isPoolUsable(s.pool, slots)).toBe(true);
+    }
+  });
+
+  it("keeps such cells landable while they can serve an open slot", () => {
+    const rng = mulberry32(22);
+    const seen = new Set<string>();
+    for (let i = 0; i < 400; i++) seen.add(spin(fData, rng, { slots: emptyPlayerSlots() }).teamId);
+    expect(seen.has("alpha")).toBe(true);
+  });
+
+  it("paid team re-spin widens the era rather than re-serving the same cell", () => {
+    // 2020-25 holds only beta (current) + alpha (dead): no in-era alternative,
+    // so the re-spin must widen to gamma|2010-14 — never charge for beta again.
+    const slots = qbFilledSlots();
+    const current = { teamId: "beta", era: "2020-25" as const, pool: beta20s };
+    const rng = mulberry32(23);
+    for (let i = 0; i < 100; i++) {
+      const s = teamRespin(fData, rng, current, slots);
+      expect(s.teamId).toBe("gamma");
+    }
+  });
+
+  it("era re-spin nulls out (and canEraRespin says so) when no other era is placeable", () => {
+    // delta: full 2020-25 cell + QB-only 2010-14 cell.
+    const delta20s = fullCell("delta", "2020-25");
+    const delta10q = [mkPlayer({ primary_position: "QB", school_id: "delta", decade: "2010-14" })];
+    const dData = mkData({
+      teams: [mkTeam({ school_id: "delta", eras_present: ["2010-14", "2020-25"] })],
+      players: [...delta20s, ...delta10q],
+    });
+    const slots = qbFilledSlots();
+    const current = { teamId: "delta", era: "2020-25" as const, pool: delta20s };
+    expect(canEraRespin(dData, current, slots)).toBe(false);
+    expect(eraRespin(dData, mulberry32(3), current, slots)).toBeNull();
+    expect(canEraRespin(dData, current, emptyPlayerSlots())).toBe(true);
+  });
+
+  it("keep-team sticky spin abandons a locked cell that went dead", () => {
+    const slots = qbFilledSlots();
+    const rng = mulberry32(31);
+    for (let i = 0; i < 50; i++) {
+      const s = spin(fData, rng, { teamId: "alpha", decade: "2020-25", slots });
+      expect(isPoolUsable(s.pool, slots)).toBe(true);
+    }
+  });
+});
+
+describe("coach re-spin exclude (ADR-0031)", () => {
+  it("era-locked re-spin widens the era instead of re-serving the cell", () => {
+    // 1990s holds exactly one coach cell (dynasty) — pre-0031 this re-served
+    // it and still charged the re-spin.
+    const current = spinCoach(data, mulberry32(1), { decade: "1990s" })!;
+    expect(current.teamId).toBe("dynasty");
+    const s = spinCoach(data, mulberry32(2), { decade: "1990s", exclude: current });
+    expect(s).not.toBeNull();
+    expect(`${s!.teamId}|${s!.era}`).toBe("modern|2020-25");
+  });
+
+  it("returns null when no alternative coach cell exists anywhere", () => {
+    const solo = mkData({
+      teams: data.teams,
+      players: data.players,
+      coaches: [mkCoach({ school_id: "dynasty", decade: "1990s" })],
+    });
+    const current = spinCoach(solo, mulberry32(1), {})!;
+    expect(spinCoach(solo, mulberry32(2), { exclude: current })).toBeNull();
+    expect(canCoachTeamRespin(solo, current)).toBe(false);
+    expect(canCoachEraRespin(solo, current)).toBe(false);
+  });
+
+  it("availability helpers track the program's other coach eras", () => {
+    const current = { teamId: "dynasty", era: "1990s" as const };
+    expect(canCoachEraRespin(data, current)).toBe(false); // dynasty coaches: 1990s only
+    expect(canCoachTeamRespin(data, current)).toBe(true); // modern|2020-25 exists
   });
 });
 

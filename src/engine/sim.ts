@@ -63,11 +63,16 @@ export const SIM_MATRIX: Record<TierKey, TierRow> = {
   // A 2026-07-14 "Tier1 becomes a 60% title favorite" retune was reversed by
   // the owner before it ever shipped — a title must stay rare even for elite
   // boards; ADR-0026 records the reversal and the design that replaced it.
-  Tier0: { min: 97, natty: 1.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
-  Tier1: { min: 91, natty: 0.17125, semis: 0.28825, major: 0.34775, minor: 0.19275, loss: 0.0, dynastyChance: 0.0 },
-  Tier2: { min: 85, natty: 0.052, semis: 0.321, major: 0.401, minor: 0.226, loss: 0.0, dynastyChance: 0.0 },
-  Tier3: { min: 78, natty: 0.038, semis: 0.253, major: 0.456, minor: 0.253, loss: 0.0, dynastyChance: 0.0 },
-  Tier4: { min: 70, natty: 0.05, semis: 0.1, major: 0.45, minor: 0.35, loss: 0.05, dynastyChance: 0.0 },
+  // ADR-0032: the Tier0 guaranteed natty is gone — the summit is now a 45%
+  // title favorite (still the game's ceiling, no longer an auto-win) and the
+  // ramp's playoff-miss odds fall with power (the floor raise).
+  Tier0: { min: 97, natty: 0.45, semis: 0.32, major: 0.21, minor: 0.02, loss: 0.0, dynastyChance: 0.8 },
+  Tier1: { min: 91, natty: 0.1325, semis: 0.36, major: 0.43, minor: 0.0775, loss: 0.0, dynastyChance: 0.0 },
+  Tier2: { min: 85, natty: 0.038, semis: 0.32, major: 0.472, minor: 0.17, loss: 0.0, dynastyChance: 0.0 },
+  Tier3: { min: 78, natty: 0.03, semis: 0.26, major: 0.45, minor: 0.26, loss: 0.0, dynastyChance: 0.0 },
+  // ADR-0032: Tier4's fluke-title rate trimmed .05→.03 — random boards mass
+  // here, and the old rate propped up the ladder's random baseline.
+  Tier4: { min: 70, natty: 0.03, semis: 0.1, major: 0.45, minor: 0.37, loss: 0.05, dynastyChance: 0.0 },
   Tier5: { min: 60, natty: 0.0, semis: 0.05, major: 0.15, minor: 0.6, loss: 0.2, dynastyChance: 0.0 },
   Tier6: { min: 45, natty: 0.0, semis: 0.0, major: 0.0, minor: 0.3, loss: 0.7, dynastyChance: 0.0 },
   Tier7: { min: 0, natty: 0.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 1.0, dynastyChance: 0.0 },
@@ -86,28 +91,34 @@ const oddsOf = (r: {
 }): OutcomeOdds => ({ natty: r.natty, semis: r.semis, major: r.major, minor: r.minor, loss: r.loss });
 
 /**
- * ADR-0026 ramp, re-heighted by ADR-0029 for the 5-year era pool (ADR-0028):
- * outcome odds for power 78–96.9 interpolate linearly between these anchors —
- * every point of power moves the odds and there is no mid-range cliff. The
- * shape is flat through ~90 and steep 94→97 ON PURPOSE: skilled stat-reading
- * boards mass at power 84–91 while oracle-grade boards mass at 90–96, so the
- * top leg is what separates mastery from mere competence (the owner's ladder:
- * skilled ≥2× random, oracle ≥2.2× skilled). Each anchor's non-natty mass
- * keeps ADR-0026's semis/major/minor proportions — the record-variety
- * structure is untouched. Measured on the 2026-07-16 rebucketed bake
+ * ADR-0026 ramp, re-heighted by ADR-0029 for the 5-year era pool (ADR-0028),
+ * re-dialed by ADR-0032 ("lower the ceiling, raise the floor"): outcome odds
+ * for power 78–96.9 interpolate linearly between these anchors — every point
+ * of power moves the odds and there is no mid-range cliff. Two owner
+ * directives shape this dial set (2026-07-16):
+ *   CEILING — 16-0 is never handed out: the natty column tops out at 0.40
+ *   at the 97 target and 0.45 at Tier0 (was 0.52 → guaranteed 1.0).
+ *   FLOOR — playoff entry tracks power: the minor column (missed the CFP
+ *   entirely) falls 26% → 17% → 9% → 4% → 2% across the anchors, where the
+ *   old dial held it near-flat (~22%) through the whole 78–91 band — an 82
+ *   board and a 90 board used to miss the playoff at the same rate.
+ * The skill ladder (skilled ≥2× random, oracle ≥2.2× skilled) still rides on
+ * the 90→97 leg being the steep one. Measured on the 2026-07-16 bake
  * (20k drafts/policy, scripts/balance.ts, exact outcome accounting):
- * random 4.7%, skilled 10.0%, oracle-optimal 23.0% — ladder 2.1× / 2.3×.
+ * random 3.1%, skilled 7.5%, oracle-optimal 17.3% — ladder 2.4× / 2.3×
+ * (prior dial: 4.7% / 10.0% / 23.0%, ladder 2.1× / 2.3×; prior miss-the-CFP:
+ * skilled 21.6%, oracle 16.7% — now 13.2% / 7.6%).
  * The final [97] row is an interpolation TARGET only — at ≥97 outcomeOdds
- * returns Tier0's row, so the summit snap to a guaranteed title (the Tier0
- * fantasy) is the one deliberate cliff, exactly as in every prior dial set.
+ * returns Tier0's row, so the summit snap (+0.05 natty) is the one deliberate
+ * cliff, now a strong favorite rather than the old guaranteed title.
  * Retune only with scripts/balance.ts in hand.
  */
 const RAMP_ANCHORS: [number, OutcomeOdds][] = [
   [SIM_MATRIX.Tier3.min, oddsOf(SIM_MATRIX.Tier3)],
   [SIM_MATRIX.Tier2.min, oddsOf(SIM_MATRIX.Tier2)],
-  [90, { natty: 0.125, semis: 0.288, major: 0.37, minor: 0.217, loss: 0.0 }],
-  [94, { natty: 0.31, semis: 0.289, major: 0.281, minor: 0.12, loss: 0.0 }],
-  [SIM_MATRIX.Tier0.min, { natty: 0.52, semis: 0.269, major: 0.173, minor: 0.038, loss: 0.0 }],
+  [90, { natty: 0.09, semis: 0.36, major: 0.46, minor: 0.09, loss: 0.0 }],
+  [94, { natty: 0.26, semis: 0.36, major: 0.34, minor: 0.04, loss: 0.0 }],
+  [SIM_MATRIX.Tier0.min, { natty: 0.40, semis: 0.33, major: 0.25, minor: 0.02, loss: 0.0 }],
 ];
 
 const OUTCOME_KEYS: Outcome[] = ["natty", "semis", "major", "minor", "loss"];
@@ -139,8 +150,9 @@ export interface OutcomeResult {
   isDynasty: boolean;
 }
 
-/** Dynasty gating (§0 decision 6): Tier 0 always wins the natty, then rolls
-    the 80% Dynasty chance. No other tier can produce a Dynasty. */
+/** Dynasty gating (§0 decision 6, amended by ADR-0032): Tier 0 rolls its own
+    outcome row like everyone else — a natty there then rolls the 80% Dynasty
+    chance. No other tier can produce a Dynasty. */
 export function resolveOutcome(pFinal: number, rng: Rng): OutcomeResult {
   const tier = tierFor(pFinal);
   const outcome = weightedPick(outcomeOdds(pFinal), rng) as Outcome;
@@ -235,13 +247,38 @@ export function getScoreString(result: "WIN" | "LOSS", rng: Rng): string {
   return table[Math.floor(rng() * table.length)];
 }
 
+/**
+ * ADR-0032: within-outcome record tilt. The same exit round should read
+ * better on a stronger board — an 82 and a 90 both landing a bowl season
+ * used to draw from an identical 10-3/9-4/8-5 table. Power tilts the
+ * loss-count draw toward the low end of the outcome's range (relative to its
+ * own minimum, so low tiers aren't distorted) without touching the outcome
+ * odds themselves.
+ */
+export function tiltedLossWeights(
+  losses: Record<string, number>,
+  power: number,
+): Record<string, number> {
+  const t = Math.max(-1, Math.min(1, (power - 86) / 10)); // 86 ≈ ramp midpoint
+  const beta = 1 - 0.5 * t; // <1 favors fewer losses, >1 favors more (0.5 keeps
+  // the ADR-0026 record-variety gates intact — 0.6 collapsed oracle to 8 records)
+  const kMin = Math.min(...Object.keys(losses).map(Number));
+  const out: Record<string, number> = {};
+  for (const [k, w] of Object.entries(losses)) {
+    out[k] = w * Math.pow(beta, Number(k) - kMin);
+  }
+  return out;
+}
+
 export function generateSchedule(
   outcome: Outcome,
   rng: Rng,
   opponents: string[],
+  power?: number,
 ): ScheduledGame[] {
   const plan = OUTCOME_PLAN[outcome];
-  const lossCount = Number(weightedPick(plan.losses, rng)); // ADR-0026 record variety
+  const weights = power === undefined ? plan.losses : tiltedLossWeights(plan.losses, power);
+  const lossCount = Number(weightedPick(weights, rng)); // ADR-0026 record variety
   const lossIdx = new Set(pickLossIndices(plan.games, lossCount, plan.lossZone, rng));
   const opps = shuffle(opponents, rng);
   return Array.from({ length: plan.games }, (_, i) => {

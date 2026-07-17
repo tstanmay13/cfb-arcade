@@ -58,6 +58,7 @@ import {
   powerScore,
   SIM_MATRIX,
   tierFor,
+  tiltedLossWeights,
   type Outcome,
 } from "../src/engine/sim.ts";
 
@@ -379,13 +380,17 @@ function runStrategy(strategy: Strategy, seed: number) {
     for (const o of OUTCOME_KEYS) {
       expOutcome[o] += odds[o];
       const plan = OUTCOME_PLAN[o];
-      for (const [lossStr, w] of Object.entries(plan.losses)) {
+      // ADR-0032: the engine tilts the loss draw by power — mirror it exactly.
+      const tilted = tiltedLossWeights(plan.losses, power);
+      const norm = Object.values(tilted).reduce((a, b) => a + b, 0);
+      for (const [lossStr, w] of Object.entries(tilted)) {
         const losses = Number(lossStr);
         const rec = `${plan.games - losses}-${losses}`;
-        expRecord.set(rec, (expRecord.get(rec) ?? 0) + odds[o] * w);
+        expRecord.set(rec, (expRecord.get(rec) ?? 0) + (odds[o] * w) / norm);
       }
     }
-    if (power >= SIM_MATRIX.Tier0.min) expDynasty += SIM_MATRIX.Tier0.dynastyChance;
+    // ADR-0032: Tier0 no longer auto-natties — dynasty rides on the natty roll.
+    if (power >= SIM_MATRIX.Tier0.min) expDynasty += odds.natty * SIM_MATRIX.Tier0.dynastyChance;
     totals.teamUsed += diag.teamUsed;
     totals.eraUsed += diag.eraUsed;
     totals.keepUsed += diag.keepUsed;

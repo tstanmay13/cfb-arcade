@@ -59,17 +59,24 @@ describe("tierFor (§6.2)", () => {
 });
 
 describe("resolveOutcome (§6.2)", () => {
-  it("Tier 0 always wins the natty and rolls ~80% dynasty", () => {
+  it("Tier 0 is a 45% title favorite (no more guaranteed natty, ADR-0032) and natties roll ~80% dynasty", () => {
     const rng = mulberry32(123);
+    let natties = 0;
     let dynasties = 0;
-    for (let i = 0; i < 4000; i++) {
+    let missed = 0;
+    for (let i = 0; i < 8000; i++) {
       const r = resolveOutcome(98, rng);
       expect(r.tier).toBe("Tier0");
-      expect(r.outcome).toBe("natty");
+      if (r.outcome === "natty") natties++;
+      else expect(r.isDynasty).toBe(false); // dynasty only rides on a natty
+      if (r.outcome === "minor" || r.outcome === "loss") missed++;
       if (r.isDynasty) dynasties++;
     }
-    expect(dynasties / 4000).toBeGreaterThan(0.76);
-    expect(dynasties / 4000).toBeLessThan(0.84);
+    expect(natties / 8000).toBeGreaterThan(0.42);
+    expect(natties / 8000).toBeLessThan(0.48);
+    expect(missed / 8000).toBeLessThan(0.03); // the summit essentially never misses the CFP
+    expect(dynasties / natties).toBeGreaterThan(0.75);
+    expect(dynasties / natties).toBeLessThan(0.85);
   });
 
   it("Tier 7 always ends in a losing season, never a dynasty", () => {
@@ -81,39 +88,45 @@ describe("resolveOutcome (§6.2)", () => {
     }
   });
 
-  it("a Team OVR 90 board wins sometimes — but 16-0 stays rare (ADR-0029)", () => {
+  it("a Team OVR 90 board wins sometimes — but 16-0 stays rare, and it rarely misses the CFP (ADR-0032)", () => {
     const rng = mulberry32(90);
     let natty = 0;
+    let missed = 0;
     for (let i = 0; i < 6000; i++) {
       const r = resolveOutcome(90, rng);
       expect(r.tier).toBe("Tier2"); // labels back on the original §12 bounds
       expect(r.isDynasty).toBe(false);
       if (r.outcome === "natty") natty++;
+      if (r.outcome === "minor" || r.outcome === "loss") missed++;
     }
-    expect(natty / 6000).toBeGreaterThan(0.1); // ramp pins 12.5% at the 90 anchor
-    expect(natty / 6000).toBeLessThan(0.15);
+    expect(natty / 6000).toBeGreaterThan(0.07); // ramp pins 9% at the 90 anchor
+    expect(natty / 6000).toBeLessThan(0.11);
+    // the floor raise: a 90 board misses the playoff ~9%, not the old ~22%
+    expect(missed / 6000).toBeGreaterThan(0.06);
+    expect(missed / 6000).toBeLessThan(0.12);
   });
 
   it("mid-ramp frequencies interpolate between anchors (power 92, ADR-0029)", () => {
-    // halfway between the 90 anchor (natty .125) and the 94 knee (natty .31)
+    // halfway between the 90 anchor (natty .10) and the 94 knee (natty .21)
     const rng = mulberry32(77);
     const counts: Record<string, number> = {};
     for (let i = 0; i < 6000; i++) {
       const r = resolveOutcome(92, rng);
       counts[r.outcome] = (counts[r.outcome] ?? 0) + 1;
     }
-    expect(counts.natty / 6000).toBeCloseTo(0.2175, 1);
-    expect(counts.semis / 6000).toBeCloseTo(0.29, 1);
-    expect(counts.minor / 6000).toBeGreaterThan(0.1); // deep boards still stumble
+    expect(counts.natty / 6000).toBeCloseTo(0.175, 1);
+    expect(counts.semis / 6000).toBeCloseTo(0.36, 1);
+    expect(counts.minor / 6000).toBeLessThan(0.1); // deep boards stumble far less than they used to
+    expect(counts.minor / 6000).toBeGreaterThan(0.03); // ...but still can
   });
 });
 
 describe("outcomeOdds ramp (ADR-0026)", () => {
   it("hits the anchors exactly, and SIM_MATRIX rows mirror the ramp at their min", () => {
-    expect(outcomeOdds(78)).toEqual({ natty: 0.038, semis: 0.253, major: 0.456, minor: 0.253, loss: 0 });
-    expect(outcomeOdds(85)).toEqual({ natty: 0.052, semis: 0.321, major: 0.401, minor: 0.226, loss: 0 });
-    expect(outcomeOdds(90).natty).toBeCloseTo(0.125, 10);
-    expect(outcomeOdds(94).natty).toBeCloseTo(0.31, 10);
+    expect(outcomeOdds(78)).toEqual({ natty: 0.03, semis: 0.26, major: 0.45, minor: 0.26, loss: 0 });
+    expect(outcomeOdds(85)).toEqual({ natty: 0.038, semis: 0.32, major: 0.472, minor: 0.17, loss: 0 });
+    expect(outcomeOdds(90).natty).toBeCloseTo(0.09, 10);
+    expect(outcomeOdds(94).natty).toBeCloseTo(0.26, 10);
     // Tier1-3's informational rows must stay equal to outcomeOdds(min)
     for (const tier of ["Tier1", "Tier2", "Tier3"] as const) {
       const row = SIM_MATRIX[tier];
@@ -131,18 +144,19 @@ describe("outcomeOdds ramp (ADR-0026)", () => {
       const sum = odds.natty + odds.semis + odds.major + odds.minor + odds.loss;
       expect(sum).toBeCloseTo(1, 9);
       expect(odds.natty).toBeGreaterThanOrEqual(prev - 1e-9);
-      // steepest leg is 94→97: (.52-.31)/3 = 7% per +1.0 power (ADR-0029's
+      // steepest leg is 94→97: (.34-.21)/3 ≈ 4.3% per +1.0 power (ADR-0029's
       // deliberate mastery leg — skilled boards mass below 91, oracle above)
       expect(odds.natty - prev).toBeLessThan(0.008);
       prev = odds.natty;
     }
-    // the summit snap at 97 is the one deliberate cliff: the Tier0 guarantee
-    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.513, 3);
-    expect(outcomeOdds(97)).toEqual({ natty: 1, semis: 0, major: 0, minor: 0, loss: 0 });
+    // the summit snap at 97 is the one deliberate cliff — a strong favorite
+    // now, not the old guaranteed title (ADR-0032 lowered the ceiling)
+    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.3953, 3);
+    expect(outcomeOdds(97)).toEqual({ natty: 0.45, semis: 0.32, major: 0.21, minor: 0.02, loss: 0 });
   });
 
   it("keeps the stepped rows outside the ramp (Tier4-7 unchanged)", () => {
-    expect(outcomeOdds(77.9)).toEqual({ natty: 0.05, semis: 0.1, major: 0.45, minor: 0.35, loss: 0.05 });
+    expect(outcomeOdds(77.9)).toEqual({ natty: 0.03, semis: 0.1, major: 0.45, minor: 0.37, loss: 0.05 });
     expect(outcomeOdds(50)).toEqual({ natty: 0, semis: 0, major: 0, minor: 0.3, loss: 0.7 });
     expect(outcomeOdds(10)).toEqual({ natty: 0, semis: 0, major: 0, minor: 0, loss: 1 });
   });
@@ -227,6 +241,26 @@ describe("schedule generation (§6.3)", () => {
     const a = generateSchedule("major", mulberry32(42), opponents);
     const b = generateSchedule("major", mulberry32(42), opponents);
     expect(a).toEqual(b);
+  });
+
+  it("tilts the record draw by power within an outcome (ADR-0032)", () => {
+    // Same outcome bucket, different board strength: the 92 board's bowl
+    // season should usually read 10-3, the 80 board's 9-4/8-5.
+    const meanLosses = (power?: number) => {
+      let total = 0;
+      for (let seed = 0; seed < 3000; seed++) {
+        const s = generateSchedule("minor", mulberry32(seed), opponents, power);
+        total += s.filter((g) => g.result === "LOSS").length;
+      }
+      return total / 3000;
+    };
+    const strong = meanLosses(92);
+    const weak = meanLosses(80);
+    expect(strong).toBeLessThan(weak - 0.25); // clearly fewer losses on the stronger board
+    expect(strong).toBeGreaterThanOrEqual(3); // still inside minor's 10-3/9-4/8-5 range
+    expect(weak).toBeLessThanOrEqual(5);
+    // No power passed → the untilted ADR-0026 table (old callers unchanged).
+    expect(meanLosses(undefined)).toBeCloseTo(3.9, 1); // .35/.4/.25 over 3/4/5
   });
 });
 

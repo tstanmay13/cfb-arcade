@@ -237,14 +237,16 @@ describe("resolveSeason (SIM_RESOLVE)", () => {
   });
 
   it("wires power → tier → schedule → awards coherently", () => {
-    const slots = board(97); // 97 avg, Elite coach → capped 100 → Tier0
+    // 97 avg, Elite coach → capped 100 → Tier0. ADR-0032: even Tier0 rolls
+    // its outcome (45% natty), so pin the wiring, not a guaranteed title.
+    const slots = board(97);
     const coach = mkCoach({ school_id: "x", decade: "2020-25", coach_tier: "Elite" });
     const r = resolveSeason(slots, coach, data, mulberry32(2));
     expect(r.power).toBe(100);
     expect(r.tier).toBe("Tier0");
-    expect(r.outcome).toBe("natty");
-    expect(r.record).toBe("16-0");
-    expect(r.schedule).toHaveLength(16);
+    const plan = { natty: 16, semis: 15, major: 14, minor: 13, loss: 12 }[r.outcome];
+    expect(r.schedule).toHaveLength(plan);
+    if (r.outcome === "natty") expect(r.record).toBe("16-0");
     expect(Object.keys(r.fluffedStats)).toHaveLength(8);
   });
 });

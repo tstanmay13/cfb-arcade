@@ -235,7 +235,15 @@ export default function DraftBoard() {
   const pool = !coachPhase && state.currentSpin ? state.currentSpin.pool : [];
   const available: Player[] = [];
   const unavailable: Player[] = [];
+  const rostered = new Set(
+    Object.values(state.slots).flatMap((s) => (s ? [s.player_id] : [])),
+  );
   for (const p of pool) {
+    // A player already on the board isn't a missed opportunity — hide him
+    // entirely (a keep-team re-serve otherwise lists the guy you JUST drafted
+    // as a greyed "can't place" row). Cross-era rows of the same human still
+    // show, with their "Already on your roster" caption.
+    if (rostered.has(p.player_id)) continue;
     (eligibleOpenSlots(p, state.slots).length > 0 ? available : unavailable).push(p);
   }
   const cmp = POOL_COMPARATORS[sortBy];

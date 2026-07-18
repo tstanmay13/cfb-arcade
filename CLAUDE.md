@@ -129,6 +129,11 @@ anon key to this repo.
   runtime-tweakable constants (retune = one-line edit, no data re-bake;
   `cellSpinWeight` is exported for tuning/tests). `powerhouse_eras` in
   `scripts/content/*.json` now only gates 80s/90s era authenticity, not weight.
+- **Every gameplay dial lives in `src/engine/tuning.ts`** (spin weights, the
+  outcome ramp, the Tier0 "16-0 bar", record tilt; bake-side OVR knobs are
+  pointed at from its header). `npm run tune` prints what the current dial
+  does; any outcome-ramp change also needs a fresh `scripts/balance.ts` table
+  (gates in ADR-0033: skilled 16-0 in 6-10%, ladder ≥2×/≥2.2×).
 - Spins are **placeability-filtered** (ADR-0031): every player spin takes the
   board's slots and only lands cells with ≥1 placeable player, so a dead pool
   (§5.6 case 2) can't land — don't add a spin path that skips the `slots` arg.

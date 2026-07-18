@@ -8,7 +8,6 @@
 // impossible rather than re-rolled away. Re-spins stay pure taste tools.
 import type {
   Coach,
-  CoachTier,
   Era,
   GameData,
   Player,
@@ -17,35 +16,18 @@ import type {
 import { POS_SLOTS } from "../data/types.ts";
 import { pick, type Rng } from "./rng.ts";
 
-// §5.3 spin weighting — TALENT-DRIVEN and fully tweakable (no one-door dial).
-// A {team, era} cell's landing weight scales with its top-end talent (so a
-// stacked roster — of ANY program — is exciting to hit) plus a small brand
-// "marquee" bump (so a cool/blue-blood program still shines in a down year).
-// Retuning any of these is a one-line edit + redeploy: weights are derived at
-// runtime from the players already in data.json, so no data re-bake is needed.
-//
-// Curve: a cell's talent percentile within the current candidate set maps
-// linearly onto [MIN_CELL_WEIGHT, MAX_CELL_WEIGHT]. "Gentle" by default — even
-// the weakest pool keeps a real chance, so the long tail still shows up.
-export const TALENT_TOP_K = 3; // players averaged for a cell's talent score
-export const MIN_CELL_WEIGHT = 1.5; // weakest cell's weight (gentle floor)
-export const MAX_CELL_WEIGHT = 3.0; // strongest cell's weight
-export const MARQUEE_BUMP = 1.25; // brand-shine multiplier for MARQUEE_TEAMS
-export const COACH_TIER_WEIGHT: Record<CoachTier, number> = {
-  Elite: 3.0,
-  Great: 2.25,
-  Standard: 1.5,
-  "Sub-Par": 1.0,
-};
-/** Hand-curated "cool/marquee" programs (school_id) — editorial, tweakable. */
-export const MARQUEE_TEAMS = new Set<string>([
-  // established blue-bloods (the original 18)
-  "alabama", "auburn", "florida", "florida_state", "georgia", "lsu", "miami",
-  "michigan", "nebraska", "notre_dame", "ohio_state", "oklahoma", "oregon",
-  "penn_state", "tennessee", "texas", "usc", "washington",
-  // marquee brands among the expansion
-  "clemson", "colorado", "texas_a_m", "wisconsin", "ucla", "michigan_state",
-]);
+// §5.3 spin weighting — TALENT-DRIVEN and fully tweakable: every dial
+// (talent curve, marquee bump, coach-tier weights, the marquee list itself)
+// lives in tuning.ts, the knobs file. Re-exported here for existing callers.
+import {
+  COACH_TIER_WEIGHT,
+  MARQUEE_BUMP,
+  MARQUEE_TEAMS,
+  MAX_CELL_WEIGHT,
+  MIN_CELL_WEIGHT,
+  TALENT_TOP_K,
+} from "./tuning.ts";
+export { COACH_TIER_WEIGHT, MARQUEE_BUMP, MARQUEE_TEAMS, MAX_CELL_WEIGHT, MIN_CELL_WEIGHT, TALENT_TOP_K };
 const POWERHOUSE_ONLY_ERAS: Era[] = ["1980s", "1990s"]; // §5.3 era authenticity
 
 export type PlayerSlots = Record<Exclude<SlotId, "HC">, Player | null>;

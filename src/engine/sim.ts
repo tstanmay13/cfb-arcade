@@ -2,20 +2,28 @@
 // before any animation: power score → tier → outcome roll → schedule. The
 // season animation is pure playback of this result. All randomness through
 // the injected seeded rng.
-import type { Coach, CoachTier } from "../data/types.ts";
+import type { Coach } from "../data/types.ts";
 import { shuffle, weightedPick, type Rng } from "./rng.ts";
 import type { PlayerSlots } from "./spin.ts";
+// Every balance dial lives in tuning.ts (the knobs file) — this module is the
+// machinery that consumes them.
+import {
+  COACH_MODIFIERS,
+  RAMP_ANCHORS,
+  RECORD_TILT_MIDPOINT,
+  RECORD_TILT_SPAN,
+  RECORD_TILT_STRENGTH,
+  SIM_MATRIX,
+  type Outcome,
+  type OutcomeOdds,
+  type TierKey,
+} from "./tuning.ts";
+export { COACH_MODIFIERS, SIM_MATRIX };
+export type { Outcome, OutcomeOdds, TierKey, TierRow } from "./tuning.ts";
 
 // ---------------------------------------------------------------------------
 // §6.1 Power score
 // ---------------------------------------------------------------------------
-export const COACH_MODIFIERS: Record<CoachTier, number> = {
-  Elite: 0.05,
-  Great: 0.02,
-  Standard: 0.0,
-  "Sub-Par": -0.03,
-};
-
 export function powerScore(slots: PlayerSlots, coach: Coach): number {
   const ovrs = Object.values(slots).map((p) => {
     if (!p) throw new Error("powerScore requires a full board");
@@ -29,101 +37,19 @@ export function powerScore(slots: PlayerSlots, coach: Coach): number {
 // ---------------------------------------------------------------------------
 // §6.2 Tier mapping + two-stage outcome matrix
 // ---------------------------------------------------------------------------
-export type TierKey =
-  | "Tier0"
-  | "Tier1"
-  | "Tier2"
-  | "Tier3"
-  | "Tier4"
-  | "Tier5"
-  | "Tier6"
-  | "Tier7";
-
-export type Outcome = "natty" | "semis" | "major" | "minor" | "loss";
-
-interface TierRow {
-  min: number;
-  natty: number;
-  semis: number;
-  major: number;
-  minor: number;
-  loss: number;
-  dynastyChance: number;
-}
-
-/** §6.2 values; `min` thresholds define the ranges (floats between integer
-    boundaries fall to the lower tier, e.g. 95.4 → Tier1). ADR-0026: for power
-    78–96.9 the outcome roll no longer steps on these rows — it interpolates
-    RAMP_ANCHORS (see outcomeOdds). Tier1–3's outcome columns below are kept
-    equal to outcomeOdds(min) — informational, pinned by a test — while `min`
-    still drives labels, the scout-verified badge, Heisman chance, and the
-    Tier0 dynasty gate. Tier4–7 and Tier0 remain real stepped rows. */
-export const SIM_MATRIX: Record<TierKey, TierRow> = {
-  // §12 balance pass (ADR-0016): Tier0 min 96→97; 16-0 stays rare.
-  // A 2026-07-14 "Tier1 becomes a 60% title favorite" retune was reversed by
-  // the owner before it ever shipped — a title must stay rare even for elite
-  // boards; ADR-0026 records the reversal and the design that replaced it.
-  // ADR-0032 removed the Tier0 guaranteed natty; ADR-0033 resolves the two
-  // owner laws that then collided: RARITY is an *overall skilled-play* budget
-  // (6-10% of runs go 16-0), while a board that actually reaches the elite
-  // band must FEEL like a favorite — so the 90→97 leg is steep and the
-  // summit is a commanding (not guaranteed) 70% favorite.
-  Tier0: { min: 97, natty: 0.7, semis: 0.22, major: 0.08, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
-  Tier1: { min: 91, natty: 0.17, semis: 0.3625, major: 0.3925, minor: 0.075, loss: 0.0, dynastyChance: 0.0 },
-  Tier2: { min: 85, natty: 0.038, semis: 0.32, major: 0.472, minor: 0.17, loss: 0.0, dynastyChance: 0.0 },
-  Tier3: { min: 78, natty: 0.03, semis: 0.26, major: 0.45, minor: 0.26, loss: 0.0, dynastyChance: 0.0 },
-  // ADR-0032: Tier4's fluke-title rate trimmed .05→.03 — random boards mass
-  // here, and the old rate propped up the ladder's random baseline.
-  Tier4: { min: 70, natty: 0.03, semis: 0.1, major: 0.45, minor: 0.37, loss: 0.05, dynastyChance: 0.0 },
-  Tier5: { min: 60, natty: 0.0, semis: 0.05, major: 0.15, minor: 0.6, loss: 0.2, dynastyChance: 0.0 },
-  Tier6: { min: 45, natty: 0.0, semis: 0.0, major: 0.0, minor: 0.3, loss: 0.7, dynastyChance: 0.0 },
-  Tier7: { min: 0, natty: 0.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 1.0, dynastyChance: 0.0 },
-};
-
+// §6.2 tier table — SIM_MATRIX in tuning.ts (Tier0.min is the 16-0 bar).
 const TIER_ORDER: TierKey[] = ["Tier0", "Tier1", "Tier2", "Tier3", "Tier4", "Tier5", "Tier6", "Tier7"];
 
 export function tierFor(pFinal: number): TierKey {
   return TIER_ORDER.find((k) => pFinal >= SIM_MATRIX[k].min) ?? "Tier7";
 }
 
-type OutcomeOdds = Record<Outcome, number>;
-
 const oddsOf = (r: {
   natty: number; semis: number; major: number; minor: number; loss: number;
 }): OutcomeOdds => ({ natty: r.natty, semis: r.semis, major: r.major, minor: r.minor, loss: r.loss });
 
-/**
- * ADR-0026 ramp, re-heighted by ADR-0029 for the 5-year era pool (ADR-0028),
- * re-dialed by ADR-0032, re-heighted at the top by ADR-0033 ("elite boards
- * are favorites"): outcome odds for power 78–96.9 interpolate linearly
- * between these anchors — every point of power moves the odds and there is
- * no mid-range cliff. Three owner laws shape this dial set:
- *   RARITY (ADR-0026) — 16-0 stays an *overall* budget: skilled-play title
- *   rate holds in the 6–10% band. The budget is spent almost entirely on the
- *   rare runs that actually assemble a 93+ board.
- *   FLOOR (ADR-0032) — playoff entry tracks power: the minor column (missed
- *   the CFP entirely) falls 26% → 17% → 9% → 3% → 1% across the anchors, and
- *   tiltedLossWeights below keeps records inside an outcome power-graded.
- *   FAVORITE (ADR-0033) — a board that reaches the elite band must feel like
- *   one: the 90→97 leg is the steep one (natty 10% → 38% → 62% target), and
- *   Tier0 (≥97) is a commanding 70% favorite — never a handed-out title
- *   (the 0026 reversal of "guaranteed natty" stands).
- * Measured on the 2026-07-16 bake (20k drafts/policy, scripts/balance.ts,
- * exact outcome accounting — see ADR-0033 for the full table): random 3.10%,
- * skilled 8.74%, oracle-optimal 24.01% — skilled inside the 6–10% law,
- * ladder 2.82× / 2.75× (ratio gates ≥2× / ≥2.2× hold).
- * The final [97] row is an interpolation TARGET only — at ≥97 outcomeOdds
- * returns Tier0's row, so the summit snap (+0.08 natty) is the one deliberate
- * cliff. Retune only with scripts/balance.ts in hand.
- */
-const RAMP_ANCHORS: [number, OutcomeOdds][] = [
-  [SIM_MATRIX.Tier3.min, oddsOf(SIM_MATRIX.Tier3)],
-  [SIM_MATRIX.Tier2.min, oddsOf(SIM_MATRIX.Tier2)],
-  [90, { natty: 0.1, semis: 0.37, major: 0.44, minor: 0.09, loss: 0.0 }],
-  [94, { natty: 0.38, semis: 0.34, major: 0.25, minor: 0.03, loss: 0.0 }],
-  [SIM_MATRIX.Tier0.min, { natty: 0.62, semis: 0.26, major: 0.11, minor: 0.01, loss: 0.0 }],
-];
-
+// The interpolation ramp — RAMP_ANCHORS in tuning.ts (ADR-0026/0032/0033);
+// see that file for the rarity/favorite/floor laws and the retune workflow.
 const OUTCOME_KEYS: Outcome[] = ["natty", "semis", "major", "minor", "loss"];
 
 /** Odds the outcome roll uses. Below the ramp (Tier4-7) and at Tier0 these are
@@ -262,9 +188,8 @@ export function tiltedLossWeights(
   losses: Record<string, number>,
   power: number,
 ): Record<string, number> {
-  const t = Math.max(-1, Math.min(1, (power - 86) / 10)); // 86 ≈ ramp midpoint
-  const beta = 1 - 0.5 * t; // <1 favors fewer losses, >1 favors more (0.5 keeps
-  // the ADR-0026 record-variety gates intact — 0.6 collapsed oracle to 8 records)
+  const t = Math.max(-1, Math.min(1, (power - RECORD_TILT_MIDPOINT) / RECORD_TILT_SPAN));
+  const beta = 1 - RECORD_TILT_STRENGTH * t; // <1 favors fewer losses (knobs in tuning.ts)
   const kMin = Math.min(...Object.keys(losses).map(Number));
   const out: Record<string, number> = {};
   for (const [k, w] of Object.entries(losses)) {

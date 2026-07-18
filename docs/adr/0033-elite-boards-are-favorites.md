@@ -68,7 +68,7 @@ convention; the scarcity knob for the summit itself is bake-side
 | reaches the 97+ guarantee | never (0/20k) | 0.01% (1 in 6,667) | 2.70% (1 in 37) |
 | missed the CFP | 34.2% → 31.3% | 13.2% → 13.2% | 7.6% → 7.1% |
 
-- **Rarity law holds**: skilled 8.74% is inside the 6-10% band. Random is
+- **Rarity law holds**: skilled 8.75% is inside the 6-10% band. Random is
   untouched (3.10% — button-mashing still can't buy titles; Tier4 fluke rate
   stays 0.03).
 - **Ladder** (ADR-0029 ratio contract): skilled/random **2.82×**,

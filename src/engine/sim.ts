@@ -63,11 +63,13 @@ export const SIM_MATRIX: Record<TierKey, TierRow> = {
   // A 2026-07-14 "Tier1 becomes a 60% title favorite" retune was reversed by
   // the owner before it ever shipped — a title must stay rare even for elite
   // boards; ADR-0026 records the reversal and the design that replaced it.
-  // ADR-0032: the Tier0 guaranteed natty is gone — the summit is now a 45%
-  // title favorite (still the game's ceiling, no longer an auto-win) and the
-  // ramp's playoff-miss odds fall with power (the floor raise).
-  Tier0: { min: 97, natty: 0.45, semis: 0.32, major: 0.21, minor: 0.02, loss: 0.0, dynastyChance: 0.8 },
-  Tier1: { min: 91, natty: 0.1325, semis: 0.36, major: 0.43, minor: 0.0775, loss: 0.0, dynastyChance: 0.0 },
+  // ADR-0032 removed the Tier0 guaranteed natty; ADR-0033 resolves the two
+  // owner laws that then collided: RARITY is an *overall skilled-play* budget
+  // (6-10% of runs go 16-0), while a board that actually reaches the elite
+  // band must FEEL like a favorite — so the 90→97 leg is steep and the
+  // summit is a commanding (not guaranteed) 70% favorite.
+  Tier0: { min: 97, natty: 0.7, semis: 0.22, major: 0.08, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
+  Tier1: { min: 91, natty: 0.17, semis: 0.3625, major: 0.3925, minor: 0.075, loss: 0.0, dynastyChance: 0.0 },
   Tier2: { min: 85, natty: 0.038, semis: 0.32, major: 0.472, minor: 0.17, loss: 0.0, dynastyChance: 0.0 },
   Tier3: { min: 78, natty: 0.03, semis: 0.26, major: 0.45, minor: 0.26, loss: 0.0, dynastyChance: 0.0 },
   // ADR-0032: Tier4's fluke-title rate trimmed .05→.03 — random boards mass
@@ -92,33 +94,34 @@ const oddsOf = (r: {
 
 /**
  * ADR-0026 ramp, re-heighted by ADR-0029 for the 5-year era pool (ADR-0028),
- * re-dialed by ADR-0032 ("lower the ceiling, raise the floor"): outcome odds
- * for power 78–96.9 interpolate linearly between these anchors — every point
- * of power moves the odds and there is no mid-range cliff. Two owner
- * directives shape this dial set (2026-07-16):
- *   CEILING — 16-0 is never handed out: the natty column tops out at 0.40
- *   at the 97 target and 0.45 at Tier0 (was 0.52 → guaranteed 1.0).
- *   FLOOR — playoff entry tracks power: the minor column (missed the CFP
- *   entirely) falls 26% → 17% → 9% → 4% → 2% across the anchors, where the
- *   old dial held it near-flat (~22%) through the whole 78–91 band — an 82
- *   board and a 90 board used to miss the playoff at the same rate.
- * The skill ladder (skilled ≥2× random, oracle ≥2.2× skilled) still rides on
- * the 90→97 leg being the steep one. Measured on the 2026-07-16 bake
- * (20k drafts/policy, scripts/balance.ts, exact outcome accounting):
- * random 3.1%, skilled 7.5%, oracle-optimal 17.3% — ladder 2.4× / 2.3×
- * (prior dial: 4.7% / 10.0% / 23.0%, ladder 2.1× / 2.3×; prior miss-the-CFP:
- * skilled 21.6%, oracle 16.7% — now 13.2% / 7.6%).
+ * re-dialed by ADR-0032, re-heighted at the top by ADR-0033 ("elite boards
+ * are favorites"): outcome odds for power 78–96.9 interpolate linearly
+ * between these anchors — every point of power moves the odds and there is
+ * no mid-range cliff. Three owner laws shape this dial set:
+ *   RARITY (ADR-0026) — 16-0 stays an *overall* budget: skilled-play title
+ *   rate holds in the 6–10% band. The budget is spent almost entirely on the
+ *   rare runs that actually assemble a 93+ board.
+ *   FLOOR (ADR-0032) — playoff entry tracks power: the minor column (missed
+ *   the CFP entirely) falls 26% → 17% → 9% → 3% → 1% across the anchors, and
+ *   tiltedLossWeights below keeps records inside an outcome power-graded.
+ *   FAVORITE (ADR-0033) — a board that reaches the elite band must feel like
+ *   one: the 90→97 leg is the steep one (natty 10% → 38% → 62% target), and
+ *   Tier0 (≥97) is a commanding 70% favorite — never a handed-out title
+ *   (the 0026 reversal of "guaranteed natty" stands).
+ * Measured on the 2026-07-16 bake (20k drafts/policy, scripts/balance.ts,
+ * exact outcome accounting — see ADR-0033 for the full table): random 3.10%,
+ * skilled 8.74%, oracle-optimal 24.01% — skilled inside the 6–10% law,
+ * ladder 2.82× / 2.75× (ratio gates ≥2× / ≥2.2× hold).
  * The final [97] row is an interpolation TARGET only — at ≥97 outcomeOdds
- * returns Tier0's row, so the summit snap (+0.05 natty) is the one deliberate
- * cliff, now a strong favorite rather than the old guaranteed title.
- * Retune only with scripts/balance.ts in hand.
+ * returns Tier0's row, so the summit snap (+0.08 natty) is the one deliberate
+ * cliff. Retune only with scripts/balance.ts in hand.
  */
 const RAMP_ANCHORS: [number, OutcomeOdds][] = [
   [SIM_MATRIX.Tier3.min, oddsOf(SIM_MATRIX.Tier3)],
   [SIM_MATRIX.Tier2.min, oddsOf(SIM_MATRIX.Tier2)],
-  [90, { natty: 0.09, semis: 0.36, major: 0.46, minor: 0.09, loss: 0.0 }],
-  [94, { natty: 0.26, semis: 0.36, major: 0.34, minor: 0.04, loss: 0.0 }],
-  [SIM_MATRIX.Tier0.min, { natty: 0.40, semis: 0.33, major: 0.25, minor: 0.02, loss: 0.0 }],
+  [90, { natty: 0.1, semis: 0.37, major: 0.44, minor: 0.09, loss: 0.0 }],
+  [94, { natty: 0.38, semis: 0.34, major: 0.25, minor: 0.03, loss: 0.0 }],
+  [SIM_MATRIX.Tier0.min, { natty: 0.62, semis: 0.26, major: 0.11, minor: 0.01, loss: 0.0 }],
 ];
 
 const OUTCOME_KEYS: Outcome[] = ["natty", "semis", "major", "minor", "loss"];

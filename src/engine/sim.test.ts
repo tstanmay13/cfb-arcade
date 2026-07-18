@@ -59,7 +59,7 @@ describe("tierFor (§6.2)", () => {
 });
 
 describe("resolveOutcome (§6.2)", () => {
-  it("Tier 0 is a 70% title favorite (commanding, never guaranteed — ADR-0033) and natties roll ~80% dynasty", () => {
+  it("Tier 0 is a guaranteed natty (owner 2026-07-18, restoring the pre-0032 summit) rolling ~80% dynasty", () => {
     const rng = mulberry32(123);
     let natties = 0;
     let dynasties = 0;
@@ -72,9 +72,8 @@ describe("resolveOutcome (§6.2)", () => {
       if (r.outcome === "minor" || r.outcome === "loss") missed++;
       if (r.isDynasty) dynasties++;
     }
-    expect(natties / 8000).toBeGreaterThan(0.67);
-    expect(natties / 8000).toBeLessThan(0.73);
-    expect(missed / 8000).toBeLessThan(0.03); // the summit essentially never misses the CFP
+    expect(natties).toBe(8000); // 100% — the summit IS the 16-0
+    expect(missed).toBe(0);
     expect(dynasties / natties).toBeGreaterThan(0.75);
     expect(dynasties / natties).toBeLessThan(0.85);
   });
@@ -149,10 +148,10 @@ describe("outcomeOdds ramp (ADR-0026)", () => {
       expect(odds.natty - prev).toBeLessThan(0.009);
       prev = odds.natty;
     }
-    // the summit snap at 97 is the one deliberate cliff — a commanding
-    // favorite, never the old guaranteed title (ADR-0032/0033)
+    // the summit snap at 97 is the one deliberate cliff — the guaranteed
+    // title (owner 2026-07-18; ramp target 62% → 100% at the bar)
     expect(outcomeOdds(96.9).natty).toBeCloseTo(0.612, 3);
-    expect(outcomeOdds(97)).toEqual({ natty: 0.7, semis: 0.22, major: 0.08, minor: 0, loss: 0 });
+    expect(outcomeOdds(97)).toEqual({ natty: 1, semis: 0, major: 0, minor: 0, loss: 0 });
   });
 
   it("keeps the stepped rows outside the ramp (Tier4-7 unchanged)", () => {

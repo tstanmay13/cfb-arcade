@@ -36,7 +36,7 @@ understand the *why* without needing platform access.
 | [0028](0028-five-year-era-windows.md) | 16-0 eras re-bucketed to 5-year windows (2010-14 / 2015-19 / 2020-25): dynasty-core rosters, tenure-scoped coaches, era re-spin no longer a solved flip | Accepted |
 | [0029](0029-skill-ladder-retune.md) | 16-0 skill ladder: permanent 3-policy balance harness + flat-then-steep odds ramp — random ~4.7%, skilled ~10%, oracle ~23% (≥2× / ≥2.2× ratio gates) | Accepted |
 | [0032](0032-lower-ceiling-raise-floor.md) | Lower the 16-0 ceiling (Tier0 guarantee → 45% favorite), raise the playoff floor (minor falls 26→2% with power), power-tilted records — random 3.1%, skilled 7.5%, oracle 17.3%; ratio gates hold (2.41× / 2.31×) | Accepted (ceiling re-heighted by [0033](0033-elite-boards-are-favorites.md)) |
-| [0033](0033-elite-boards-are-favorites.md) | Elite boards are favorites: rarity (6-10% skilled 16-0) is an overall budget, spent on the rare runs that build a monster — 90→97 natty leg steepened 10→38→62%, Tier0 70%; measured random 3.10%, skilled 8.74%, oracle 24.01%, ladder 2.82×/2.75× | Accepted |
+| [0033](0033-elite-boards-are-favorites.md) | Elite boards are favorites: rarity (6-10% skilled 16-0) is an overall budget, spent on the rare runs that build a monster — 90→97 natty leg steepened 10→38→62%, Tier0 = guaranteed 16-0 (owner 07-18; reached 1-in-37 by perfect play); measured random 3.10%, skilled 8.75%, oracle 24.82%, ladder 2.82×/2.84× | Accepted |
 
 ## Historical arcade decisions (in the platform repo, owner-side)
 

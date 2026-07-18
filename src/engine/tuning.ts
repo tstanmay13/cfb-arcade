@@ -92,15 +92,17 @@ export const COACH_MODIFIERS: Record<CoachTier, number> = {
 
 /**
  * §6.2 tier table. `Tier0.min` IS the "what overall are we making a 16-0"
- * bar: at or above it the board is a commanding title favorite
- * (Tier0.natty, never 1.0 — ADR-0026's reversal of the guaranteed natty
- * stands) and a natty there rolls dynastyChance for the Dynasty banner.
+ * bar: at or above it the title is GUARANTEED (natty 1.0 — owner directive
+ * 2026-07-18: "we genuinely need a 100% for some overalls", restoring the
+ * pre-ADR-0032 summit) and the natty rolls dynastyChance for the Dynasty
+ * banner. Move the bar by editing `min`; soften the guarantee by trading
+ * natty mass to semis/major (rows must sum to 1).
  * Tier1-3's outcome columns are informational mirrors of outcomeOdds(min)
  * (pinned by sim.test.ts); the ramp below is what actually rolls in 78-96.9.
  * Tier4-7 are real stepped rows for the sub-ramp mass.
  */
 export const SIM_MATRIX: Record<TierKey, TierRow> = {
-  Tier0: { min: 97, natty: 0.7, semis: 0.22, major: 0.08, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
+  Tier0: { min: 97, natty: 1.0, semis: 0.0, major: 0.0, minor: 0.0, loss: 0.0, dynastyChance: 0.8 },
   Tier1: { min: 91, natty: 0.17, semis: 0.3625, major: 0.3925, minor: 0.075, loss: 0.0, dynastyChance: 0.0 },
   Tier2: { min: 85, natty: 0.038, semis: 0.32, major: 0.472, minor: 0.17, loss: 0.0, dynastyChance: 0.0 },
   Tier3: { min: 78, natty: 0.03, semis: 0.26, major: 0.45, minor: 0.26, loss: 0.0, dynastyChance: 0.0 },
@@ -121,7 +123,8 @@ const oddsOf = (r: TierRow): OutcomeOdds => ({
  *   RARITY (ADR-0026) — overall skilled-play 16-0 budget is 6-10%; the
  *   90-anchor's natty column is what protects it (skilled boards mass ≈87-91).
  *   FAVORITE (ADR-0033) — the 90→97 leg is steep (10% → 38% → 62%) so a
- *   board that reaches the elite band actually wins: 91→17%, 93→31%, 95→46%.
+ *   board that reaches the elite band actually wins: 91→17%, 93→31%, 95→46%;
+ *   at ≥Tier0.min the ramp hands off to the guaranteed summit row above.
  *   FLOOR (ADR-0032) — the minor column (missed the CFP) falls with power.
  * Each row must sum to 1 with loss included (outcomeOdds re-normalizes tiny
  * drift). The last anchor is an interpolation TARGET; at ≥Tier0.min the

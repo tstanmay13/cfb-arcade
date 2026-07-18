@@ -59,7 +59,7 @@ describe("tierFor (§6.2)", () => {
 });
 
 describe("resolveOutcome (§6.2)", () => {
-  it("Tier 0 is a 45% title favorite (no more guaranteed natty, ADR-0032) and natties roll ~80% dynasty", () => {
+  it("Tier 0 is a 70% title favorite (commanding, never guaranteed — ADR-0033) and natties roll ~80% dynasty", () => {
     const rng = mulberry32(123);
     let natties = 0;
     let dynasties = 0;
@@ -72,8 +72,8 @@ describe("resolveOutcome (§6.2)", () => {
       if (r.outcome === "minor" || r.outcome === "loss") missed++;
       if (r.isDynasty) dynasties++;
     }
-    expect(natties / 8000).toBeGreaterThan(0.42);
-    expect(natties / 8000).toBeLessThan(0.48);
+    expect(natties / 8000).toBeGreaterThan(0.67);
+    expect(natties / 8000).toBeLessThan(0.73);
     expect(missed / 8000).toBeLessThan(0.03); // the summit essentially never misses the CFP
     expect(dynasties / natties).toBeGreaterThan(0.75);
     expect(dynasties / natties).toBeLessThan(0.85);
@@ -114,8 +114,8 @@ describe("resolveOutcome (§6.2)", () => {
       const r = resolveOutcome(92, rng);
       counts[r.outcome] = (counts[r.outcome] ?? 0) + 1;
     }
-    expect(counts.natty / 6000).toBeCloseTo(0.175, 1);
-    expect(counts.semis / 6000).toBeCloseTo(0.36, 1);
+    expect(counts.natty / 6000).toBeCloseTo(0.24, 1);
+    expect(counts.semis / 6000).toBeCloseTo(0.355, 1);
     expect(counts.minor / 6000).toBeLessThan(0.1); // deep boards stumble far less than they used to
     expect(counts.minor / 6000).toBeGreaterThan(0.03); // ...but still can
   });
@@ -125,8 +125,8 @@ describe("outcomeOdds ramp (ADR-0026)", () => {
   it("hits the anchors exactly, and SIM_MATRIX rows mirror the ramp at their min", () => {
     expect(outcomeOdds(78)).toEqual({ natty: 0.03, semis: 0.26, major: 0.45, minor: 0.26, loss: 0 });
     expect(outcomeOdds(85)).toEqual({ natty: 0.038, semis: 0.32, major: 0.472, minor: 0.17, loss: 0 });
-    expect(outcomeOdds(90).natty).toBeCloseTo(0.09, 10);
-    expect(outcomeOdds(94).natty).toBeCloseTo(0.26, 10);
+    expect(outcomeOdds(90).natty).toBeCloseTo(0.1, 10);
+    expect(outcomeOdds(94).natty).toBeCloseTo(0.38, 10);
     // Tier1-3's informational rows must stay equal to outcomeOdds(min)
     for (const tier of ["Tier1", "Tier2", "Tier3"] as const) {
       const row = SIM_MATRIX[tier];
@@ -144,15 +144,15 @@ describe("outcomeOdds ramp (ADR-0026)", () => {
       const sum = odds.natty + odds.semis + odds.major + odds.minor + odds.loss;
       expect(sum).toBeCloseTo(1, 9);
       expect(odds.natty).toBeGreaterThanOrEqual(prev - 1e-9);
-      // steepest leg is 94→97: (.34-.21)/3 ≈ 4.3% per +1.0 power (ADR-0029's
-      // deliberate mastery leg — skilled boards mass below 91, oracle above)
-      expect(odds.natty - prev).toBeLessThan(0.008);
+      // steepest leg is 94→97: (.62-.38)/3 = 8% per +1.0 power (ADR-0033's
+      // favorite leg — skilled boards mass below 91, oracle above)
+      expect(odds.natty - prev).toBeLessThan(0.009);
       prev = odds.natty;
     }
-    // the summit snap at 97 is the one deliberate cliff — a strong favorite
-    // now, not the old guaranteed title (ADR-0032 lowered the ceiling)
-    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.3953, 3);
-    expect(outcomeOdds(97)).toEqual({ natty: 0.45, semis: 0.32, major: 0.21, minor: 0.02, loss: 0 });
+    // the summit snap at 97 is the one deliberate cliff — a commanding
+    // favorite, never the old guaranteed title (ADR-0032/0033)
+    expect(outcomeOdds(96.9).natty).toBeCloseTo(0.612, 3);
+    expect(outcomeOdds(97)).toEqual({ natty: 0.7, semis: 0.22, major: 0.08, minor: 0, loss: 0 });
   });
 
   it("keeps the stepped rows outside the ramp (Tier4-7 unchanged)", () => {

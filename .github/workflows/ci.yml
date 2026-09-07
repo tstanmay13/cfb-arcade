@@ -19,3 +19,25 @@ jobs:
       # Same command Vercel runs (tsc -b + vite build) — if this fails,
       # the production deploy would too.
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Verify the built arcade in a browser
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5199 > /tmp/cfb-preview.log 2>&1 &
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5199/ > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5199/ > /dev/null
+          node --no-warnings scripts/screenshot.ts http://127.0.0.1:5199 /tmp/cfb-draft
+          node --no-warnings scripts/screenshot.ts http://127.0.0.1:5199 /tmp/cfb-draft-mobile 390
+          node --no-warnings scripts/screenshot-guess.ts http://127.0.0.1:5199 /tmp/cfb-guess
+          node --no-warnings scripts/verify-gm.ts http://127.0.0.1:5199 /tmp/cfb-gm
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: arcade-browser-verification
+          path: |
+            /tmp/cfb-draft*
+            /tmp/cfb-guess
+            /tmp/cfb-gm
+            /tmp/cfb-preview.log

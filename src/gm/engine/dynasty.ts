@@ -215,8 +215,11 @@ export function prepareGame(
 /** Toggle a pinned starter on the user's depth chart. */
 export function togglePin(state: DynastyState, pid: number): void {
   const team = state.teams[state.userTid];
+  if (!team.roster.includes(pid)) return;
   const pins = team.pins ?? [];
-  team.pins = pins.includes(pid) ? pins.filter((x) => x !== pid) : [...pins, pid];
+  // Most recently selected starter takes priority; older preferences remain
+  // as backups. Removing a pin restores automatic OVR ordering.
+  team.pins = pins.includes(pid) ? pins.filter((x) => x !== pid) : [pid, ...pins];
 }
 
 /** Apply a finished game's outcome to the dynasty (shared by both drivers). */

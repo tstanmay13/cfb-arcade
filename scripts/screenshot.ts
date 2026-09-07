@@ -1,6 +1,6 @@
 // Dev utility: drive the game headlessly, capture console errors +
 // screenshots at each phase. Not part of the app. Usage:
-//   node --no-warnings scripts/screenshot.ts [baseUrl] [outDir]
+//   node --no-warnings scripts/screenshot.ts [baseUrl] [outDir] [viewportWidth]
 import { chromium } from "playwright";
 import { mkdirSync } from "node:fs";
 
@@ -9,7 +9,7 @@ const outDir = process.argv[3] ?? "/tmp/16-0-shots";
 mkdirSync(outDir, { recursive: true });
 
 const browser = await chromium.launch();
-const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+const context = await browser.newContext({ viewport: { width: Number(process.argv[4] ?? 1440), height: 900 } });
 await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin: base });
 const page = await context.newPage();
 const errors: string[] = [];
@@ -18,13 +18,15 @@ page.on("console", (m) => {
 });
 page.on("pageerror", (e) => errors.push(String(e)));
 
+// Verification must never append synthetic runs to production stats.
+await context.route("**/rest/v1/**", route => route.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
 await page.goto(base);
 await page.waitForTimeout(700);
 await page.screenshot({ path: `${outDir}/01-team-select.png` });
 
 // Pick the first program + start (Classic).
 await page.getByRole("button", { name: /alabama/i }).click();
-await page.getByRole("button", { name: "START THE DRAFT" }).click();
+await page.getByRole("button", { name: "START", exact: true }).click();
 await page.waitForTimeout(1100); // ticker
 await page.screenshot({ path: `${outDir}/02-draft-first-spin.png` });
 
@@ -62,4 +64,8 @@ const shareText = await page.evaluate(() => navigator.clipboard.readText());
 console.log(`copied result:\n${shareText}`);
 
 console.log(errors.length ? `CONSOLE ERRORS:\n${errors.join("\n")}` : "no console errors");
+const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
 await browser.close();
+if (overflow) throw new Error("Results overflow the viewport");
+if (errors.length) throw new Error(errors.join("\n"));
+if (!shareText.includes("16-0")) throw new Error("Draft share text missing");

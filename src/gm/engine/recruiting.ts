@@ -195,7 +195,11 @@ export function developPlayer(state: DynastyState, pid: number): string | null {
   if (!p || !state.teams[state.userTid].roster.includes(pid)) return "Not on your roster";
   if (p.ovr >= p.ceil) return "Already at ceiling";
   const gain = clamp(1 + Math.round((p.ceil - p.ovr) * 0.12), 1, 4);
+  const before = p.ovr;
   p.ovr = clamp(p.ovr + gain, 40, p.ceil);
+  for (const key of Object.keys(p.attrs)) {
+    p.attrs[key] = clamp(p.attrs[key] + p.ovr - before, 40, 99);
+  }
   p.morale = clamp(p.morale + 3, 0, 100);
   state.stamina -= STAMINA_COSTS.develop;
   return null;

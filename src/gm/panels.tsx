@@ -7,7 +7,7 @@ import { CLASS_LABELS, DEV_TIER_LABELS, expandSheet } from "./engine/player.ts";
 import { confStandings, p4Conferences } from "./engine/postseason.ts";
 import { committeeOrder } from "./engine/poll.ts";
 import { fmtMoney, marketValue } from "./engine/nil.ts";
-import { LINEUP_COUNTS } from "./engine/lineup.ts";
+import { LINEUP_COUNTS, selectLineup } from "./engine/lineup.ts";
 import { effectiveAsk, portalFit, type PortalOffer } from "./engine/offseason.ts";
 import {
   ARCHETYPE_LABELS, BOOSTER_LABELS, coachMarket, coachSalary, fireCoach, hireCoach,
@@ -624,7 +624,9 @@ export function RosterPanel({
   onPin?: (pid: number) => void;
   onMutate?: () => void;
 }) {
-  const [sel, setSel] = useState<Player | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const sel = selectedId === null ? null : state.players[selectedId] ?? null;
+  const setSel = (player: Player | null) => setSelectedId(player?.id ?? null);
   // Column sorting (M1.2): "pos" is the grouped depth-chart default; any other
   // column flattens the table and sorts by it, re-click flips direction.
   const [sortCol, setSortCol] = useState<RosterSortCol>("pos");
@@ -635,7 +637,11 @@ export function RosterPanel({
   const team = state.teams[state.userTid];
   const pins = useMemo(() => new Set(team.pins ?? []), [team.pins]);
 
-  // Players grouped by position, pins-first then OVR (matches sim depth order).
+  const lineup = selectLineup(team.roster.map(id => state.players[id]), team.pins);
+  const starterIds = new Set(Object.entries(lineup).flatMap(([g, ps]) =>
+    (g === "QB" ? ps.slice(0, 1) : ps).map(p => p.id)));
+
+  // Healthy players first, then the coach's ordered preferences and OVR.
   const byGroup = useMemo(() => {
     const map = new Map<PosGroup, Player[]>();
     for (const pid of team.roster) {
@@ -643,10 +649,12 @@ export function RosterPanel({
       (map.get(p.g) ?? map.set(p.g, []).get(p.g)!).push(p);
     }
     for (const list of map.values()) {
-      list.sort((a, b) => Number(pins.has(b.id)) - Number(pins.has(a.id)) || b.ovr - a.ovr);
+      const priority = new Map((team.pins ?? []).map((id, i) => [id, i]));
+      list.sort((a, b) => Number(a.inj > 0) - Number(b.inj > 0) ||
+        (priority.get(a.id) ?? Infinity) - (priority.get(b.id) ?? Infinity) || b.ovr - a.ovr);
     }
     return map;
-  }, [state, team.roster, pins]);
+  }, [state, team.roster, team.pins]);
 
   // Flat sorted view when a column sort is active.
   const flatRows = useMemo(() => {
@@ -697,7 +705,7 @@ export function RosterPanel({
       {state.phase === "offseason" && onMutate && (
         <StaminaActionsBar state={state} onMutate={onMutate} />
       )}
-      <DepthChart state={state} byGroup={byGroup} onSelect={setSel} />
+      <DepthChart state={state} byGroup={byGroup} starterIds={starterIds} onSelect={setSel} />
 
       <Card
         title={`ROSTER · ${team.roster.length} PLAYERS`}
@@ -733,7 +741,7 @@ export function RosterPanel({
                   <RosterRow
                     key={p.id}
                     p={p}
-                    starter={false}
+                    starter={starterIds.has(p.id)}
                     pins={pins}
                     onPin={onPin}
                     canCut={canCut}
@@ -747,7 +755,6 @@ export function RosterPanel({
             ) : (
               GROUP_ORDER.filter((g) => (byGroup.get(g)?.length ?? 0) > 0).map((g) => {
                 const list = byGroup.get(g)!;
-                const starters = STARTER_COUNT.get(g) ?? 1;
                 return (
                   <tbody key={g}>
                     <tr>
@@ -758,11 +765,11 @@ export function RosterPanel({
                         <span className="ml-2 text-[10px] text-ink/45">{list.length}</span>
                       </td>
                     </tr>
-                    {list.map((p, i) => (
+                    {list.map((p) => (
                       <RosterRow
                         key={p.id}
                         p={p}
-                        starter={i < starters}
+                        starter={starterIds.has(p.id)}
                         pins={pins}
                         onPin={onPin}
                         canCut={canCut}
@@ -813,6 +820,7 @@ function RosterRow({
             <button
               type="button"
               title={pins.has(p.id) ? "Unpin from the starting lineup" : "Pin as starter"}
+              aria-label={pins.has(p.id) ? "Unpin from the starting lineup" : "Pin as starter"}
               className={pins.has(p.id) ? "" : "opacity-25 hover:opacity-70"}
               onClick={(e) => {
                 e.stopPropagation();
@@ -942,10 +950,12 @@ function NilHeader({ state }: { state: DynastyState }) {
 function DepthChart({
   state,
   byGroup,
+  starterIds,
   onSelect,
 }: {
   state: DynastyState;
   byGroup: Map<PosGroup, Player[]>;
+  starterIds: Set<number>;
   onSelect: (p: Player) => void;
 }) {
   const team = state.teams[state.userTid];
@@ -965,8 +975,8 @@ function DepthChart({
             <div key={g} className="min-w-[92px] flex-1 rounded-lg bg-black/25 p-2">
               <div className="mb-1 text-center font-display text-[11px] tracking-widest text-chalk/95">{g}</div>
               <div className="space-y-1">
-                {stack.slice(0, Math.max(starters + 1, 2)).map((p, idx) => {
-                  const isStarter = idx === 0;
+                {stack.slice(0, Math.max(starters + 1, 2)).map((p) => {
+                  const isStarter = starterIds.has(p.id);
                   return (
                     <button
                       key={p.id}
@@ -1018,7 +1028,7 @@ function DepthChart({
       </div>
       <p className="px-4 py-2 text-[11px] text-ink/55">
         Program-colored chips are this week's starters — 📌 pin any player in the roster table below to
-        promote them over a higher OVR; the sim starts exactly who you see here. Tap any player for their card.
+        promote them over a higher OVR. Your latest pin takes priority; unpin to restore automatic selection. Injured players sit out. Tap any player for their card.
       </p>
     </Card>
   );
@@ -1038,7 +1048,7 @@ export function DevBadge({ tier }: { tier: number }) {
   );
 }
 
-function PlayerCard({
+export function PlayerCard({
   state,
   player,
   onClose,
@@ -1051,7 +1061,8 @@ function PlayerCard({
 }) {
   const [flash, setFlash] = useState<string | null>(null);
   const sheet = expandSheet(player);
-  const colors = getTeamColors(state.teams[state.userTid]);
+  const owner = state.teams.find(t => t.roster.includes(player.id)) ?? state.teams[state.userTid];
+  const colors = getTeamColors(owner);
   const career = player.career;
   const peak = Math.max(player.ovr, ...career.map((c) => c.ovr));
   const floor = Math.min(player.ovr, ...career.map((c) => c.ovr));
@@ -1068,15 +1079,15 @@ function PlayerCard({
   );
   const draft = draftProjection(eligibleOvrs, player);
 
-  // Scheme fit vs YOUR schemes (M1.2) — only meaningful for your own roster.
+  // Scheme fit and usage belong to the player's current program.
   const onUserRoster = state.teams[state.userTid].roster.includes(player.id);
-  const { off, def } = teamScheme(state, state.userTid);
-  const fit = onUserRoster ? playerSchemeFit(player, off, def) : 0;
+  const { off, def } = teamScheme(state, owner.id);
+  const fit = playerSchemeFit(player, off, def);
   const fitLabel = fit > 0.25 ? "Great fit" : fit > 0.05 ? "Good fit" : fit < -0.25 ? "Poor fit" : fit < -0.05 ? "Stretch" : "Neutral";
 
   // Usage proxy (M1.2): offensive touches as a share of the team's.
   const touches = player.stats.paAtt + player.stats.ruAtt + player.stats.rec;
-  const teamTouches = state.teams[state.userTid].roster
+  const teamTouches = owner.roster
     .map((pid) => state.players[pid])
     .reduce((a, p) => a + p.stats.paAtt + p.stats.ruAtt + p.stats.rec, 0);
 
@@ -1117,8 +1128,8 @@ function PlayerCard({
         <Vital label="NIL">{player.nil > 0 ? fmtMoney(player.nil) : "unpaid"}</Vital>
         <Vital label="Market">{fmtMoney(marketValue(player))}</Vital>
         <Vital label="Draft stock">{draft ?? <span className="text-ink/45">off the board</span>}</Vital>
-        {onUserRoster && (
-          <Vital label={`Fit · ${OFF_LABELS[off]}`}>
+        {(
+          <Vital label={`Fit · ${DEFENSE.includes(player.g) ? DEF_LABELS[def] : OFF_LABELS[off]}`}>
             <StatusText tone={fit > 0.05 ? "pos" : fit < -0.05 ? "neg" : "neu"}>{fitLabel}</StatusText>
           </Vital>
         )}
@@ -2090,15 +2101,17 @@ export function OffseasonPanel({
   onPortal,
   onTakeJob,
   onAdvanceWeek,
+  onMutate,
 }: {
   state: DynastyState;
   onRetention: (paidPids: number[]) => void;
   onPortal: (offers: PortalOffer[]) => void;
   onTakeJob?: (tid: number) => void;
   onAdvanceWeek?: () => void;
+  onMutate?: () => void;
 }) {
   if (state.offStage === "retention") {
-    return <RetentionStage state={state} onRetention={onRetention} />;
+    return <RetentionStage state={state} onRetention={onRetention} onMutate={onMutate} />;
   }
   if (state.offStage === "portal") {
     return <PortalStage state={state} onPortal={onPortal} />;
@@ -2128,9 +2141,11 @@ function BudgetBar({ state, committed }: { state: DynastyState; committed: numbe
 function RetentionStage({
   state,
   onRetention,
+  onMutate,
 }: {
   state: DynastyState;
   onRetention: (paidPids: number[]) => void;
+  onMutate?: () => void;
 }) {
   const [picked, setPicked] = useState<number[]>([]);
   const [, bump] = useState(0); // courting mutates engine state in place
@@ -2140,7 +2155,7 @@ function RetentionStage({
   const budget = state.teams[state.userTid].nilBudget;
   const court = (pid: number) => {
     const err = retainEffort(state, pid);
-    if (!err) bump((n) => n + 1);
+    if (!err) { bump((n) => n + 1); onMutate?.(); }
   };
   return (
     <Card
@@ -2440,10 +2455,10 @@ function OffseasonReportView({
               {honors?.userPollRank ? <> · <span className="font-display">#{honors.userPollRank}</span></> : ""}
             </span>
             <span className="rounded-lg border border-line bg-surface-raised px-3 py-1.5">
-              Class rank <span className="font-display text-base">#{r.classRank}</span>
+              Class rank <span className="font-display text-base">{r.classRank > 0 ? `#${r.classRank}` : "Pending signing day"}</span>
             </span>
             <span className="rounded-lg border border-line bg-surface-raised px-3 py-1.5">
-              Next NIL pool <span className="font-display text-base">{fmtMoney(userTeam.nilBudget)}</span>
+              {state.offStage === "done" ? "Next NIL pool" : "NIL available"} <span className="font-display text-base">{fmtMoney(userTeam.nilBudget)}</span>
             </span>
             {honors?.poy && (
               <span className="rounded-lg border border-line bg-surface-raised px-3 py-1.5">POY: {honors.poy}</span>

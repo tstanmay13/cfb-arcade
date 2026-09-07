@@ -1,20 +1,21 @@
 // The in-dynasty experience: header (record/rank/phase), advance controls,
 // tabbed panels. Owns the loaded DynastyState; every user action mutates via
 // the engine, autosaves, and re-renders. Engines stay UI-free.
-import { useEffect, useState } from "react";
-import type { DynastyState } from "./engine/types.ts";
+import { useEffect, useRef, useState } from "react";
+import type { ArchivedPlayer, DynastyState } from "./engine/types.ts";
 import { advance, autoOffseason, simRegularSeason, simToSeasonEnd, startNextSeason } from "./engine/dynasty.ts";
 import { commitOutcome, togglePin } from "./engine/dynasty.ts";
 import { advanceOffseasonWeek, cutPlayer, type PortalOffer } from "./engine/offseason.ts";
 import { takeJob } from "./engine/coaches.ts";
 import { fmtMoney } from "./engine/nil.ts";
 import type { SimOutcome } from "./engine/game.ts";
-import { loadDynasty, saveDynasty } from "./db.ts";
+import { archiveFor, loadDynasty, saveDynasty } from "./db.ts";
 import WatchGame from "./WatchGame.tsx";
 import {
   Dashboard, HistoryPanel, OffseasonPanel, RankingsPanel,
   RosterPanel, SchedulePanel, StaffPanel, StandingsPanel,
 } from "./panels.tsx";
+import SeasonLeaders from "./SeasonLeaders.tsx";
 import RecruitingPanel from "./recruitingPanel.tsx";
 import HelpPanel from "./helpPanel.tsx";
 import TourOverlay, { TOUR_STEPS } from "./tour.tsx";
@@ -25,7 +26,7 @@ const TOUR_DONE_KEY = "cfbgm:tour-done";
 
 type Tab =
   | "dashboard" | "roster" | "staff" | "recruiting" | "schedule" | "standings"
-  | "top25" | "history" | "help" | "offseason";
+  | "top25" | "stats" | "history" | "help" | "offseason";
 
 const TABS: [Tab, string][] = [
   ["dashboard", "Dashboard"],
@@ -35,6 +36,7 @@ const TABS: [Tab, string][] = [
   ["schedule", "Schedule"],
   ["standings", "Standings"],
   ["top25", "Top 25"],
+  ["stats", "Stats"],
   ["history", "History"],
   ["help", "How to Play"],
 ];
@@ -43,11 +45,18 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   const [state, setState] = useState<DynastyState | null>(null);
   const [tab, setTab] = useState<Tab>("dashboard");
   const [busy, setBusy] = useState(false);
+  const actionLock = useRef(false);
+  const pendingArchive = useRef<ArchivedPlayer[] | undefined>(undefined);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "error">("saved");
+  const [error, setError] = useState<string | null>(null);
   const [watching, setWatching] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
 
   useEffect(() => {
+    let active = true;
     loadDynasty(slotId).then((s) => {
+      if (!active) return;
+      if (!s) setError("This dynasty could not be found. Return to your saves and choose another slot.");
       setState(s);
       // First-ever dynasty week: walk the new coach through the building.
       let seen = "1";
@@ -59,8 +68,18 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
       if (s && s.year === 1 && s.week === 1 && s.results.length === 0 && !seen) {
         setTourStep(0);
       }
+    }).catch(() => {
+      if (active) setError("Could not open this dynasty. Browser storage may be unavailable. Return to saves and try again.");
     });
+    return () => { active = false; };
   }, [slotId]);
+
+  useEffect(() => {
+    if (saveStatus === "saved" && !busy) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [saveStatus, busy]);
 
   const startTour = () => {
     setTab(TOUR_STEPS[0].tab as Tab);
@@ -86,7 +105,10 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   if (!state) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <p className="font-display text-xl tracking-widest">LOADING DYNASTY…</p>
+        <div className="max-w-md p-4 text-center">
+          <p className="font-display text-xl tracking-widest">{error ?? "LOADING DYNASTY…"}</p>
+          {error && <button className="mt-4 rounded border border-line p-3" onClick={onExit}>Return to saves</button>}
+        </div>
       </main>
     );
   }
@@ -96,34 +118,71 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
   const rankIdx = state.poll.findIndex((e) => e.tid === state.userTid);
   const rank = rankIdx >= 0 ? `#${rankIdx + 1}` : null;
 
-  // Light mutation (recruiting actions etc.): autosave + re-render, no sim.
+  const persist = async (next: DynastyState) => {
+    setSaveStatus("saving");
+    try {
+      await saveDynasty(slotId, next, pendingArchive.current);
+      pendingArchive.current = undefined;
+      setSaveStatus("saved");
+      setError(null);
+    } catch {
+      setSaveStatus("error");
+      setError("Your latest changes are in memory but could not be saved. Keep this tab open and retry saving.");
+    } finally {
+      actionLock.current = false;
+      setBusy(false);
+    }
+  };
+
+  // Panel actions mutate the current snapshot; lock further actions while
+  // persisting so a rollover can never race a recruiting or roster write.
   const mutate = () => {
-    void saveDynasty(slotId, state).catch((e) => console.error("autosave failed", e));
+    if (actionLock.current) return;
+    actionLock.current = true;
+    setBusy(true);
     setState({ ...state });
+    void persist(state);
   };
 
   const runAction = (fn: (s: DynastyState) => void) => {
-    if (busy) return;
+    if (actionLock.current || saveStatus === "error") return;
+    actionLock.current = true;
     setBusy(true);
-    // Yield a frame so the button state paints before a long sync sim.
     window.setTimeout(() => {
-      const before = state.phase;
-      const prevArchive = state.offseason?.archive;
-      fn(state);
-      // Departed players persist to the history store once, at rollover.
-      const departed =
-        before === "offseason" && state.phase === "regular" ? prevArchive : undefined;
-      // Busy releases only once the autosave lands — leaving the page right
-      // after a click can never abort a rollover write mid-transaction.
-      saveDynasty(slotId, state, departed)
-        .catch((e) => console.error("autosave failed", e))
-        .finally(() => {
-          if (before !== "offseason" && state.phase === "offseason") setTab("offseason");
-          if (before === "offseason" && state.phase === "regular") setTab("dashboard");
-          setState({ ...state });
-          setBusy(false);
-        });
+      try {
+        // Engines mutate a working copy. An exception leaves the last playable
+        // state intact instead of leaving half a season applied and SIMMING stuck.
+        const next = structuredClone(state);
+        const before = next.phase;
+        const prevArchive = next.offseason?.archive;
+        fn(next);
+        if (before === "offseason" && next.phase === "regular") pendingArchive.current = prevArchive;
+        if (before !== "offseason" && next.phase === "offseason") setTab("offseason");
+        if (before === "offseason" && next.phase === "regular") setTab("dashboard");
+        setState(next);
+        void persist(next);
+      } catch {
+        setError("That action could not finish. Your previous state is intact; try again or return to saves.");
+        actionLock.current = false;
+        setBusy(false);
+      }
     }, 16);
+  };
+
+  const downloadRecovery = async () => {
+    try {
+      const archive = (await archiveFor(slotId)).map(row => ({ season: row.season, player: row.player }));
+      archive.push(...(pendingArchive.current ?? []).map(player => ({ season: state.season, player })));
+      const json = JSON.stringify({ kind: "cfbgm-dynasty", version: 1, state, archive });
+      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `cfbgm-recovery-${state.season}.json`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      setError("Could not read the player archive for a recovery download. Keep this tab open and retry saving.");
+    }
   };
 
   const advanceLabel =
@@ -147,6 +206,15 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl p-4 sm:p-6">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs" aria-live="polite">
+        <span>{saveStatus === "saving" ? "Saving dynasty…" : saveStatus === "error" ? "Unsaved changes" : "All changes saved on this device"}</span>
+        {saveStatus === "error" && <button className="rounded border border-line px-3 py-1 font-bold" disabled={busy} onClick={() => {
+          actionLock.current = true; setBusy(true); void persist(state);
+        }}>Retry save</button>}
+        {saveStatus === "error" && <button className="rounded border border-line px-3 py-1 font-bold" onClick={() => void downloadRecovery()}>Download recovery save</button>}
+      </div>
+      {error && <p role="alert" className="mb-3 rounded border border-neg/40 bg-neg-soft p-3 text-sm">{error}</p>}
+      <fieldset disabled={busy || saveStatus === "error"} className="min-w-0 border-0 p-0 m-0">
       <header
         className="flex flex-wrap items-center justify-between gap-3 overflow-hidden rounded-card border border-line bg-surface-raised px-4 py-3 shadow-card"
         style={{
@@ -158,6 +226,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
           <button
             type="button"
             onClick={onExit}
+            disabled={busy || saveStatus !== "saved"}
             className="rounded-full border-2 border-line px-3 py-1 font-display text-[10px] tracking-[0.2em] transition hover:border-ink/40"
           >
             ← SAVES
@@ -246,6 +315,24 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         </div>
       </header>
 
+      {state.phase === "offseason" && state.offStage !== "done" && (
+        <section className="mt-3 rounded-card border border-line bg-surface-raised p-3" aria-label="Offseason calendar">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm"><strong>Week {state.offWeek} of 8</strong> · {state.offWeek === 1 ? "Review the season and scout your class" : state.offWeek === 2 ? "Keep your core together" : state.offWeek < 8 ? "Recruit and compete for transfers" : "Finalize your class"}</p>
+            <span className="text-xs font-bold">{state.stamina} stamina left this week</span>
+          </div>
+          <ol className="mt-2 grid grid-cols-8 gap-1" aria-label="Eight-week offseason progress">
+            {Array.from({ length: 8 }, (_, i) => <li key={i} aria-current={state.offWeek === i + 1 ? "step" : undefined}
+              className={`rounded p-1 text-center text-xs ${i + 1 === state.offWeek ? "bg-ink text-paper" : i + 1 < state.offWeek ? "bg-pos-soft text-pos" : "bg-surface-sunken text-ink/50"}`}>{i + 1}</li>)}
+          </ol>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button className="rounded border border-line px-3 py-1 text-xs" onClick={() => setTab("recruiting")}>Recruit & scout</button>
+            <button className="rounded border border-line px-3 py-1 text-xs" onClick={() => setTab("roster")}>Develop your roster</button>
+            <button className="rounded border border-line px-3 py-1 text-xs font-bold" onClick={() => setTab("offseason")}>{state.offStage === "retention" ? "Review retention" : state.offStage === "portal" ? "Review transfer offers" : "Review & advance week"}</button>
+          </div>
+          <p className="mt-2 text-xs text-ink/55">Stamina refreshes each week. Spend it on your priorities before advancing; recruiting and roster work share the same pool.</p>
+        </section>
+      )}
       <nav className="mt-3 flex flex-wrap gap-1">
         {[...TABS, ...(state.phase === "offseason" ? ([["offseason", "Offseason Report"]] as [Tab, string][]) : [])].map(
           ([key, label]) => (
@@ -279,6 +366,7 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
         {tab === "schedule" && <SchedulePanel state={state} />}
         {tab === "standings" && <StandingsPanel state={state} />}
         {tab === "top25" && <RankingsPanel state={state} />}
+        {tab === "stats" && <SeasonLeaders state={state} />}
         {tab === "history" && <HistoryPanel state={state} slotId={slotId} />}
         {tab === "help" && <HelpPanel onStartTour={startTour} />}
         {tab === "offseason" && state.offseason && (
@@ -288,9 +376,12 @@ export default function GmShell({ slotId, onExit }: { slotId: number; onExit: ()
             onPortal={(offers: PortalOffer[]) => runAction((s) => advanceOffseasonWeek(s, { portalOffers: offers }))}
             onTakeJob={(tid) => runAction((s) => void takeJob(s, tid))}
             onAdvanceWeek={() => runAction((s) => advanceOffseasonWeek(s))}
+            onMutate={mutate}
           />
         )}
       </section>
+
+      </fieldset>
 
       {tourStep !== null && (
         <TourOverlay

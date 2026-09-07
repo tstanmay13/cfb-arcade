@@ -79,10 +79,10 @@ describe("resolveOutcome (§6.2)", () => {
     expect(dynasties / natties).toBeLessThan(0.85);
   });
 
-  it("Tier 7 always ends in a losing season, never a dynasty", () => {
+  it("zero-power floor always ends in a losing season, never a dynasty", () => {
     const rng = mulberry32(5);
     for (let i = 0; i < 200; i++) {
-      const r = resolveOutcome(30, rng);
+      const r = resolveOutcome(0, rng);
       expect(r.outcome).toBe("loss");
       expect(r.isDynasty).toBe(false);
     }
@@ -155,10 +155,12 @@ describe("outcomeOdds ramp (ADR-0026)", () => {
     expect(outcomeOdds(97)).toEqual({ natty: 0.7, semis: 0.22, major: 0.08, minor: 0, loss: 0 });
   });
 
-  it("keeps the stepped rows outside the ramp (Tier4-7 unchanged)", () => {
-    expect(outcomeOdds(77.9)).toEqual({ natty: 0.03, semis: 0.1, major: 0.45, minor: 0.37, loss: 0.05 });
-    expect(outcomeOdds(50)).toEqual({ natty: 0, semis: 0, major: 0, minor: 0.3, loss: 0.7 });
-    expect(outcomeOdds(10)).toEqual({ natty: 0, semis: 0, major: 0, minor: 0, loss: 1 });
+  it("preserves lower-tier anchor odds while interpolating between them", () => {
+    for (const tier of ["Tier4", "Tier5", "Tier6", "Tier7"] as const) {
+      const { min, dynastyChance: _dynasty, ...odds } = SIM_MATRIX[tier];
+      expect(outcomeOdds(min)).toEqual(odds);
+    }
+    expect(outcomeOdds(77.9).semis).toBeGreaterThan(outcomeOdds(70).semis);
   });
 });
 

@@ -57,7 +57,7 @@ interface TierRow {
     RAMP_ANCHORS (see outcomeOdds). Tier1–3's outcome columns below are kept
     equal to outcomeOdds(min) — informational, pinned by a test — while `min`
     still drives labels, the scout-verified badge, Heisman chance, and the
-    Tier0 dynasty gate. Tier4–7 and Tier0 remain real stepped rows. */
+    Tier0 dynasty gate. ADR-0034 also interpolates Tier4–7; Tier0 remains its own row. */
 export const SIM_MATRIX: Record<TierKey, TierRow> = {
   // §12 balance pass (ADR-0016): Tier0 min 96→97; 16-0 stays rare.
   // A 2026-07-14 "Tier1 becomes a 60% title favorite" retune was reversed by
@@ -117,6 +117,11 @@ const oddsOf = (r: {
  * cliff. Retune only with scripts/balance.ts in hand.
  */
 const RAMP_ANCHORS: [number, OutcomeOdds][] = [
+  // ADR-0034: every lower-tier point improves the distribution too.
+  [SIM_MATRIX.Tier7.min, oddsOf(SIM_MATRIX.Tier7)],
+  [SIM_MATRIX.Tier6.min, oddsOf(SIM_MATRIX.Tier6)],
+  [SIM_MATRIX.Tier5.min, oddsOf(SIM_MATRIX.Tier5)],
+  [SIM_MATRIX.Tier4.min, oddsOf(SIM_MATRIX.Tier4)],
   [SIM_MATRIX.Tier3.min, oddsOf(SIM_MATRIX.Tier3)],
   [SIM_MATRIX.Tier2.min, oddsOf(SIM_MATRIX.Tier2)],
   [90, { natty: 0.1, semis: 0.37, major: 0.44, minor: 0.09, loss: 0.0 }],
@@ -126,8 +131,8 @@ const RAMP_ANCHORS: [number, OutcomeOdds][] = [
 
 const OUTCOME_KEYS: Outcome[] = ["natty", "semis", "major", "minor", "loss"];
 
-/** Odds the outcome roll uses. Below the ramp (Tier4-7) and at Tier0 these are
-    the stepped SIM_MATRIX rows; inside 78–96.9 they interpolate (ADR-0026). */
+/** Continuous outcome odds below 97 (ADR-0034); the elite summit keeps
+    ADR-0033's 70% title chance. Labels never create a lower-tier odds cliff. */
 export function outcomeOdds(pFinal: number): OutcomeOdds {
   const floor = RAMP_ANCHORS[0][0];
   const ceil = RAMP_ANCHORS[RAMP_ANCHORS.length - 1][0];

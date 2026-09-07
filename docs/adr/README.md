@@ -77,3 +77,5 @@ What else we weighed and why we rejected it.
 ## Consequences
 What this makes easy, what it makes hard, and the risks we accepted.
 ```
+
+- [0034 — Continuous difficulty, credible stats and effective GM controls](0034-game-quality-and-management-feedback.md)

@@ -60,8 +60,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadData().then(setData, (e) => setError(String(e)));
-  }, []);
+    if (view !== "gm" && !data) loadData().then(setData, (e) => setError(String(e)));
+  }, [view, data]);
+
+  if (view === "gm") {
+    return (
+      <Suspense
+        fallback={
+          <main className="flex min-h-screen items-center justify-center">
+            <p className="font-display text-xl tracking-widest">OPENING THE FRONT OFFICE…</p>
+          </main>
+        }
+      >
+        <GmCabinet onBack={() => setView("draft")} />
+      </Suspense>
+    );
+  }
 
   if (error) {
     return (
@@ -82,19 +96,6 @@ export default function App() {
       <main className="flex min-h-screen items-center justify-center">
         <p className="font-display text-xl tracking-widest">LOADING THE BOARD…</p>
       </main>
-    );
-  }
-  if (view === "gm") {
-    return (
-      <Suspense
-        fallback={
-          <main className="flex min-h-screen items-center justify-center">
-            <p className="font-display text-xl tracking-widest">OPENING THE FRONT OFFICE…</p>
-          </main>
-        }
-      >
-        <GmCabinet onBack={() => setView("draft")} />
-      </Suspense>
     );
   }
   if (view === "guess") {

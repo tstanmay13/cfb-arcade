@@ -17,14 +17,14 @@ export type Lineup = Partial<Record<PosGroup, Player[]>>;
 /** Healthy best-available starters per group; user pins take priority. */
 export function selectLineup(roster: Player[], pins?: number[]): Lineup {
   const healthy = roster.filter((p) => p.inj === 0);
-  const pinned = new Set(pins ?? []);
+  const priority = new Map((pins ?? []).map((id, i) => [id, i]));
   const lineup: Lineup = {};
   for (const [g, n] of LINEUP_COUNTS) {
     lineup[g] = healthy
       .filter((p) => p.g === g)
       .sort(
         (a, b) =>
-          Number(pinned.has(b.id)) - Number(pinned.has(a.id)) || b.ovr - a.ovr,
+          (priority.get(a.id) ?? Infinity) - (priority.get(b.id) ?? Infinity) || b.ovr - a.ovr,
       )
       .slice(0, n);
   }

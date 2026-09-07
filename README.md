@@ -5,7 +5,7 @@ games. Cabinet #1, **The 16-0 Draft**: an "all-era team-building" slot machine
 (a CFB take on 82-0.com) — spin → land a random team+era → draft one legend
 from that roster → fill 8 positions + a head coach → a hidden-OVR power score
 maps to a tier → the tier rolls a probabilistic national-title season → copy a
-Wordle-style result to share. Cabinet #2 is **Guess the Season** (below).
+Wordle-style result to share. Cabinet #2 is **Guess the Season**; cabinet #3 is **CFB-GM**, a persistent dynasty simulator (below).
 
 One static SPA hosts these independent game "cabinets"; they share the design
 system but nothing else. The title screen links between them; each cabinet
@@ -29,7 +29,7 @@ npm run dev        # → http://localhost:5173
 
 Vite + React 18 + TypeScript + Tailwind v4. `vitest` for the engine unit
 tests, mulberry32 for seeded deterministic RNG. **No backend** — the app is a
-static SPA; all data ships as one static `public/data.json`.
+static SPA; each cabinet loads its committed static JSON from `public/`.
 
 ## Data
 
@@ -41,7 +41,7 @@ clean clone never needs to re-bake — it builds against the committed file:
 npm run build:data   # reads ../cfb/cfb.db (override: CFB_DB_PATH), writes public/data.json
 ```
 
-- **2010s + 2020s eras — real data** from the warehouse:
+- **2010–14, 2015–19 and 2020–25 eras — real data** from the warehouse:
   `player_ratings` (`overall` = the game's `hidden_ovr`), real stat lines
   from `player_season_stats`, jerseys from `rosters`, colors from
   `teams`. Seasons 2010–2022 + 2024–25 (2023 pending API quota).
@@ -52,12 +52,12 @@ npm run build:data   # reads ../cfb/cfb.db (override: CFB_DB_PATH), writes publi
   2010–2015 defensive stats can't rate (Cam Newton, Joey Bosa…), plus all
   coaches (CFBD has no coach data).
 
-Current coverage: **68 programs, 136 team/era cells, 3,624 players, 123 coaches**
+Current coverage: **68 programs, 204 team/era cells, 4,094 players, 180 coaches**
 (all Power-conference teams — SEC/Big Ten/Big 12/ACC + Notre Dame, ADR-0024). The
 18 original blue-bloods are fully hand-authored in `scripts/content/*.json`; the
 ~50 expansion programs are identity + coach stubs whose modern rosters and branding
 are pulled from the warehouse at bake. Expand by adding another `scripts/content/*.json`
-file (full or stub) and re-baking; both real eras come along automatically.
+file (full or stub) and re-baking; the real era windows come along automatically. Cards with no recorded production are excluded from the playable bake (ADR-0034).
 
 The running game never touches a database or API for game data — design
 pillar #4. The one deliberate exception is **global stats** (ADR-0019): on
@@ -112,10 +112,23 @@ conference from `teams`, and a star-player hint (top-rated real player) from
 (ADR-0017). Seasons with <6 completed games or no rated star are skipped; 2023
 is absent (API quota) and COVID-short 2020 slates are kept as fun puzzles.
 
+## CFB-GM (arcade cabinet #3)
+
+Open `/gm` to manage a program across seasons: play drive by drive or fast-sim,
+set starters, develop players, recruit, retain your core, compete in five transfer
+rounds, and hire staff. The eight-week offseason calendar guides the work and
+shows the shared stamina budget. The Stats tab compares national, conference and
+team leaders, with player cards for career history and attributes.
+
+Dynasties autosave locally in IndexedDB with export/import backups. A failed save
+shows a retry action and keeps the latest changes in memory. Historical starts
+support 2010–2026 except 2014 and 2023, whose data coverage is insufficient.
+
 ## Tests & verification
 
 ```bash
-npm test                                 # vitest: all engine unit tests
+npm test                                 # vitest: engines, bake integrity, 50-year GM soak
+node --no-warnings scripts/verify-gm.ts    <baseUrl> <outDir>  # GM decisions, save recovery + rollover
 node --no-warnings scripts/screenshot.ts        <baseUrl> <outDir>  # drive a 16-0 Draft run
 node --no-warnings scripts/screenshot-guess.ts  <baseUrl> <outDir>  # drive a Guess win + loss
 ```

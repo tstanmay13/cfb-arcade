@@ -471,7 +471,12 @@ function main(): void {
     );
   }
 
-  const players = [...modern, ...authoredKept];
+  // ADR-0034: an unrated stat line gives Classic players no evidence for a
+  // decision and produces a fictional all-zero season. Keep the source in
+  // the warehouse, but do not offer an unsupported card in the live draft.
+  const candidates = [...modern, ...authoredKept];
+  const players = candidates.filter(p => Object.values(p.stats).some(v => v !== 0));
+  console.log(`  excluded ${candidates.length - players.length} cards without recorded production`);
 
   // Anti-inflation recalibration (ADR-0016): quantile-remap hidden_ovr per
   // position so §4.5 scarcity holds within the DRAFT POOL (rank-preserving —

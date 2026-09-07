@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { PerformanceCategory } from "../data/types.ts";
 import { PLAYER_SLOTS, STAT_LABELS, STAT_LABELS_SHORT } from "../data/types.ts";
 import { POSITION_AWARD_LABELS } from "../engine/awards.ts";
+import { outcomeOdds } from "../engine/sim.ts";
 import { buildShareText } from "../engine/share.ts";
 import { useGame } from "../state/store.tsx";
 import { RegularGameChip, PlayoffGameChip } from "./GameChip.tsx";
@@ -44,6 +45,7 @@ export default function ResultsScreen() {
   const r = state.resolved!;
   const banner = OUTCOME_BANNER[r.outcome];
   const champs = r.outcome === "natty";
+  const odds = outcomeOdds(r.power);
   const [copied, setCopied] = useState(false);
 
   // §10: Wordle-style text summary → clipboard (works everywhere, no render).
@@ -97,7 +99,7 @@ export default function ResultsScreen() {
             <p className="text-[10px] uppercase tracking-widest opacity-60">Final record</p>
           </div>
           <div>
-            <p className="font-display text-4xl tabular-nums sm:text-5xl">{Math.round(r.power)}</p>
+            <p className="font-display text-4xl tabular-nums sm:text-5xl">{r.power.toFixed(1)}</p>
             <p className="text-[10px] uppercase tracking-widest opacity-60">Team OVR</p>
           </div>
           <div>
@@ -106,6 +108,18 @@ export default function ResultsScreen() {
           </div>
         </div>
       </header>
+
+      <section className="w-full rounded-xl border border-paper-edge bg-white/60 p-4" aria-label="Season outlook">
+        <h2 className="font-display text-xs tracking-widest">WHAT THIS ROSTER EARNED</h2>
+        <dl className="mt-3 grid grid-cols-3 gap-3 text-center">
+          {[ ["National title", odds.natty], ["Semifinal or better", odds.natty + odds.semis],
+            ["Make the playoff", odds.natty + odds.semis + odds.major] ].map(([label, chance]) => (
+            <div key={label}><dd className="font-display text-xl">{(Number(chance) * 100).toFixed(1)}%</dd>
+              <dt className="text-[10px] uppercase tracking-wide opacity-60">{label}</dt></div>
+          ))}
+        </dl>
+        <p className="mt-3 text-xs opacity-65">These were your chances before the season. Better rosters improve the odds; even favorites can be upset. Season stats below are simulated from each player's historical line.</p>
+      </section>
 
       {/* Regular Season Games */}
       <section className="w-full">

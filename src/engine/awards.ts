@@ -85,9 +85,39 @@ export function fluffPlayerStats(player: Player, rng: Rng): FluffedPlayer {
   let sum = 0;
   for (const k of keys) {
     const f = calculateStatFluff(player.stats[k], rng);
-    stats[k] = f.value;
+    // A good QB season means fewer picks; negative rushing yards should
+    // move toward zero when performance improves, not farther below it.
+    const base = player.stats[k];
+    const lowerIsBetter = player.primary_position === "QB" && k === "stat_3";
+    const delta = Math.abs(base) * (f.appliedModifier - 1);
+    const value = base + (lowerIsBetter ? -delta : delta);
+    const ratio = (player.primary_position === "QB" && k === "stat_5") ||
+      (player.primary_position === "RB" && k === "stat_3") ||
+      (player.primary_position === "WR" && k === "stat_4");
+    const halfCredit = ((player.primary_position === "DL" || player.primary_position === "LB") &&
+      (k === "stat_2" || k === "stat_3")) ||
+      ((player.primary_position === "CB" || player.primary_position === "S") && k === "stat_5");
+    stats[k] = ratio ? Math.round(value * 10) / 10 : halfCredit ? Math.round(value * 2) / 2 : Math.round(value);
     max = Math.max(max, f.appliedModifier);
     sum += f.appliedModifier;
+  }
+  // Keep the cosmetic season internally possible. Count/ratio relationships
+  // are derived after the rolls; no extra random draws or simulation inputs.
+  if (player.primary_position === "QB") {
+    stats.stat_3 = Math.max(0, stats.stat_3);
+    stats.stat_5 = Math.min(100, Math.max(0, stats.stat_5));
+  }
+  if (player.primary_position === "WR") {
+    stats.stat_3 = Math.min(stats.stat_1, stats.stat_3);
+    stats.stat_4 = stats.stat_1 > 0 ? Math.round(stats.stat_2 / stats.stat_1 * 10) / 10 : 0;
+    stats.stat_5 = Math.min(99, stats.stat_2, Math.max(Math.ceil(stats.stat_4), stats.stat_5));
+  }
+  if (player.primary_position === "DL" || player.primary_position === "LB") {
+    stats.stat_2 = Math.min(stats.stat_1, stats.stat_2);
+    stats.stat_3 = Math.min(stats.stat_2, stats.stat_3);
+  }
+  if (player.primary_position === "CB" || player.primary_position === "S") {
+    stats.stat_5 = Math.min(stats.stat_1, stats.stat_5);
   }
   const avgModifier = sum / 5;
   return { stats, computedModifier: max, performance: categorizePerformance(avgModifier) };

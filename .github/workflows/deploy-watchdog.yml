@@ -1,0 +1,62 @@
+name: production-deploy-watchdog
+
+# Vercel's GitHub integration deploys main automatically — normally. The
+# 2026-07-16 merge of PR #8 showed the webhook can drop silently (previews
+# built, production never started, and the site kept serving the old game).
+# This watchdog runs on every push to main, gives the native integration five
+# minutes to show up, and deploys from CI only if the commit never reached
+# production — so a merge is ALWAYS live within minutes, webhook or not.
+#
+# Manual deploys: Actions tab → production-deploy-watchdog → Run workflow
+# (force=true skips the wait and deploys main's HEAD unconditionally).
+#
+# Secrets: VERCEL_TOKEN (deploy token), VERCEL_ORG_ID, VERCEL_PROJECT_ID.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Deploy even if Vercel already deployed this commit"
+        type: boolean
+        default: false
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  ensure-production:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+
+      - name: Wait for Vercel's native auto-deploy (up to 5 minutes)
+        id: native
+        if: ${{ github.event.inputs.force != 'true' }}
+        run: |
+          for i in $(seq 1 10); do
+            resp=$(curl -s -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+              "https://api.vercel.com/v6/deployments?projectId=$VERCEL_PROJECT_ID&teamId=$VERCEL_ORG_ID&target=production&limit=20" || echo '{}')
+            found=$(echo "$resp" | jq -r --arg sha "$GITHUB_SHA" \
+              '[.deployments[]? | select(.meta.githubCommitSha == $sha)] | length')
+            if [ "${found:-0}" -gt 0 ]; then
+              echo "Native integration picked up $GITHUB_SHA — nothing to do."
+              echo "deployed=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "No production deployment for $GITHUB_SHA after 5 minutes — deploying from CI."
+          echo "deployed=false" >> "$GITHUB_OUTPUT"
+
+      - name: Fallback deploy to production
+        if: ${{ steps.native.outputs.deployed != 'true' }}
+        run: npx vercel@56 deploy --prod --yes --token "${{ secrets.VERCEL_TOKEN }}"
